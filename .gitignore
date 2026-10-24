@@ -1,0 +1,12 @@
+# Abaikan virtual environment python jika ada
+venv/
+.venv/
+__pycache__/
+
+# Abaikan node_modules di frontend maupun backend
+node_modules/
+dist/
+
+# System / IDE
+.DS_Store
+.vscode/
