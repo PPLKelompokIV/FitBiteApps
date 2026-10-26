@@ -48,3 +48,38 @@ def calculate_bmr(data: BMRRequest):
             berat_kg=data.berat_kg,
         )
     }
+
+
+TingkatAktivitas = Literal["sedentari", "ringan", "sedang", "aktif", "sangat_aktif"]
+
+FAKTOR_AKTIVITAS: dict[TingkatAktivitas, float] = {
+    "sedentari": 1.2,
+    "ringan": 1.375,
+    "sedang": 1.55,
+    "aktif": 1.725,
+    "sangat_aktif": 1.9,
+}
+
+
+class TDEERequest(BaseModel):
+    bmr_kcal_per_hari: float = Field(gt=0, le=10000)
+    tingkat_aktivitas: TingkatAktivitas
+
+
+def hitung_tdee(bmr_kcal_per_hari: float, tingkat_aktivitas: TingkatAktivitas) -> float:
+    """Hitung TDEE dengan mengalikan BMR dan faktor aktivitas."""
+    return round(bmr_kcal_per_hari * FAKTOR_AKTIVITAS[tingkat_aktivitas], 1)
+
+
+@app.post("/tdee")
+def calculate_tdee(data: TDEERequest):
+    faktor_aktivitas = FAKTOR_AKTIVITAS[data.tingkat_aktivitas]
+    return {
+        "bmr_kcal_per_hari": data.bmr_kcal_per_hari,
+        "tingkat_aktivitas": data.tingkat_aktivitas,
+        "faktor_aktivitas": faktor_aktivitas,
+        "tdee_kcal_per_hari": hitung_tdee(
+            data.bmr_kcal_per_hari,
+            data.tingkat_aktivitas,
+        ),
+    }
