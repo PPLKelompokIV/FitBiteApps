@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { AdministratorNavigationSection } from './AdministratorNavigationSection';
+import { AdminPageHeader } from './AdminPageHeader';
+import { AdminSummaryCards } from './AdminSummaryCards';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Verifikasi = 'Terverifikasi' | 'Perlu tinjau';
-type TabKey = 'katalog' | 'aktivitas' | 'akun';
+type AdminTab = 'katalog' | 'aktivitas';
 
 interface Food {
   id: number;
@@ -32,21 +35,6 @@ interface FoodForm {
   verifikasi: Verifikasi;
 }
 
-interface ActivityPreview {
-  id: number;
-  nama: string;
-  met: string;
-}
-
-interface UserPreview {
-  id: number;
-  nama: string;
-  email: string;
-  dibuat: string;
-  akses: string;
-  aktif: boolean;
-}
-
 // ─── Seed Data ────────────────────────────────────────────────────────────────
 
 const SUMBER_DEFAULT = 'Referensi internal v1 (contoh)';
@@ -61,29 +49,9 @@ const SEED_FOODS: Food[] = [
   { id: 7, nama: 'Yoghurt tawar', kategori: 'Susu & olahan', basis: 100, kkal: 60, protein: 6.7, karbo: 5, lemak: 1.5, sumber: SUMBER_DEFAULT, verifikasi: 'Perlu tinjau', aktif: true },
 ];
 
-const SEED_ACTIVITY_PREVIEW: ActivityPreview[] = [
-  { id: 1, nama: 'Jalan kaki sedang', met: '3,5' },
-  { id: 2, nama: 'Lari santai', met: '7,0' },
-  { id: 3, nama: 'Bersepeda intens', met: '6,0' },
-  { id: 4, nama: 'Yoga', met: '2,5' },
-];
-
-const SEED_USER_PREVIEW: UserPreview[] = [
-  { id: 1, nama: 'Nadia Putri', email: 'nadia.putri@email.com', dibuat: '5 Okt 2026', akses: '19 Okt, 18.30', aktif: true },
-  { id: 2, nama: 'Dewi Lestari', email: 'dewi.l@email.com', dibuat: '8 Okt 2026', akses: '19 Okt, 09.10', aktif: true },
-  { id: 3, nama: 'Andi Saputra', email: 'andi.s@email.com', dibuat: '10 Okt 2026', akses: '15 Okt, 17.20', aktif: false },
-];
-
 const KATEGORI_LIST = ['Serealia', 'Lauk hewani', 'Lauk nabati', 'Buah', 'Susu & olahan'];
 const VERIFIKASI_LIST: Verifikasi[] = ['Terverifikasi', 'Perlu tinjau'];
 const STATUS_LIST = ['Aktif', 'Nonaktif', 'Semua'];
-
-const STATS = [
-  { label: 'Makanan dalam katalog', value: '126', sub: '118 aktif • 8 nonaktif', icon: 'fork', highlight: false },
-  { label: 'Referensi terverifikasi', value: '112', sub: '14 menunggu tinjauan', icon: 'check', highlight: true },
-  { label: 'Aktivitas & MET', value: '18', sub: '6 kategori aktivitas utama', icon: 'activity', highlight: false },
-  { label: 'Akun pengguna', value: '248', sub: '240 aktif • 8 nonaktif', icon: 'users', highlight: false },
-];
 
 const VERIFIKASI_BADGE: Record<Verifikasi, string> = {
   Terverifikasi: 'bg-green-100 text-green-700',
@@ -104,8 +72,6 @@ const gridStyle = (cols: string): React.CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: cols,
 });
-
-const ACT_GRID: React.CSSProperties = gridStyle('minmax(0, 1fr) 56px 80px 28px');
 
 const useMediaQuery = (query: string): boolean => {
   const [matches, setMatches] = useState<boolean>(() =>
@@ -147,17 +113,6 @@ const toForm = (f: Food): FoodForm => ({
   verifikasi: f.verifikasi,
 });
 
-const readActivityPreview = (): ActivityPreview[] => {
-  try {
-    const saved = localStorage.getItem('fitbite_activities');
-    if (!saved) return SEED_ACTIVITY_PREVIEW;
-    const list = JSON.parse(saved) as ActivityPreview[];
-    return list.length ? list.slice(0, 4) : SEED_ACTIVITY_PREVIEW;
-  } catch {
-    return SEED_ACTIVITY_PREVIEW;
-  }
-};
-
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 const Svg: React.FC<{ size?: number; sw?: number; children: React.ReactNode }> = ({ size = 16, sw = 1.8, children }) => (
@@ -184,9 +139,6 @@ const IconPlus = () => (
 const IconTick = () => (
   <Svg size={16} sw={2.2}><path d="M5 12.5l4.5 4.5L19 7.5" /></Svg>
 );
-const IconArrow = () => (
-  <Svg size={14} sw={2.2}><path d="M5 12h14M13 6l6 6-6 6" /></Svg>
-);
 const IconScale = () => (
   <Svg size={16}>
     <path d="M12 3v18M7 21h10" />
@@ -195,32 +147,10 @@ const IconScale = () => (
   </Svg>
 );
 
-const StatIcon: React.FC<{ name: string }> = ({ name }) => {
-  if (name === 'fork')
-    return (
-      <Svg size={18}>
-        <path d="M6 3v7a2 2 0 0 0 2 2v9" /><path d="M4 3v6M10 3v6M8 3v9" /><path d="M17 21V3c-2.5 1-4 3.5-4 7 0 2 1 3 4 3" />
-      </Svg>
-    );
-  if (name === 'check')
-    return (
-      <Svg size={18}><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></Svg>
-    );
-  if (name === 'activity')
-    return (
-      <Svg size={18}><path d="M3 12h4l3-8 4 16 3-8h4" /></Svg>
-    );
-  return (
-    <Svg size={18}>
-      <circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.6-3.5 3.2-5.5 6.5-5.5s5.9 2 6.5 5.5" /><path d="M16 4.7a3.5 3.5 0 0 1 0 6.6" /><path d="M18 14.8c2 .7 3.2 2.5 3.5 5.2" />
-    </Svg>
-  );
-};
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const AdminPengelolaan: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('katalog');
+  const [activeTab, setActiveTab] = useState<AdminTab>('katalog');
   const [foods, setFoods] = useState<Food[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -229,8 +159,6 @@ const AdminPengelolaan: React.FC = () => {
   const [formData, setFormData] = useState<FoodForm>(EMPTY_FORM);
   const [isAddMode, setIsAddMode] = useState(false);
   const [currentItem, setCurrentItem] = useState<Food | null>(null);
-  const [activityPreview, setActivityPreview] = useState<ActivityPreview[]>(SEED_ACTIVITY_PREVIEW);
-
   const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   const saveFoods = (updated: Food[]): void => {
@@ -253,7 +181,6 @@ const AdminPengelolaan: React.FC = () => {
         setCurrentItem(list[0]);
         setFormData(toForm(list[0]));
       }
-      setActivityPreview(readActivityPreview());
       setLoading(false);
     }
   };
@@ -264,7 +191,6 @@ const AdminPengelolaan: React.FC = () => {
     setFormData(prev => ({ ...prev, [key]: value }));
 
   const handleAddNew = (): void => {
-    setTab('katalog');
     setIsAddMode(true);
     setCurrentItem(null);
     setFormData(EMPTY_FORM);
@@ -336,138 +262,16 @@ const AdminPengelolaan: React.FC = () => {
     return matchSearch && matchKategori && matchStatus;
   });
 
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: 'katalog', label: 'Katalog makanan' },
-    { key: 'aktivitas', label: 'Aktivitas & MET' },
-    { key: 'akun', label: 'Akun pengguna' },
-  ];
-
-  const breadcrumbLabel =
-    tab === 'katalog' ? 'Katalog makanan' : tab === 'aktivitas' ? 'Aktivitas & MET' : 'Akun pengguna';
-
   const inputCls =
     'w-full text-sm border border-[#d0dbd5] rounded-lg px-3 py-2 outline-none focus:border-[#124b39] bg-white';
   const labelCls = 'text-xs font-medium text-[#4a7060]';
-
-  // ── Kartu pratinjau ──
-  const ActivityCard = ({ preview }: { preview: boolean }) => (
-    <section className="bg-white rounded-2xl border border-[#e1e7df] p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-bold text-[#1d2926]">Aktivitas &amp; MET</h2>
-          <p className="text-xs text-[#6b8c7a] mt-0.5">
-            {preview ? 'Pratinjau tab • ' : ''}referensi estimasi pembakaran
-          </p>
-        </div>
-        {preview && (
-          <button
-            type="button"
-            onClick={() => setTab('aktivitas')}
-            className="flex items-center gap-1 text-xs font-semibold text-[#124b39] hover:underline whitespace-nowrap"
-          >
-            Buka katalog <IconArrow />
-          </button>
-        )}
-      </div>
-
-      <div
-        style={ACT_GRID}
-        className="mt-4 items-center gap-2 border-b border-[#e1e7df] pb-2 text-[11px] uppercase tracking-wide text-[#6b8c7a]"
-      >
-        <span>Aktivitas</span>
-        <span className="text-right">MET</span>
-        <span className="text-center">Status</span>
-        <span />
-      </div>
-      {activityPreview.map(a => (
-        <div key={a.id} style={ACT_GRID} className="items-center gap-2 py-3 text-sm">
-          <span className="font-medium">{a.nama}</span>
-          <span className="text-right font-mono">{a.met}</span>
-          <span className="text-center">
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">Aktif</span>
-          </span>
-          <span className="text-[#124b39]"><IconPencil /></span>
-        </div>
-      ))}
-
-      <p className="border-t border-[#e1e7df] mt-1 pt-3 text-xs text-[#6b8c7a] leading-relaxed">
-        Estimasi kkal = MET × 3,5 × berat (kg) ÷ 200 × menit. Admin mengelola MET, bukan berat pengguna.
-      </p>
-      <button
-        type="button"
-        className="mt-3 w-full flex items-center justify-center gap-2 border border-[#d0dbd5] text-[#124b39] text-sm font-medium py-2 rounded-lg hover:bg-[#f0f5f2] transition-colors"
-      >
-        <IconPlus /> Tambah aktivitas
-      </button>
-    </section>
-  );
-
-  const UserCard = ({ preview }: { preview: boolean }) => (
-    <section className="bg-white rounded-2xl border border-[#e1e7df] p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-bold text-[#1d2926]">Akun pengguna</h2>
-          <p className="text-xs text-[#6b8c7a] mt-0.5">{preview ? 'Pratinjau tab • ' : ''}metadata akun saja</p>
-        </div>
-        {preview && (
-          <button
-            type="button"
-            onClick={() => setTab('akun')}
-            className="flex items-center gap-1 text-xs font-semibold text-[#124b39] hover:underline whitespace-nowrap"
-          >
-            Lihat akun <IconArrow />
-          </button>
-        )}
-      </div>
-
-      <div className="mt-2">
-        {SEED_USER_PREVIEW.map(u => (
-          <div key={u.id} className="border-b border-[#e1e7df] py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">{u.nama}</span>
-              <span
-                className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  u.aktif ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                }`}
-              >
-                {u.aktif ? 'Aktif' : 'Nonaktif'}
-              </span>
-            </div>
-            <p className="text-xs text-[#6b8c7a] mt-0.5">{u.email}</p>
-            <div className="flex justify-between text-[11px] text-[#8aa395] mt-2">
-              <span>Pengguna • Dibuat {u.dibuat}</span>
-              <span>Akses {u.akses}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <p className="pt-3 text-xs text-[#6b8c7a] leading-relaxed">
-        Kontrol akun: cari, filter status, ubah status aktif/nonaktif. Tidak ada akses ke data kesehatan atau isi
-        jurnal.
-      </p>
-    </section>
-  );
 
   return (
     <div className="flex h-screen items-start overflow-hidden bg-[#f6f7f2] text-[#1d2926]">
       <AdministratorNavigationSection />
 
       <main className="flex-1 min-w-0 h-screen overflow-y-auto flex flex-col">
-        {/* Topbar */}
-        <header className="flex items-center justify-between px-8 py-4 border-b border-[#e1e7df] bg-white">
-          <nav className="flex items-center gap-2 text-xs text-[#6b8c7a]" aria-label="Breadcrumb">
-            <span>Pengelolaan</span>
-            <span aria-hidden="true">›</span>
-            <span className="font-semibold text-[#1d2926]">{breadcrumbLabel}</span>
-          </nav>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] px-2.5 py-1 rounded-full bg-[#eaf0e8] text-[#4a7060]">Data contoh</span>
-            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-100 text-[#124b39]">
-              Akses terbatas
-            </span>
-          </div>
-        </header>
+        <AdminPageHeader currentPage="Katalog makanan" />
 
         <div className="flex flex-col gap-5 p-8">
           {/* Hero */}
@@ -492,32 +296,13 @@ const AdminPengelolaan: React.FC = () => {
           <div className="flex items-center gap-2 bg-[#eaf3e9] text-[#124b39] text-xs rounded-lg px-4 py-2.5">
             <IconShield />
             <span>
-              Batas akses admin: katalog makanan, aktivitas &amp; MET, serta metadata akun. Berat badan, profil
-              kesehatan, foto, dan jurnal pribadi tidak tersedia di area ini.
+              Area ini khusus mengelola referensi katalog makanan. Profil kesehatan, foto, dan jurnal pribadi
+              pengguna tidak tersedia di area ini.
             </span>
           </div>
 
           {/* Stats */}
-          <div
-            className="gap-4"
-            style={gridStyle(isDesktop ? 'repeat(4, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))')}
-          >
-            {STATS.map(s => (
-              <div
-                key={s.label}
-                className={`rounded-2xl border px-5 py-4 ${
-                  s.highlight ? 'bg-[#eaf3e9] border-[#cfe2d3]' : 'bg-white border-[#e1e7df]'
-                }`}
-              >
-                <div className="flex items-center justify-between text-xs text-[#6b8c7a]">
-                  <span>{s.label}</span>
-                  <span className="text-[#124b39]"><StatIcon name={s.icon} /></span>
-                </div>
-                <p className="text-3xl font-semibold tracking-tight mt-3">{s.value}</p>
-                <p className="text-xs text-[#6b8c7a] mt-1.5">{s.sub}</p>
-              </div>
-            ))}
-          </div>
+          <AdminSummaryCards />
 
           {/* Tabs */}
           <div
@@ -525,26 +310,44 @@ const AdminPengelolaan: React.FC = () => {
             className="bg-[#eaf3e9] rounded-xl p-1"
             style={gridStyle('repeat(3, minmax(0, 1fr))')}
           >
-            {tabs.map(t => (
-              <button
-                key={t.key}
-                role="tab"
-                aria-selected={tab === t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className={`py-2 text-sm rounded-lg transition-colors ${
-                  tab === t.key
-                    ? 'bg-white font-bold text-[#124b39] shadow-sm'
-                    : 'text-[#4a7060] hover:bg-white/50'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+            <Link
+              to="/admin/pengelolaan"
+              role="tab"
+              aria-selected={activeTab === 'katalog'}
+              aria-current="page"
+              onClick={() => setActiveTab('katalog')}
+              className={`py-2 text-center text-sm rounded-lg ${
+                activeTab === 'katalog'
+                  ? 'bg-white font-bold text-[#124b39] shadow-sm'
+                  : 'text-[#4a7060] hover:bg-white/50'
+              }`}
+            >
+              Katalog makanan
+            </Link>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'aktivitas'}
+              onClick={() => setActiveTab('aktivitas')}
+              className={`py-2 text-center text-sm rounded-lg ${
+                activeTab === 'aktivitas'
+                  ? 'bg-white font-bold text-[#124b39] shadow-sm'
+                  : 'text-[#4a7060] hover:bg-white/50'
+              }`}
+            >
+              Aktivitas &amp; MET
+            </button>
+            <Link
+              to="/admin/pantau"
+              role="tab"
+              aria-selected="false"
+              className="py-2 text-center text-sm rounded-lg text-[#4a7060] hover:bg-white/50"
+            >
+              Akun pengguna
+            </Link>
           </div>
 
-          {/* Tab: Katalog */}
-          {tab === 'katalog' && (
+          {/* Tab: Katalog makanan */}
             <div
               className="gap-6"
               style={{
@@ -797,25 +600,6 @@ const AdminPengelolaan: React.FC = () => {
                 </div>
               </div>
             </div>
-          )}
-
-          {/* Tab: Aktivitas & Akun (tampilan penuh) */}
-          {tab === 'aktivitas' && <div className="max-w-2xl"><ActivityCard preview={false} /></div>}
-          {tab === 'akun' && <div className="max-w-2xl"><UserCard preview={false} /></div>}
-
-          {/* Pratinjau di bawah katalog */}
-          {tab === 'katalog' && (
-            <div
-              className="gap-6"
-              style={{
-                ...gridStyle(isDesktop ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1fr)'),
-                alignItems: 'start',
-              }}
-            >
-              <ActivityCard preview />
-              <UserCard preview />
-            </div>
-          )}
         </div>
 
         <footer className="mt-auto flex items-center justify-between px-8 pb-6 text-xs text-[#6b8c7a]">

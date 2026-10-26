@@ -1,6 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { Masuk } from './Login';
 import Daftar from './Register';
+import BodyCheckPagi from './Body Check Pagi/bodycheckpagi';
+import FotoAiTinjauHasil from './FotoAi';
 import AdminPantauAkun from './Admin/AdminPantau';
 import AdminPengelolaan from './Admin/AdminPengelolaan';
 import ActivitiesPage from './Admin/ActivitiesPage';
@@ -12,6 +14,8 @@ function App() {
       <Route path="/" element={<Masuk />} />
       <Route path="/login" element={<Masuk />} />
       <Route path="/register" element={<Daftar />} />
+      <Route path="/bodycheckpagi" element={<BodyCheckPagi />} />
+      <Route path="/foto-ai" element={<FotoAiTinjauHasil />} />
       <Route path="/admin/pantau" element={<AdminPantauAkun />} />
       <Route path="/admin/pengelolaan" element={<AdminPengelolaan />} />
       <Route path="/admin/aktivitas" element={<ActivitiesPage />} />

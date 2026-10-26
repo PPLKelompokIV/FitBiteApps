@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import identitasFitbite from "../assets/Identitas FitBite.png";
 import {
   LayoutDashboard,
@@ -11,40 +11,38 @@ import {
   User,
   LogOut,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-// Item tanpa `path` belum punya halaman, jadi belum berpindah saat diklik.
-const navigationItems = [
+const navigationItems: { label: string; icon: LucideIcon; to?: string }[] = [
   {
     label: "Ringkasan",
     icon: LayoutDashboard,
-    path: undefined as string | undefined,
   },
   {
     label: "Katalog makanan",
     icon: Utensils,
-    path: "/admin/pengelolaan" as string | undefined,
+    to: "/admin/pengelolaan",
   },
   {
     label: "Aktivitas & MET",
     icon: Activity,
-    path: "/admin/aktivitas" as string | undefined,
+    to: "/admin/aktivitas",
   },
   {
     label: "Akun pengguna",
     icon: Users,
-    path: "/admin/pantau" as string | undefined,
+    to: "/admin/pantau",
   },
   {
     label: "Log pengelolaan",
     icon: FileText,
-    path: undefined as string | undefined,
   },
 ];
 
 export const AdministratorNavigationSection = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [activeItem, setActiveItem] = useState("");
   const [isSignedOut, setIsSignedOut] = useState(false);
+  const location = useLocation();
 
   const handleSignOut = () => {
     setIsSignedOut(true);
@@ -64,28 +62,44 @@ export const AdministratorNavigationSection = () => {
           RUANG ADMINISTRATOR
         </div>
         {navigationItems.map((item) => {
-          const isActive = !!item.path && location.pathname === item.path;
+          const isActive = item.to
+            ? location.pathname === item.to
+            : activeItem === item.label;
           const Icon = item.icon;
 
-          return (
+          return item.to ? (
+            <Link
+              key={item.label}
+              to={item.to}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex items-center gap-2.5 px-[11px] py-3 relative self-stretch w-full flex-[0_0_auto] rounded-[10px] overflow-hidden text-left transition-colors ${isActive ? "bg-[#2d644e]" : "hover:bg-[#1a5b46]"
+                }`}
+            >
+              <Icon className="w-[19px] h-[19px] text-white shrink-0" />
+              <span
+                className={`relative flex-1 mt-[-0.50px] ${isActive
+                  ? "[font-family:'Inter-Bold',Helvetica] font-bold"
+                  : "[font-family:'Inter-Medium',Helvetica] font-medium"
+                  } text-white text-xs tracking-[0] leading-[18px]`}
+              >
+                {item.label}
+              </span>
+            </Link>
+          ) : (
             <button
               key={item.label}
               type="button"
               aria-current={isActive ? "page" : undefined}
-              onClick={() => {
-                if (item.path) navigate(item.path);
-              }}
-              className={`flex items-center gap-2.5 px-[11px] py-3 relative self-stretch w-full flex-[0_0_auto] rounded-[10px] overflow-hidden text-left transition-colors ${
-                isActive ? "bg-[#2d644e]" : "hover:bg-[#1a5b46]"
-              }`}
+              onClick={() => setActiveItem(item.label)}
+              className={`flex items-center gap-2.5 px-[11px] py-3 relative self-stretch w-full flex-[0_0_auto] rounded-[10px] overflow-hidden text-left transition-colors ${isActive ? "bg-[#2d644e]" : "hover:bg-[#1a5b46]"
+                }`}
             >
               <Icon className="w-[19px] h-[19px] text-white shrink-0" />
               <span
-                className={`relative flex-1 mt-[-0.50px] ${
-                  isActive
-                    ? "[font-family:'Inter-Bold',Helvetica] font-bold"
-                    : "[font-family:'Inter-Medium',Helvetica] font-medium"
-                } text-white text-xs tracking-[0] leading-[18px]`}
+                className={`relative flex-1 mt-[-0.50px] ${isActive
+                  ? "[font-family:'Inter-Bold',Helvetica] font-bold"
+                  : "[font-family:'Inter-Medium',Helvetica] font-medium"
+                  } text-white text-xs tracking-[0] leading-[18px]`}
               >
                 {item.label}
               </span>
