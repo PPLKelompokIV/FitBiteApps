@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import identitasFitbite from "../assets/Identitas FitBite.png";
 import {
   LayoutDashboard,
@@ -11,32 +12,38 @@ import {
   LogOut,
 } from "lucide-react";
 
+// Item tanpa `path` belum punya halaman, jadi belum berpindah saat diklik.
 const navigationItems = [
   {
     label: "Ringkasan",
     icon: LayoutDashboard,
+    path: undefined as string | undefined,
   },
   {
     label: "Katalog makanan",
     icon: Utensils,
+    path: "/admin/pengelolaan" as string | undefined,
   },
   {
     label: "Aktivitas & MET",
     icon: Activity,
+    path: "/admin/aktivitas" as string | undefined,
   },
   {
     label: "Akun pengguna",
     icon: Users,
-    active: true,
+    path: "/admin/pantau" as string | undefined,
   },
   {
     label: "Log pengelolaan",
     icon: FileText,
+    path: undefined as string | undefined,
   },
 ];
 
 export const AdministratorNavigationSection = () => {
-  const [activeItem, setActiveItem] = useState("Akun pengguna");
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isSignedOut, setIsSignedOut] = useState(false);
 
   const handleSignOut = () => {
@@ -57,7 +64,7 @@ export const AdministratorNavigationSection = () => {
           RUANG ADMINISTRATOR
         </div>
         {navigationItems.map((item) => {
-          const isActive = activeItem === item.label;
+          const isActive = !!item.path && location.pathname === item.path;
           const Icon = item.icon;
 
           return (
@@ -65,7 +72,9 @@ export const AdministratorNavigationSection = () => {
               key={item.label}
               type="button"
               aria-current={isActive ? "page" : undefined}
-              onClick={() => setActiveItem(item.label)}
+              onClick={() => {
+                if (item.path) navigate(item.path);
+              }}
               className={`flex items-center gap-2.5 px-[11px] py-3 relative self-stretch w-full flex-[0_0_auto] rounded-[10px] overflow-hidden text-left transition-colors ${
                 isActive ? "bg-[#2d644e]" : "hover:bg-[#1a5b46]"
               }`}
