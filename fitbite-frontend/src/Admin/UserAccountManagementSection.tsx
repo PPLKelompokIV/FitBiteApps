@@ -1,11 +1,8 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   ChevronRight,
   ShieldCheck,
-  Utensils,
-  CheckCircle2,
-  Activity,
-  Users,
   Search,
   ChevronDown,
   Info,
@@ -14,6 +11,8 @@ import {
   Eye,
   SearchX,
 } from "lucide-react";
+import { AdminPageHeader } from "./AdminPageHeader";
+import { AdminSummaryCards } from "./AdminSummaryCards";
 
 type User = {
   name: string;
@@ -83,37 +82,6 @@ const users: User[] = [
   },
 ];
 
-const metrics = [
-  {
-    label: "Makanan dalam katalog",
-    value: "126",
-    description: "118 aktif • 8 nonaktif",
-    icon: Utensils,
-    highlighted: false,
-  },
-  {
-    label: "Referensi terverifikasi",
-    value: "112",
-    description: "14 menunggu tinjauan",
-    icon: CheckCircle2,
-    highlighted: true,
-  },
-  {
-    label: "Aktivitas & MET",
-    value: "18",
-    description: "6 kategori aktivitas utama",
-    icon: Activity,
-    highlighted: false,
-  },
-  {
-    label: "Akun pengguna",
-    value: "248",
-    description: "240 aktif • 8 nonaktif",
-    icon: Users,
-    highlighted: false,
-  },
-];
-
 const detailFields = [
   ["ID akun", "FB-U-0001"],
   ["Nama lengkap", "Nadia Putri"],
@@ -133,8 +101,7 @@ export const UserAccountManagementSection = () => {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Semua status");
   const [selectedUser, setSelectedUser] = useState<User>(users[0]);
-  const [activeTab, setActiveTab] = useState("Akun pengguna");
-
+  const [activeTab, setActiveTab] = useState<"aktivitas" | "akun">("akun");
   const filteredUsers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -156,36 +123,7 @@ export const UserAccountManagementSection = () => {
 
   return (
     <main className="flex h-screen min-h-0 min-w-0 flex-1 grow flex-col items-start relative overflow-y-auto bg-[#f8faf6]">
-      <header className="sticky top-0 z-10 flex h-[88px] shrink-0 items-center justify-between px-9 py-0 relative self-stretch w-full bg-white border-b border-[#e1e7df]">
-        <nav
-          aria-label="Breadcrumb"
-          className="inline-flex items-center gap-2 relative flex-[0_0_auto]"
-        >
-          <span
-            className={`relative w-fit mt-[-1.00px] ${fontRegular} font-normal text-[#728078] text-xs tracking-[0] leading-[18px] whitespace-nowrap`}
-          >
-            Pengelolaan
-          </span>
-          <ChevronRight className="w-3.5 h-3.5 text-[#728078]" />
-          <span
-            className={`relative w-fit mt-[-1.00px] ${fontSemibold} font-semibold text-[#203d32] text-xs tracking-[0] leading-[18px] whitespace-nowrap`}
-          >
-            Akun pengguna
-          </span>
-        </nav>
-        <div className="inline-flex items-start gap-[18px] relative flex-[0_0_auto]">
-          <span
-            className={`inline-flex items-start px-2.5 py-1 ${fontSemibold} font-semibold text-[#728078] text-[11px] leading-[16.5px] bg-[#f0f3ec] rounded-[100px]`}
-          >
-            Data contoh
-          </span>
-          <span
-            className={`inline-flex items-start px-2.5 py-1 ${fontSemibold} font-semibold text-[#167653] text-[11px] leading-[16.5px] bg-[#eaf3e9] rounded-[100px]`}
-          >
-            Akses terbatas
-          </span>
-        </div>
-      </header>
+      <AdminPageHeader currentPage="Akun pengguna" />
 
       <section className="flex-col items-start pt-[30px] pb-0 px-9 flex gap-6 relative self-stretch w-full">
         <div className="items-center flex gap-6 relative self-stretch w-full">
@@ -227,59 +165,47 @@ export const UserAccountManagementSection = () => {
           </p>
         </div>
 
-        <div className="items-start gap-[18px] flex relative self-stretch w-full">
-          {metrics.map((metric) => {
-            const Icon = metric.icon;
-            return (
-              <article
-                key={metric.label}
-                className={`flex flex-col items-start gap-[9px] p-5 relative flex-1 grow rounded-[18px] border border-[#e1e7df] ${
-                  metric.highlighted ? "bg-[#eaf3e9]" : "bg-white"
-                }`}
-              >
-                <div className="flex items-start gap-2 relative self-stretch w-full">
-                  <div
-                    className={`flex-1 mt-[-1px] ${fontRegular} font-normal text-[#728078] text-xs leading-[18px]`}
-                  >
-                    {metric.label}
-                  </div>
-                  <Icon className="w-[18px] h-[18px] text-[#167653]" />
-                </div>
-                <div
-                  className={`font-bold ${fontBold} text-[#203d32] text-[28px] leading-[42px]`}
-                >
-                  {metric.value}
-                </div>
-                <p
-                  className={`self-stretch ${fontRegular} font-normal text-[#728078] text-[11px] leading-[16.5px]`}
-                >
-                  {metric.description}
-                </p>
-              </article>
-            );
-          })}
-        </div>
+        <AdminSummaryCards />
 
-        <div className="flex items-start gap-[5px] p-[5px] relative self-stretch w-full bg-[#f0f3ec] rounded-[10px]">
-          {["Katalog makanan", "Aktivitas & MET", "Akun pengguna"].map(
-            (tab) => (
-              <button
-                key={tab}
-                type="button"
-                aria-selected={activeTab === tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${
-                  activeTab === tab ? "bg-white" : ""
-                }`}
-              >
-                <span
-                  className={`${activeTab === tab ? `${fontBold} font-bold text-[#167653]` : `${fontMedium} font-medium text-[#728078]`} text-xs leading-[18px]`}
-                >
-                  {tab}
-                </span>
-              </button>
-            ),
-          )}
+        <div
+          role="tablist"
+          className="flex items-start gap-[5px] rounded-[10px] bg-[#f0f3ec] p-[5px] relative self-stretch w-full"
+        >
+          <Link
+            to="/admin/pengelolaan"
+            role="tab"
+            aria-selected="false"
+            className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${fontMedium} font-medium text-[#728078] text-xs leading-[18px] hover:bg-white/70`}
+          >
+            Katalog makanan
+          </Link>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "aktivitas"}
+            onClick={() => setActiveTab("aktivitas")}
+            className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${
+              activeTab === "aktivitas"
+                ? `bg-white ${fontBold} font-bold text-[#167653]`
+                : `${fontMedium} font-medium text-[#728078]`
+            } text-xs leading-[18px]`}
+          >
+            Aktivitas &amp; MET
+          </button>
+          <Link
+            to="/admin/pantau"
+            role="tab"
+            aria-selected={activeTab === "akun"}
+            aria-current="page"
+            onClick={() => setActiveTab("akun")}
+            className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${
+              activeTab === "akun"
+                ? `bg-white ${fontBold} font-bold text-[#167653]`
+                : `${fontMedium} font-medium text-[#728078]`
+            } text-xs leading-[18px]`}
+          >
+            Akun pengguna
+          </Link>
         </div>
       </section>
 

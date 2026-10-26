@@ -145,9 +145,9 @@ export const MealPhotoJournalSection = (): ReactElement => {
   const totalFat = rows.reduce((acc, row) => acc + (parseFloat(row.nutrients[2]) || 0), 0);
 
   return (
-    <main className="relative flex min-h-screen flex-1 flex-col bg-[#f8faf6]">
+    <main className="relative flex h-screen min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-[#f8faf6]">
       {/* Top Header Navbar */}
-      <header className="flex h-16 w-full items-center justify-between border-b border-[#e1e7df] bg-white px-8">
+      <header className="sticky top-0 z-10 flex h-16 w-full shrink-0 items-center justify-between border-b border-[#e1e7df] bg-white px-8">
         <nav aria-label="Breadcrumb" className="inline-flex items-center gap-2 text-xs">
           <span className="text-[#728078]">Ruang sehat</span>
           <ChevronRight className="h-3.5 w-3.5 text-[#728078]" />
