@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { Masuk } from './Login';
 import Daftar from './Register';
+import FotoAiTinjauHasil from './FotoAi';
 import AdminPantauAkun from './Admin/AdminPantau';
 import ProfilPengingat from './Profil & Pengingat/Profil&Pengingat';
 
@@ -10,6 +11,7 @@ function App() {
       <Route path="/" element={<Masuk />} />
       <Route path="/login" element={<Masuk />} />
       <Route path="/register" element={<Daftar />} />
+      <Route path="/foto-ai" element={<FotoAiTinjauHasil />} />
       <Route path="/admin/pantau" element={<AdminPantauAkun />} />
       <Route path="/profil-pengingat" element={<ProfilPengingat />} />
     </Routes>
