@@ -23,8 +23,8 @@ type NavigationItem = {
 
 const navigationItems: NavigationItem[] = [
   { label: "Hari ini", icon: LayoutGrid },
-  { label: "Body Check pagi", icon: Sun },
-  { label: "Jurnal makanan", icon: Utensils, to: "/foto-ai" },
+  { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
+  { label: "Jurnal makanan", icon: Utensils, to: "/jurnal-makanan" },
   { label: "Aktivitas & hidrasi", icon: Activity },
   { label: "Jurnal & evaluasi", icon: CalendarCheck },
   { label: "Progres", icon: TrendingUp },
