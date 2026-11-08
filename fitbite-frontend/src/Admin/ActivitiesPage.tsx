@@ -199,7 +199,7 @@ const ActivitiesPage: React.FC = () => {
         <AdministratorNavigationSection />
 
         <main className="flex-1 min-w-0 h-screen overflow-y-auto flex flex-col">
-          <AdminPageHeader currentPage={breadcrumbLabel} />
+          <AdminPageHeader currentPage="Aktivitas & MET" />
 
           <div className="flex flex-col gap-5 p-8">
             {/* Hero */}
