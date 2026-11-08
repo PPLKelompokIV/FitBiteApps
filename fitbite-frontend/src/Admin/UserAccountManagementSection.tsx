@@ -101,7 +101,7 @@ export const UserAccountManagementSection = () => {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Semua status");
   const [selectedUser, setSelectedUser] = useState<User>(users[0]);
-  const [activeTab, setActiveTab] = useState<"aktivitas" | "akun">("akun");
+  const activeTab = "akun";
   const filteredUsers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -122,7 +122,7 @@ export const UserAccountManagementSection = () => {
   const isEmptySearch = query.trim().length > 0 && filteredUsers.length === 0;
 
   return (
-    <main className="flex h-screen min-h-0 min-w-0 flex-1 grow flex-col items-start relative overflow-y-auto bg-[#f8faf6]">
+    <main className="flex h-screen min-h-0 min-w-0 flex-1 grow flex-col items-start relative overflow-y-auto bg-[#f8faf6] animate-tab-content">
       <AdminPageHeader currentPage="Akun pengguna" />
 
       <section className="flex-col items-start pt-[30px] pb-0 px-9 flex gap-6 relative self-stretch w-full">
@@ -179,25 +179,19 @@ export const UserAccountManagementSection = () => {
           >
             Katalog makanan
           </Link>
-          <button
-            type="button"
+          <Link
+            to="/admin/aktivitas"
             role="tab"
-            aria-selected={activeTab === "aktivitas"}
-            onClick={() => setActiveTab("aktivitas")}
-            className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${
-              activeTab === "aktivitas"
-                ? `bg-white ${fontBold} font-bold text-[#167653]`
-                : `${fontMedium} font-medium text-[#728078]`
-            } text-xs leading-[18px]`}
+            aria-selected={false}
+            className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${fontMedium} font-medium text-[#728078] text-xs leading-[18px] hover:bg-white/70`}
           >
             Aktivitas &amp; MET
-          </button>
+          </Link>
           <Link
             to="/admin/pantau"
             role="tab"
             aria-selected={activeTab === "akun"}
             aria-current="page"
-            onClick={() => setActiveTab("akun")}
             className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${
               activeTab === "akun"
                 ? `bg-white ${fontBold} font-bold text-[#167653]`
