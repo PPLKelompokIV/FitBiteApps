@@ -7,7 +7,6 @@ import { AdminSummaryCards } from './AdminSummaryCards';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Verifikasi = 'Terverifikasi' | 'Perlu tinjau';
-type AdminTab = 'katalog' | 'aktivitas';
 
 interface Food {
   id: number;
@@ -150,7 +149,7 @@ const IconScale = () => (
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const AdminPengelolaan: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<AdminTab>('katalog');
+  const activeTab = 'katalog';
   const [foods, setFoods] = useState<Food[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -273,7 +272,7 @@ const AdminPengelolaan: React.FC = () => {
       <main className="flex-1 min-w-0 h-screen overflow-y-auto flex flex-col">
         <AdminPageHeader currentPage="Katalog makanan" />
 
-        <div className="flex flex-col gap-5 p-8">
+        <div className="flex flex-col gap-5 p-8 animate-tab-content">
           {/* Hero */}
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -315,7 +314,6 @@ const AdminPengelolaan: React.FC = () => {
               role="tab"
               aria-selected={activeTab === 'katalog'}
               aria-current="page"
-              onClick={() => setActiveTab('katalog')}
               className={`py-2 text-center text-sm rounded-lg ${
                 activeTab === 'katalog'
                   ? 'bg-white font-bold text-[#124b39] shadow-sm'
@@ -324,19 +322,14 @@ const AdminPengelolaan: React.FC = () => {
             >
               Katalog makanan
             </Link>
-            <button
-              type="button"
+            <Link
+              to="/admin/aktivitas"
               role="tab"
-              aria-selected={activeTab === 'aktivitas'}
-              onClick={() => setActiveTab('aktivitas')}
-              className={`py-2 text-center text-sm rounded-lg ${
-                activeTab === 'aktivitas'
-                  ? 'bg-white font-bold text-[#124b39] shadow-sm'
-                  : 'text-[#4a7060] hover:bg-white/50'
-              }`}
+              aria-selected={false}
+              className="py-2 text-center text-sm rounded-lg text-[#4a7060] hover:bg-white/50"
             >
               Aktivitas &amp; MET
-            </button>
+            </Link>
             <Link
               to="/admin/pantau"
               role="tab"
