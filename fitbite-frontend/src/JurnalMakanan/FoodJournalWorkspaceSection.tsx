@@ -745,3 +745,4 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
     </main>
   );
 };
+
