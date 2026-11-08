@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { AdministratorNavigationSection } from './AdministratorNavigationSection';
+import { AdminPageHeader } from './AdminPageHeader';
+import { AdminSummaryCards } from './AdminSummaryCards';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -198,11 +201,11 @@ const ActivitiesPage: React.FC = () => {
     return matchSearch && matchKategori && matchStatus;
   });
 
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: 'katalog', label: 'Katalog makanan' },
-    { key: 'aktivitas', label: 'Aktivitas & MET' },
-    { key: 'akun', label: 'Akun pengguna' },
-  ];
+  // const tabs: { key: TabKey; label: string }[] = [
+  //   { key: 'katalog', label: 'Katalog makanan' },
+  //   { key: 'aktivitas', label: 'Aktivitas & MET' },
+  //   { key: 'akun', label: 'Akun pengguna' },
+  // ];
 
   const breadcrumbLabel =
     tab === 'katalog' ? 'Katalog makanan' : tab === 'aktivitas' ? 'Aktivitas & MET' : 'Akun pengguna';
@@ -226,21 +229,8 @@ const ActivitiesPage: React.FC = () => {
       <div className="flex h-screen items-start overflow-hidden bg-[#f6f7f2] text-[#1d2926]">
         <AdministratorNavigationSection />
 
-        <main className="flex-1 h-screen overflow-y-auto flex flex-col">
-          {/* Topbar */}
-          <header className="flex items-center justify-between px-8 py-4 border-b border-[#e1e7df] bg-white">
-            <nav className="flex items-center gap-2 text-xs text-[#6b8c7a]" aria-label="Breadcrumb">
-              <span>Pengelolaan</span>
-              <span aria-hidden="true">›</span>
-              <span className="font-semibold text-[#1d2926] transition-all duration-300">{breadcrumbLabel}</span>
-            </nav>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] px-2.5 py-1 rounded-full bg-[#eaf0e8] text-[#4a7060]">Data contoh</span>
-              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-100 text-[#124b39]">
-                Akses terbatas
-              </span>
-            </div>
-          </header>
+        <main className="flex-1 min-w-0 h-screen overflow-y-auto flex flex-col">
+          <AdminPageHeader currentPage={breadcrumbLabel} />
 
           <div className="flex flex-col gap-5 p-8">
             {/* Hero */}
@@ -271,42 +261,35 @@ const ActivitiesPage: React.FC = () => {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-              {STATS.map(s => (
-                <div
-                  key={s.label}
-                  className={`rounded-2xl border px-5 py-4 transition-all duration-300 hover:shadow-sm ${
-                    s.highlight ? 'bg-[#eaf3e9] border-[#cfe2d3]' : 'bg-white border-[#e1e7df] hover:border-[#cfe2d3]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-xs text-[#6b8c7a]">
-                    <span>{s.label}</span>
-                    <span className="text-[#124b39]"><StatIcon name={s.icon} /></span>
-                  </div>
-                  <p className="text-3xl font-semibold tracking-tight mt-3">{s.value}</p>
-                  <p className="text-xs text-[#6b8c7a] mt-1.5">{s.sub}</p>
-                </div>
-              ))}
-            </div>
+            <AdminSummaryCards />
 
             {/* Tabs */}
             <div role="tablist" className="grid grid-cols-3 bg-[#eaf3e9] rounded-xl p-1 relative">
-              {tabs.map(t => (
-                <button
-                  key={t.key}
-                  role="tab"
-                  aria-selected={tab === t.key}
-                  type="button"
-                  onClick={() => setTab(t.key)}
-                  className={`py-2 text-sm rounded-lg transition-all duration-300 ease-out relative z-10 ${
-                    tab === t.key
-                      ? 'bg-white font-bold text-[#124b39] shadow-sm transform scale-[1.02]'
-                      : 'text-[#4a7060] hover:bg-white/40'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
+              <Link
+                to="/admin/pengelolaan"
+                role="tab"
+                aria-selected="false"
+                className="py-2 text-center text-sm rounded-lg transition-all duration-300 ease-out relative z-10 text-[#4a7060] hover:bg-white/40"
+              >
+                Katalog makanan
+              </Link>
+              <button
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-current="page"
+                className="py-2 text-sm rounded-lg relative z-10 bg-white font-bold text-[#124b39] shadow-sm transform scale-[1.02]"
+              >
+                Aktivitas &amp; MET
+              </button>
+              <Link
+                to="/admin/pantau"
+                role="tab"
+                aria-selected="false"
+                className="py-2 text-center text-sm rounded-lg transition-all duration-300 ease-out relative z-10 text-[#4a7060] hover:bg-white/40"
+              >
+                Akun pengguna
+              </Link>
             </div>
 
             {/* AREA KONTEN TAB DENGAN ANIMASI */}
