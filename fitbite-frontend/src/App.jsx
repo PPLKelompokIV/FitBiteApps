@@ -20,6 +20,10 @@ function App() {
       <Route path="/admin/pengelolaan" element={<AdminPengelolaan />} />
       <Route path="/admin/aktivitas" element={<ActivitiesPage />} />
       <Route path="/profil-pengingat" element={<ProfilPengingat />} />
+<<<<<<< Updated upstream
+=======
+      <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
+>>>>>>> Stashed changes
     </Routes>
   );
 }
