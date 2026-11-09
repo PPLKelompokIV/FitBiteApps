@@ -15,6 +15,8 @@ function App() {
       <Route path="/" element={<Masuk />} />
       <Route path="/login" element={<Masuk />} />
       <Route path="/register" element={<Daftar />} />
+      <Route path="/dashboard-hari-ini" element={<DashboardHariIni />} />
+      <Route path="/aktivitas-hidrasi" element={<AktivitasHidrasi />} />
       <Route path="/bodycheckpagi" element={<BodyCheckPagi />} />
       <Route path="/foto-ai" element={<FotoAiTinjauHasil />} />
       <Route path="/admin/pantau" element={<AdminPantauAkun />} />
