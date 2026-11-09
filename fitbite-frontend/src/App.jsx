@@ -5,6 +5,7 @@ import BodyCheckPagi from './Body Check Pagi/bodycheckpagi';
 import FotoAiTinjauHasil from './FotoAi';
 import AdminPantauAkun from './Admin/AdminPantau';
 import AdminPengelolaan from './Admin/AdminPengelolaan';
+import ActivitiesPage from './Admin/ActivitiesPage';
 import ProfilPengingat from './Profil & Pengingat/Profil&Pengingat';
 import DashboardHariIni from './Dashboard Hari Ini';
 import AktivitasHidrasi from './Aktivitas dan hidrasi';
@@ -21,6 +22,7 @@ function App() {
       <Route path="/foto-ai" element={<FotoAiTinjauHasil />} />
       <Route path="/admin/pantau" element={<AdminPantauAkun />} />
       <Route path="/admin/pengelolaan" element={<AdminPengelolaan />} />
+      <Route path="/admin/aktivitas" element={<ActivitiesPage />} />
       <Route path="/profil-pengingat" element={<ProfilPengingat />} />
     </Routes>
   );
