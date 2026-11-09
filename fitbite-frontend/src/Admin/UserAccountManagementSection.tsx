@@ -1,10 +1,7 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ChevronRight,
-  ShieldCheck,
-  Search,
-  ChevronDown,
   Info,
   UserCheck,
   UserX,
@@ -92,16 +89,43 @@ const detailFields = [
   ["Status akun", "Aktif"],
 ];
 
-const fontRegular = "[font-family:'Inter-Regular',Helvetica]";
-const fontMedium = "[font-family:'Inter-Medium',Helvetica]";
-const fontSemibold = "[font-family:'Inter-SemiBold',Helvetica]";
-const fontBold = "[font-family:'Inter-Bold',Helvetica]";
+const Svg: React.FC<{ size?: number; sw?: number; children: React.ReactNode }> = ({
+  size = 16,
+  sw = 1.8,
+  children,
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={sw}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {children}
+  </svg>
+);
 
-export const UserAccountManagementSection = () => {
+const IconShield = () => (
+  <Svg size={16}>
+    <path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z" />
+  </Svg>
+);
+const IconSearch = () => (
+  <Svg size={16}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M20 20l-3.5-3.5" />
+  </Svg>
+);
+
+export const UserAccountManagementSection: React.FC = () => {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Semua status");
   const [selectedUser, setSelectedUser] = useState<User>(users[0]);
-  const activeTab = "akun";
+
   const filteredUsers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -121,373 +145,332 @@ export const UserAccountManagementSection = () => {
 
   const isEmptySearch = query.trim().length > 0 && filteredUsers.length === 0;
 
+  const inputCls =
+    "w-full text-sm border border-[#d0dbd5] rounded-lg px-3 py-2 outline-none focus:border-[#124b39] bg-white transition-colors duration-200";
+  const labelCls = "text-xs font-medium text-[#4a7060]";
+
   return (
-    <main className="flex h-screen min-h-0 min-w-0 flex-1 grow flex-col items-start relative overflow-y-auto bg-[#f8faf6] animate-tab-content">
-      <AdminPageHeader currentPage="Akun pengguna" />
+    <>
+      <style>{`
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-tab-content {
+          animation: fadeSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
 
-      <section className="flex-col items-start pt-[30px] pb-0 px-9 flex gap-6 relative self-stretch w-full">
-        <div className="items-center flex gap-6 relative self-stretch w-full">
-          <div className="flex flex-col items-start gap-[5px] relative flex-1 grow">
-            <div
-              className={`self-stretch mt-[-1px] ${fontBold} font-bold text-[#167653] text-[11px] leading-[16.5px]`}
-            >
-              PENGELOLAAN FITBITE
-            </div>
-            <h1
-              className={`relative self-stretch ${fontRegular} font-normal text-[#203d32] text-3xl tracking-[-0.24px] leading-[37.5px]`}
-            >
-              Referensi rapi, pengalaman lebih baik.
-            </h1>
-            <p
-              className={`self-stretch ${fontRegular} font-normal text-[#728078] text-[13px] leading-[19.5px]`}
-            >
-              Ruang administrator • Senin, 19 Oktober 2026
-            </p>
-          </div>
-          <span
-            className={`inline-flex px-2.5 py-1 ${fontSemibold} font-semibold text-[#167653] text-[11px] leading-[16.5px] bg-[#eaf3e9] rounded-[100px]`}
-          >
-            Hanya baca
-          </span>
-        </div>
+      <main className="flex-1 min-w-0 h-screen overflow-y-auto flex flex-col bg-[#f6f7f2] text-[#1d2926]">
+        <AdminPageHeader currentPage="Akun pengguna" />
 
-        <div
-          role="note"
-          className="flex items-start gap-[11px] p-3.5 relative self-stretch w-full bg-[#eaf3e9] rounded-[10px]"
-        >
-          <ShieldCheck className="w-5 h-5 text-[#167653] shrink-0" />
-          <p
-            className={`flex-1 mt-[-1px] ${fontRegular} font-normal text-[#124b39] text-xs leading-[18px]`}
-          >
-            Batas akses admin: hanya membaca metadata akun. Status akun tidak
-            dapat diubah. Profil kesehatan, foto, dan jurnal pribadi tidak
-            tersedia di area ini.
-          </p>
-        </div>
-
-        <AdminSummaryCards />
-
-        <div
-          role="tablist"
-          className="flex items-start gap-[5px] rounded-[10px] bg-[#f0f3ec] p-[5px] relative self-stretch w-full"
-        >
-          <Link
-            to="/admin/pengelolaan"
-            role="tab"
-            aria-selected="false"
-            className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${fontMedium} font-medium text-[#728078] text-xs leading-[18px] hover:bg-white/70`}
-          >
-            Katalog makanan
-          </Link>
-          <Link
-            to="/admin/aktivitas"
-            role="tab"
-            aria-selected={false}
-            className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${fontMedium} font-medium text-[#728078] text-xs leading-[18px] hover:bg-white/70`}
-          >
-            Aktivitas &amp; MET
-          </Link>
-          <Link
-            to="/admin/pantau"
-            role="tab"
-            aria-selected={activeTab === "akun"}
-            aria-current="page"
-            className={`flex items-start justify-center px-3 py-[9px] relative flex-1 grow rounded-[7px] ${
-              activeTab === "akun"
-                ? `bg-white ${fontBold} font-bold text-[#167653]`
-                : `${fontMedium} font-medium text-[#728078]`
-            } text-xs leading-[18px]`}
-          >
-            Akun pengguna
-          </Link>
-        </div>
-      </section>
-
-      <section className="flex flex-col items-stretch gap-6 pt-6 pb-7 px-9 relative self-stretch w-full xl:grid xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <article className="flex w-full min-w-0 flex-col items-start gap-[18px] p-[22px] relative bg-white rounded-[18px] border border-[#e1e7df]">
-          <div className="flex flex-col items-start gap-[3px] relative self-stretch w-full">
-            <h2
-              className={`relative self-stretch mt-[-1px] ${fontBold} font-bold text-[#203d32] text-lg leading-[27px]`}
-            >
-              Pantau akun pengguna
-            </h2>
-            <p
-              className={`self-stretch ${fontRegular} font-normal text-[#728078] text-xs leading-[18px]`}
-            >
-              Cari dan pilih akun untuk membaca ringkasan metadata akun.
-            </p>
-          </div>
-
-          <form
-            className="flex items-end gap-3 relative self-stretch w-full"
-            onSubmit={(event) => event.preventDefault()}
-          >
-            <label className="flex flex-col items-start gap-[7px] relative flex-1 grow">
-              <span
-                className={`self-stretch mt-[-1px] ${fontSemibold} font-semibold text-[#203d32] text-[13px] leading-[19.5px]`}
-              >
-                Cari akun
-              </span>
-              <span className="flex min-h-[47px] items-center gap-2.5 px-3.5 py-[11px] w-full bg-white rounded-[10px] border border-[#e1e7df]">
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  aria-label="Cari nama, email, atau ID akun"
-                  placeholder="Cari nama, email, atau ID akun..."
-                  className={`relative flex-1 outline-none ${fontRegular} font-normal text-[#203d32] text-sm leading-[21px] placeholder:text-[#a0aca5]`}
-                />
-                <Search className="w-4 h-4 text-[#728078]" />
-              </span>
-            </label>
-
-            <label className="flex flex-col w-[200px] items-start gap-[7px] relative">
-              <span
-                className={`self-stretch mt-[-1px] ${fontSemibold} font-semibold text-[#203d32] text-[13px] leading-[19.5px]`}
-              >
-                Status akun
-              </span>
-              <span className="relative w-full">
-                <select
-                  value={status}
-                  onChange={(event) => setStatus(event.target.value)}
-                  className={`flex min-h-[47px] appearance-none items-center px-3.5 py-[11px] w-full bg-white rounded-[10px] border border-[#e1e7df] outline-none ${fontRegular} text-[#203d32] text-sm leading-[21px]`}
-                >
-                  <option>Semua status</option>
-                  <option>Aktif</option>
-                  <option>Nonaktif</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 w-4 h-4 -translate-y-1/2 text-[#728078] pointer-events-none" />
-              </span>
-            </label>
-          </form>
-
-          <div className="flex items-start gap-3 p-2.5 relative self-stretch w-full bg-[#f0f3ec] rounded-lg">
-            <div
-              className={`flex-1 mt-[-1px] ${fontRegular} text-[#728078] text-[9px] leading-[13.5px]`}
-            >
-              NAMA / EMAIL
-            </div>
-            <div
-              className={`relative w-[88px] mt-[-1px] ${fontRegular} text-[#728078] text-[9px] leading-[13.5px]`}
-            >
-              DIBUAT
-            </div>
-            <div
-              className={`relative w-[90px] mt-[-1px] ${fontRegular} text-[#728078] text-[9px] leading-[13.5px]`}
-            >
-              AKSES TERAKHIR
-            </div>
-            <div
-              className={`relative w-20 mt-[-1px] ${fontRegular} text-[#728078] text-[9px] leading-[13.5px]`}
-            >
-              STATUS
-            </div>
-            <div
-              className={`relative w-14 mt-[-1px] ${fontRegular} text-[#728078] text-[9px] leading-[13.5px]`}
-            >
-              RINCIAN
-            </div>
-          </div>
-
-          <div className="flex flex-col items-start relative self-stretch w-full">
-            {filteredUsers.map((user) => (
-              <button
-                key={user.id}
-                type="button"
-                onClick={() => setSelectedUser(user)}
-                className={`min-h-[67px] items-center gap-3 px-2.5 py-3.5 flex relative self-stretch w-full text-left border-b border-[#e1e7df] ${
-                  selectedUser.id === user.id ? "bg-[#eaf3e9]" : "bg-white"
-                }`}
-              >
-                <span className="flex-col items-start gap-[3px] flex-1 grow">
-                  <span
-                    className={`block self-stretch mt-[-1px] ${fontSemibold} font-semibold text-[#203d32] text-xs leading-[18px]`}
-                  >
-                    {user.name}
-                  </span>
-                  <span
-                    className={`block self-stretch ${fontRegular} text-[#728078] text-[10px] leading-[15px]`}
-                  >
-                    {user.email}
-                  </span>
-                </span>
-                <span
-                  className={`relative w-[88px] ${fontRegular} text-[#203d32] text-[10px] leading-[15px]`}
-                >
-                  {user.created}
-                </span>
-                <span
-                  className={`relative w-[90px] ${fontRegular} text-[#203d32] text-[10px] leading-[15px]`}
-                >
-                  {user.lastAccess}
-                </span>
-                <span className="flex w-20 items-start relative">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 ${fontSemibold} text-[11px] leading-[16.5px] rounded-[100px] ${
-                      user.status === "Aktif"
-                        ? "bg-[#eaf3e9] text-[#167653]"
-                        : "bg-[#f0f3ec] text-[#728078]"
-                    }`}
-                  >
-                    {user.status === "Aktif" ? (
-                      <UserCheck className="w-3 h-3" />
-                    ) : (
-                      <UserX className="w-3 h-3" />
-                    )}
-                    {user.status}
-                  </span>
-                </span>
-                <span className="flex w-14 items-center gap-[5px]">
-                  <span
-                    className={`${fontSemibold} font-semibold text-[#167653] text-[11px]`}
-                  >
-                    Lihat
-                  </span>
-                  <ChevronRight className="w-3 h-3 text-[#167653]" />
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-start justify-between relative self-stretch w-full">
-            <p
-              className={`relative ${fontRegular} text-[#728078] text-[10px] leading-[15px]`}
-            >
-              {isEmptySearch
-                ? "Menampilkan 0 akun"
-                : `Menampilkan 1–${filteredUsers.length} dari 248 akun`}
-            </p>
-            <div
-              className={`${fontRegular} text-[#167653] text-[11px] leading-[16.5px]`}
-            >
-              ‹&nbsp;&nbsp;1&nbsp;&nbsp;2&nbsp;&nbsp;3&nbsp;&nbsp;…&nbsp;&nbsp;36&nbsp;&nbsp;›
-            </div>
-          </div>
-
-          <p
-            className={`self-stretch ${fontRegular} text-[#728078] text-[10px] leading-[15px]`}
-          >
-            Semua identitas dan metadata akun pada mockup adalah data contoh.
-            Status ditampilkan sebagai informasi, bukan kontrol pengelolaan akun.
-          </p>
-
-          <div className="flex items-start gap-[11px] p-3.5 relative self-stretch w-full bg-[#f0f3ec] rounded-[10px]">
-            <SearchX className="w-5 h-5 text-[#728078] shrink-0" />
-            <div className="flex flex-col items-start gap-1 relative flex-1 grow">
-              <div
-                className={`${fontRegular} text-[#728078] text-[10px] leading-[15px]`}
-              >
-                CONTOH PENCARIAN • akun.tidakada@email.com
-              </div>
-              <div
-                className={`${fontSemibold} font-semibold text-[#203d32] text-xs leading-[18px]`}
-              >
-                Akun tidak ditemukan
-              </div>
-              <p
-                className={`${fontRegular} text-[#728078] text-[11px] leading-[16.5px]`}
-              >
-                Coba nama, email, atau ID akun lain, atau ubah filter status.
+        <div className="flex flex-col gap-5 p-8">
+          {/* Hero */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-bold tracking-wider text-[#124b39]">
+                PENGELOLAAN FITBITE
+              </p>
+              <h1 className="text-3xl font-medium tracking-tight text-[#1d2926] mt-1">
+                Referensi rapi, pengalaman lebih baik.
+              </h1>
+              <p className="text-xs text-[#6b8c7a] mt-1.5">
+                Ruang administrator • Senin, 19 Oktober 2026
               </p>
             </div>
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-100 text-[#124b39]">
+              Hanya baca
+            </span>
           </div>
-        </article>
 
-        <aside className="flex w-full min-w-0 flex-col items-start gap-[18px] relative xl:-translate-x-[5px]">
-          <article className="flex flex-col items-start gap-[18px] p-[22px] relative self-stretch bg-white rounded-[18px] border border-[#e1e7df]">
-            <div className="flex items-center justify-between relative self-stretch w-full">
-              <h2
-                className={`${fontBold} font-bold text-[#203d32] text-lg leading-[27px]`}
-              >
-                Ringkasan akun
-              </h2>
-              <span
-                className={`${fontSemibold} px-2.5 py-1 text-[#167653] text-[11px] bg-[#eaf3e9] rounded-[100px]`}
-              >
-                Hanya baca
-              </span>
-            </div>
-            <div className="items-center gap-3 self-stretch w-full flex">
-              <div className="flex w-[42px] h-[42px] items-center justify-center bg-[#eaf3e9] rounded-xl text-[#167653]">
-                <Eye className="w-[22px] h-[22px]" />
-              </div>
-              <div className="flex flex-col items-start gap-1 relative flex-1 grow">
-                <div
-                  className={`${fontSemibold} font-semibold text-[#203d32] text-[15px] leading-[22.5px]`}
-                >
-                  {selectedUser.name}
-                </div>
-                <p
-                  className={`${fontRegular} text-[#728078] text-[11px] leading-[16.5px]`}
-                >
-                  Akun terpilih • data contoh
+          {/* Banner */}
+          <div className="flex items-center gap-2 bg-[#eaf3e9] text-[#124b39] text-xs rounded-lg px-4 py-2.5">
+            <IconShield />
+            <span>
+              Batas akses admin: hanya membaca metadata akun. Status akun tidak
+              dapat diubah. Profil kesehatan, foto, dan jurnal pribadi tidak
+              tersedia di area ini.
+            </span>
+          </div>
+
+          {/* Stats */}
+          <AdminSummaryCards />
+
+          {/* Tabs */}
+          <div
+            role="tablist"
+            className="grid grid-cols-3 bg-[#eaf3e9] rounded-xl p-1 relative"
+          >
+            <Link
+              to="/admin/pengelolaan"
+              role="tab"
+              aria-selected="false"
+              className="py-2 text-center text-sm rounded-lg transition-all duration-300 ease-out relative z-10 text-[#4a7060] hover:bg-white/40"
+            >
+              Katalog makanan
+            </Link>
+            <Link
+              to="/admin/aktivitas"
+              role="tab"
+              aria-selected="false"
+              className="py-2 text-center text-sm rounded-lg transition-all duration-300 ease-out relative z-10 text-[#4a7060] hover:bg-white/40"
+            >
+              Aktivitas &amp; MET
+            </Link>
+            <button
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-current="page"
+              className="py-2 text-sm rounded-lg relative z-10 bg-white font-bold text-[#124b39] shadow-sm transform scale-[1.02]"
+            >
+              Akun pengguna
+            </button>
+          </div>
+
+          {/* AREA KONTEN TAB DENGAN ANIMASI */}
+          <div className="animate-tab-content">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+              {/* Tabel Akun */}
+              <section className="bg-white rounded-2xl border border-[#e1e7df] p-6 shadow-sm min-w-0">
+                <h2 className="text-base font-bold text-[#1d2926]">
+                  Pantau akun pengguna
+                </h2>
+                <p className="text-xs text-[#6b8c7a] mt-0.5">
+                  Cari dan pilih akun untuk membaca ringkasan metadata akun.
                 </p>
+
+                <form
+                  className="grid grid-cols-[1fr_180px] gap-3 mt-4"
+                  onSubmit={(event) => event.preventDefault()}
+                >
+                  <div className="flex flex-col gap-1">
+                    <label className={labelCls}>Cari akun</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        aria-label="Cari nama, email, atau ID akun"
+                        placeholder="Cari nama, email, atau ID akun..."
+                        className={`${inputCls} pr-9 transition-shadow focus:shadow-sm`}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4a7060] pointer-events-none">
+                        <IconSearch />
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className={labelCls}>Status akun</label>
+                    <select
+                      value={status}
+                      onChange={(event) => setStatus(event.target.value)}
+                      className={inputCls}
+                    >
+                      <option>Semua status</option>
+                      <option>Aktif</option>
+                      <option>Nonaktif</option>
+                    </select>
+                  </div>
+                </form>
+
+                <div className="mt-4 overflow-x-auto">
+                  {filteredUsers.length === 0 ? (
+                    <div className="flex items-center justify-center h-32 text-sm text-[#6b8c7a]">
+                      Tidak ada akun yang cocok dengan pencarian.
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-[#f0f5f2] text-[11px] text-[#6b8c7a] uppercase tracking-wide">
+                        <tr>
+                          <th className="text-left px-4 py-3 rounded-l-lg">
+                            Nama / Email
+                          </th>
+                          <th className="text-left px-4 py-3">Dibuat</th>
+                          <th className="text-left px-4 py-3">Akses Terakhir</th>
+                          <th className="text-center px-4 py-3">Status</th>
+                          <th className="text-center px-4 py-3 rounded-r-lg">
+                            Rincian
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredUsers.map((user) => (
+                          <tr
+                            key={user.id}
+                            onClick={() => setSelectedUser(user)}
+                            className={`border-t border-[#f0f5f2] cursor-pointer transition-all duration-200 ${
+                              selectedUser.id === user.id
+                                ? "bg-[#eaf3e9]"
+                                : "hover:bg-[#f6f9f7]"
+                            } ${
+                              user.status === "Aktif"
+                                ? ""
+                                : "opacity-60 grayscale-[30%]"
+                            }`}
+                          >
+                            <td className="px-4 py-3">
+                              <p className="font-medium text-[#1d2926]">
+                                {user.name}
+                              </p>
+                              <p className="text-xs text-[#6b8c7a] mt-0.5">
+                                {user.email}
+                              </p>
+                            </td>
+                            <td className="px-4 py-3 text-left text-[#4a7060] whitespace-nowrap">
+                              {user.created}
+                            </td>
+                            <td className="px-4 py-3 text-left text-[#4a7060] whitespace-nowrap">
+                              {user.lastAccess}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span
+                                className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-colors duration-200 ${
+                                  user.status === "Aktif"
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-gray-100 text-gray-500"
+                                }`}
+                              >
+                                {user.status === "Aktif" ? (
+                                  <UserCheck className="w-3 h-3" />
+                                ) : (
+                                  <UserX className="w-3 h-3" />
+                                )}
+                                {user.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="inline-flex items-center gap-1 font-medium text-[#124b39] text-xs hover:underline">
+                                Lihat
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between border-t border-[#e1e7df] mt-2 pt-3 text-xs text-[#6b8c7a]">
+                  <span>
+                    {isEmptySearch
+                      ? "Menampilkan 0 akun"
+                      : `Menampilkan 1–${filteredUsers.length} dari 248 akun`}
+                  </span>
+                  <span className="tracking-wide">
+                    ‹ <b className="text-[#124b39]">1</b> 2 3 … 36 ›
+                  </span>
+                </div>
+
+                <p className="border-t border-[#e1e7df] mt-3 pt-3 text-xs text-[#6b8c7a] leading-relaxed">
+                  Semua identitas dan metadata akun pada mockup adalah data
+                  contoh. Status ditampilkan sebagai informasi, bukan kontrol
+                  pengelolaan akun.
+                </p>
+
+                <div className="flex items-start gap-2.5 p-3.5 mt-3 bg-[#f0f5f2] rounded-xl">
+                  <SearchX className="w-4 h-4 text-[#6b8c7a] shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-0.5 flex-1">
+                    <div className="text-[#6b8c7a] text-[10px]">
+                      CONTOH PENCARIAN • akun.tidakada@email.com
+                    </div>
+                    <div className="font-semibold text-[#1d2926] text-xs">
+                      Akun tidak ditemukan
+                    </div>
+                    <p className="text-[#6b8c7a] text-xs">
+                      Coba nama, email, atau ID akun lain, atau ubah filter
+                      status.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Ringkasan Akun + Catatan */}
+              <div className="flex flex-col gap-4 min-w-0">
+                <aside className="flex flex-col bg-white rounded-2xl border border-[#e1e7df] p-6 gap-4 shadow-sm transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-bold text-[#1d2926]">
+                      Ringkasan akun
+                    </h2>
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-100 text-[#124b39]">
+                      Hanya baca
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex w-10 h-10 items-center justify-center bg-[#eaf3e9] rounded-xl text-[#124b39] shrink-0">
+                      <Eye className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <div className="font-semibold text-[#1d2926] text-sm truncate">
+                        {selectedUser.name}
+                      </div>
+                      <p className="text-[#6b8c7a] text-xs">
+                        Akun terpilih • data contoh
+                      </p>
+                    </div>
+                    <span
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap ${
+                        selectedUser.status === "Aktif"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {selectedUser.status}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2.5">
+                    {detailFields.map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="flex flex-col gap-0.5 pb-2.5 border-b border-[#f0f5f2]"
+                      >
+                        <div className="text-[#6b8c7a] text-xs">{label}</div>
+                        <div className="font-medium text-[#1d2926] text-sm">
+                          {label === "Nama lengkap"
+                            ? selectedUser.name
+                            : label === "Email"
+                              ? selectedUser.email
+                              : label === "ID akun"
+                                ? selectedUser.id
+                                : label === "Status akun"
+                                  ? selectedUser.status
+                                  : value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-xs text-[#6b8c7a] leading-relaxed text-center">
+                    Admin hanya dapat membaca ringkasan ini. Tidak ada akses
+                    untuk mengubah metadata maupun status akun.
+                  </p>
+                </aside>
+
+                <div className="flex gap-2 bg-[#eaf3e9] text-[#124b39] text-xs rounded-xl p-4 leading-relaxed border border-[#cfe2d3]">
+                  <span className="mt-0.5 shrink-0">
+                    <Info className="w-4 h-4" />
+                  </span>
+                  <p>
+                    Privasi tetap terjaga. Ringkasan hanya memuat metadata akun,
+                    tanpa profil kesehatan atau isi jurnal pengguna.
+                  </p>
+                </div>
               </div>
-              <span
-                className={`${fontSemibold} px-2.5 py-1 text-[#167653] text-[11px] bg-[#eaf3e9] rounded-[100px]`}
-              >
-                {selectedUser.status}
-              </span>
             </div>
-
-            {detailFields.map(([label, value]) => (
-              <div
-                key={label}
-                className="flex flex-col items-start gap-1 pt-0 pb-3 relative self-stretch border-b border-[#e1e7df]"
-              >
-                <div
-                  className={`${fontRegular} text-[#728078] text-[11px] leading-[16.5px]`}
-                >
-                  {label}
-                </div>
-                <div
-                  className={`${fontMedium} font-medium text-[#203d32] text-[13px] leading-[19.5px]`}
-                >
-                  {label === "Nama lengkap"
-                    ? selectedUser.name
-                    : label === "Email"
-                      ? selectedUser.email
-                      : label === "ID akun"
-                        ? selectedUser.id
-                        : label === "Status akun"
-                          ? selectedUser.status
-                          : value}
-                </div>
-              </div>
-            ))}
-
-            <p
-              className={`${fontRegular} text-[#728078] text-[10px] leading-[15px]`}
-            >
-              Admin hanya dapat membaca ringkasan ini. Tidak ada akses untuk
-              mengubah metadata maupun status akun.
-            </p>
-          </article>
-
-          <div className="flex items-start gap-[11px] p-3.5 relative self-stretch w-full bg-[#eaf3e9] rounded-[10px]">
-            <Info className="w-5 h-5 text-[#167653] shrink-0" />
-            <p
-              className={`flex-1 mt-[-1px] ${fontRegular} text-[#124b39] text-xs leading-[18px]`}
-            >
-              Privasi tetap terjaga. Ringkasan hanya memuat metadata akun, tanpa
-              profil kesehatan atau isi jurnal pengguna.
-            </p>
           </div>
-        </aside>
-      </section>
+        </div>
 
-      <footer className="flex items-start justify-between pt-2 pb-6 px-9 relative self-stretch w-full">
-        <p
-          className={`${fontRegular} text-[#728078] text-[10px] leading-[15px]`}
-        >
-          Area administrasi • Tidak memuat data kesehatan pribadi pengguna.
-        </p>
-        <p
-          className={`${fontRegular} text-[#728078] text-[10px] leading-[15px]`}
-        >
-          FitBite © 2026
-        </p>
-      </footer>
-    </main>
+        <footer className="mt-auto flex items-center justify-between px-8 pb-6 text-xs text-[#6b8c7a]">
+          <span>
+            Area administrasi • Tidak memuat data kesehatan pribadi pengguna.
+          </span>
+          <span>FitBite © 2026</span>
+        </footer>
+      </main>
+    </>
   );
 };

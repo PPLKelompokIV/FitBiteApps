@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AdministratorNavigationSection } from './AdministratorNavigationSection';
+import { AdminPageHeader } from './AdminPageHeader';
 import { AdminSummaryCards } from './AdminSummaryCards';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -182,11 +183,11 @@ const ActivitiesPage: React.FC = () => {
     return matchSearch && matchKategori && matchStatus;
   });
 
-  const tabs: { key: TabKey; label: string; to: string }[] = [
-    { key: 'katalog', label: 'Katalog makanan', to: '/admin/pengelolaan' },
-    { key: 'aktivitas', label: 'Aktivitas & MET', to: '/admin/aktivitas' },
-    { key: 'akun', label: 'Akun pengguna', to: '/admin/pantau' },
-  ];
+  // const tabs: { key: TabKey; label: string }[] = [
+  //   { key: 'katalog', label: 'Katalog makanan' },
+  //   { key: 'aktivitas', label: 'Aktivitas & MET' },
+  //   { key: 'akun', label: 'Akun pengguna' },
+  // ];
 
   const inputCls =
     'w-full text-sm border border-[#d0dbd5] rounded-lg px-3 py-2 outline-none focus:border-[#124b39] bg-white transition-colors duration-200';
@@ -197,21 +198,8 @@ const ActivitiesPage: React.FC = () => {
       <div className="flex h-screen items-start overflow-hidden bg-[#f6f7f2] text-[#1d2926]">
         <AdministratorNavigationSection />
 
-        <main className="flex-1 h-screen overflow-y-auto flex flex-col">
-          {/* Topbar */}
-          <header className="flex items-center justify-between px-8 py-4 border-b border-[#e1e7df] bg-white">
-            <nav className="flex items-center gap-2 text-xs text-[#6b8c7a]" aria-label="Breadcrumb">
-              <span>Pengelolaan</span>
-              <span aria-hidden="true">›</span>
-              <span className="font-semibold text-[#1d2926] transition-all duration-300">Aktivitas &amp; MET</span>
-            </nav>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] px-2.5 py-1 rounded-full bg-[#eaf0e8] text-[#4a7060]">Data contoh</span>
-              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-100 text-[#124b39]">
-                Akses terbatas
-              </span>
-            </div>
-          </header>
+        <main className="flex-1 min-w-0 h-screen overflow-y-auto flex flex-col">
+          <AdminPageHeader currentPage="Aktivitas & MET" />
 
           <div className="flex flex-col gap-5 p-8">
             {/* Hero */}
@@ -246,22 +234,31 @@ const ActivitiesPage: React.FC = () => {
 
             {/* Tabs */}
             <div role="tablist" className="grid grid-cols-3 bg-[#eaf3e9] rounded-xl p-1 relative">
-              {tabs.map(t => (
-                <Link
-                  key={t.key}
-                  to={t.to}
-                  role="tab"
-                  aria-selected={tab === t.key}
-                  aria-current={tab === t.key ? 'page' : undefined}
-                  className={`py-2 text-center text-sm rounded-lg ${
-                    tab === t.key
-                      ? 'bg-white font-bold text-[#124b39] shadow-sm'
-                      : 'text-[#4a7060] hover:bg-white/40'
-                  }`}
-                >
-                  {t.label}
-                </Link>
-              ))}
+              <Link
+                to="/admin/pengelolaan"
+                role="tab"
+                aria-selected="false"
+                className="py-2 text-center text-sm rounded-lg transition-all duration-300 ease-out relative z-10 text-[#4a7060] hover:bg-white/40"
+              >
+                Katalog makanan
+              </Link>
+              <button
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-current="page"
+                className="py-2 text-sm rounded-lg relative z-10 bg-white font-bold text-[#124b39] shadow-sm transform scale-[1.02]"
+              >
+                Aktivitas &amp; MET
+              </button>
+              <Link
+                to="/admin/pantau"
+                role="tab"
+                aria-selected="false"
+                className="py-2 text-center text-sm rounded-lg transition-all duration-300 ease-out relative z-10 text-[#4a7060] hover:bg-white/40"
+              >
+                Akun pengguna
+              </Link>
             </div>
 
             {/* AREA KONTEN TAB DENGAN ANIMASI */}

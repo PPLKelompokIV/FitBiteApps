@@ -9,6 +9,7 @@ import AdminPantauAkun from './Admin/AdminPantau';
 import AdminPengelolaan from './Admin/AdminPengelolaan';
 import ActivitiesPage from './Admin/ActivitiesPage';
 import ProfilPengingat from './Profil & Pengingat/Profil&Pengingat';
+import JurnalMakanan from './JurnalMakanan';
 
 function App() {
   return (
