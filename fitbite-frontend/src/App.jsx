@@ -7,8 +7,7 @@ import AdminPantauAkun from './Admin/AdminPantau';
 import AdminPengelolaan from './Admin/AdminPengelolaan';
 import ActivitiesPage from './Admin/ActivitiesPage';
 import ProfilPengingat from './Profil & Pengingat/Profil&Pengingat';
-import DashboardHariIni from './Dashboard Hari Ini';
-import AktivitasHidrasi from './Aktivitas dan hidrasi';
+import JurnalMakanan from './JurnalMakanan';
 
 function App() {
   return (
@@ -24,6 +23,7 @@ function App() {
       <Route path="/admin/pengelolaan" element={<AdminPengelolaan />} />
       <Route path="/admin/aktivitas" element={<ActivitiesPage />} />
       <Route path="/profil-pengingat" element={<ProfilPengingat />} />
+      <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
     </Routes>
   );
 }

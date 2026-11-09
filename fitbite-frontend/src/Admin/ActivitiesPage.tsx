@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { AdministratorNavigationSection } from './AdministratorNavigationSection';
+import { AdminPageHeader } from './AdminPageHeader';
+import { AdminSummaryCards } from './AdminSummaryCards';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -37,13 +40,6 @@ const SEED_ACTIVITIES: Activity[] = [
 const KATEGORI_LIST = ['Jalan kaki', 'Lari', 'Bersepeda', 'Renang', 'Latihan kekuatan', 'Fleksibilitas'];
 const KATEGORI_ENERGI_LIST = ['Ringan', 'Sedang', 'Berat'];
 const STATUS_LIST = ['Aktif', 'Nonaktif', 'Semua'];
-
-const STATS = [
-  { label: 'Makanan dalam katalog', value: '126', sub: '118 aktif • 8 nonaktif', icon: 'fork', highlight: false },
-  { label: 'Referensi terverifikasi', value: '39', sub: 'Validasi nutrisi & MET', icon: 'check', highlight: false },
-  { label: 'Aktivitas & MET', value: '18', sub: '6 kategori aktivitas utama', icon: 'activity', highlight: true },
-  { label: 'Akun pengguna', value: '248', sub: '240 aktif • 8 nonaktif', icon: 'users', highlight: false },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -84,20 +80,10 @@ const IconPlus = () => <Svg size={16} sw={2.2}><path d="M12 5v14M5 12h14" /></Sv
 const IconTick = () => <Svg size={16} sw={2.2}><path d="M5 12.5l4.5 4.5L19 7.5" /></Svg>;
 const IconAlert = () => <Svg size={16}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></Svg>;
 
-const StatIcon: React.FC<{ name: string }> = ({ name }) => {
-  if (name === 'fork')
-    return <Svg size={18}><path d="M6 3v7a2 2 0 0 0 2 2v9" /><path d="M4 3v6M10 3v6M8 3v9" /><path d="M17 21V3c-2.5 1-4 3.5-4 7 0 2 1 3 4 3" /></Svg>;
-  if (name === 'check')
-    return <Svg size={18}><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></Svg>;
-  if (name === 'activity')
-    return <Svg size={18}><path d="M3 12h4l3-8 4 16 3-8h4" /></Svg>;
-  return <Svg size={18}><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c.6-3.5 3.2-5.5 6.5-5.5s5.9 2 6.5 5.5" /><path d="M16 4.7a3.5 3.5 0 0 1 0 6.6" /><path d="M18 14.8c2 .7 3.2 2.5 3.5 5.2" /></Svg>;
-};
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const ActivitiesPage: React.FC = () => {
-  const [tab, setTab] = useState<TabKey>('aktivitas');
+  const tab: TabKey = 'aktivitas';
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -137,7 +123,6 @@ const ActivitiesPage: React.FC = () => {
     setFormData(prev => ({ ...prev, [key]: value }));
 
   const handleAddNew = (): void => {
-    setTab('aktivitas');
     setIsAddMode(true);
     setCurrentItem(null);
     setFormData(EMPTY_FORM);
@@ -198,14 +183,11 @@ const ActivitiesPage: React.FC = () => {
     return matchSearch && matchKategori && matchStatus;
   });
 
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: 'katalog', label: 'Katalog makanan' },
-    { key: 'aktivitas', label: 'Aktivitas & MET' },
-    { key: 'akun', label: 'Akun pengguna' },
-  ];
-
-  const breadcrumbLabel =
-    tab === 'katalog' ? 'Katalog makanan' : tab === 'aktivitas' ? 'Aktivitas & MET' : 'Akun pengguna';
+  // const tabs: { key: TabKey; label: string }[] = [
+  //   { key: 'katalog', label: 'Katalog makanan' },
+  //   { key: 'aktivitas', label: 'Aktivitas & MET' },
+  //   { key: 'akun', label: 'Akun pengguna' },
+  // ];
 
   const inputCls =
     'w-full text-sm border border-[#d0dbd5] rounded-lg px-3 py-2 outline-none focus:border-[#124b39] bg-white transition-colors duration-200';
@@ -213,34 +195,11 @@ const ActivitiesPage: React.FC = () => {
 
   return (
     <>
-      <style>{`
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-tab-content {
-          animation: fadeSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-      `}</style>
-
       <div className="flex h-screen items-start overflow-hidden bg-[#f6f7f2] text-[#1d2926]">
         <AdministratorNavigationSection />
 
-        <main className="flex-1 h-screen overflow-y-auto flex flex-col">
-          {/* Topbar */}
-          <header className="flex items-center justify-between px-8 py-4 border-b border-[#e1e7df] bg-white">
-            <nav className="flex items-center gap-2 text-xs text-[#6b8c7a]" aria-label="Breadcrumb">
-              <span>Pengelolaan</span>
-              <span aria-hidden="true">›</span>
-              <span className="font-semibold text-[#1d2926] transition-all duration-300">{breadcrumbLabel}</span>
-            </nav>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] px-2.5 py-1 rounded-full bg-[#eaf0e8] text-[#4a7060]">Data contoh</span>
-              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-green-100 text-[#124b39]">
-                Akses terbatas
-              </span>
-            </div>
-          </header>
+        <main className="flex-1 min-w-0 h-screen overflow-y-auto flex flex-col">
+          <AdminPageHeader currentPage="Aktivitas & MET" />
 
           <div className="flex flex-col gap-5 p-8">
             {/* Hero */}
@@ -271,42 +230,35 @@ const ActivitiesPage: React.FC = () => {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-              {STATS.map(s => (
-                <div
-                  key={s.label}
-                  className={`rounded-2xl border px-5 py-4 transition-all duration-300 hover:shadow-sm ${
-                    s.highlight ? 'bg-[#eaf3e9] border-[#cfe2d3]' : 'bg-white border-[#e1e7df] hover:border-[#cfe2d3]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-xs text-[#6b8c7a]">
-                    <span>{s.label}</span>
-                    <span className="text-[#124b39]"><StatIcon name={s.icon} /></span>
-                  </div>
-                  <p className="text-3xl font-semibold tracking-tight mt-3">{s.value}</p>
-                  <p className="text-xs text-[#6b8c7a] mt-1.5">{s.sub}</p>
-                </div>
-              ))}
-            </div>
+            <AdminSummaryCards />
 
             {/* Tabs */}
             <div role="tablist" className="grid grid-cols-3 bg-[#eaf3e9] rounded-xl p-1 relative">
-              {tabs.map(t => (
-                <button
-                  key={t.key}
-                  role="tab"
-                  aria-selected={tab === t.key}
-                  type="button"
-                  onClick={() => setTab(t.key)}
-                  className={`py-2 text-sm rounded-lg transition-all duration-300 ease-out relative z-10 ${
-                    tab === t.key
-                      ? 'bg-white font-bold text-[#124b39] shadow-sm transform scale-[1.02]'
-                      : 'text-[#4a7060] hover:bg-white/40'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
+              <Link
+                to="/admin/pengelolaan"
+                role="tab"
+                aria-selected="false"
+                className="py-2 text-center text-sm rounded-lg transition-all duration-300 ease-out relative z-10 text-[#4a7060] hover:bg-white/40"
+              >
+                Katalog makanan
+              </Link>
+              <button
+                type="button"
+                role="tab"
+                aria-selected="true"
+                aria-current="page"
+                className="py-2 text-sm rounded-lg relative z-10 bg-white font-bold text-[#124b39] shadow-sm transform scale-[1.02]"
+              >
+                Aktivitas &amp; MET
+              </button>
+              <Link
+                to="/admin/pantau"
+                role="tab"
+                aria-selected="false"
+                className="py-2 text-center text-sm rounded-lg transition-all duration-300 ease-out relative z-10 text-[#4a7060] hover:bg-white/40"
+              >
+                Akun pengguna
+              </Link>
             </div>
 
             {/* AREA KONTEN TAB DENGAN ANIMASI */}
@@ -523,12 +475,6 @@ const ActivitiesPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Pesan sementara untuk Tab lain jika diklik */}
-              {tab !== 'aktivitas' && (
-                <div className="bg-white rounded-2xl border border-[#e1e7df] p-10 text-center shadow-sm">
-                  <p className="text-[#6b8c7a] text-sm">Navigasi ke {tab === 'katalog' ? 'Katalog makanan' : 'Akun pengguna'} belum terpasang di rute ini.</p>
-                </div>
-              )}
             </div>
 
           </div>
