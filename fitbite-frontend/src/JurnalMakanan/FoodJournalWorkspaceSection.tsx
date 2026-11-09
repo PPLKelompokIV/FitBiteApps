@@ -16,6 +16,9 @@ import {
   ScanBarcode,
   Camera,
   Sparkles,
+  Trash2,
+  Check,
+  X,
 } from "lucide-react";
 
 type Meal = {
@@ -188,11 +191,77 @@ function SegmentedTabs({
   );
 }
 
-function MealCard({ meal }: { meal: Meal }) {
+function MealCard({
+  meal,
+  onUpdateMeal,
+}: {
+  meal: Meal;
+  onUpdateMeal?: (updated: Meal) => void;
+}) {
   const [isOpen, setIsOpen] = useState(true);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    detail: "",
+    calories: "",
+  });
+
+  const handleStartEdit = (idx: number, item: { name: string; detail: string; calories: string }) => {
+    setEditingIndex(idx);
+    setEditForm({
+      name: item.name,
+      detail: item.detail,
+      calories: item.calories,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+  };
+
+  const handleSaveEdit = (idx: number) => {
+    const newItems = [...meal.items];
+    newItems[idx] = {
+      ...newItems[idx],
+      name: editForm.name.trim() || newItems[idx].name,
+      detail: editForm.detail.trim(),
+      calories: editForm.calories.trim() || "0",
+    };
+
+    const totalCals = newItems.reduce(
+      (acc, it) => acc + (parseFloat(it.calories) || 0),
+      0
+    );
+    const updatedMeal: Meal = {
+      ...meal,
+      items: newItems,
+      calories: `${Math.round(totalCals)} kkal`,
+    };
+
+    onUpdateMeal?.(updatedMeal);
+    setEditingIndex(null);
+  };
+
+  const handleDeleteItem = (idx: number) => {
+    const newItems = meal.items.filter((_, i) => i !== idx);
+    const totalCals = newItems.reduce(
+      (acc, it) => acc + (parseFloat(it.calories) || 0),
+      0
+    );
+    const updatedMeal: Meal = {
+      ...meal,
+      items: newItems,
+      calories: `${Math.round(totalCals)} kkal`,
+    };
+
+    onUpdateMeal?.(updatedMeal);
+    if (editingIndex === idx) {
+      setEditingIndex(null);
+    }
+  };
 
   return (
-    <article className="flex flex-col items-start gap-[13px] rounded-2xl border border-solid border-[#e1e7df] bg-white p-5">
+    <article className="flex flex-col items-start gap-[13px] rounded-2xl border border-solid border-[#e1e7df] bg-white p-5 transition-shadow hover:shadow-xs">
       <header className="flex w-full items-center justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <h3 className={`text-base leading-6 text-[#203d32] ${boldClass}`}>
@@ -225,34 +294,112 @@ function MealCard({ meal }: { meal: Meal }) {
 
       {isOpen && (
         <>
-          {meal.items.map((item) => (
-            <div key={item.name} className="flex w-full items-center gap-[13px]">
-              <div className="flex min-w-0 flex-1 flex-col gap-px">
-                <span
-                  className={`text-xs leading-[18px] text-[#203d32] ${mediumClass}`}
-                >
-                  {item.name}
-                </span>
-                <span
-                  className={`text-[10px] leading-[15px] text-[#728078] ${textClass}`}
-                >
-                  {item.detail}
-                </span>
+          {meal.items.length === 0 ? (
+            <p className={`text-xs text-[#728078] italic py-1 ${textClass}`}>
+              Belum ada item makanan di slot ini.
+            </p>
+          ) : (
+            meal.items.map((item, idx) => (
+              <div
+                key={`${item.name}-${idx}`}
+                className="group flex w-full items-center gap-[13px] rounded-lg p-1 transition-colors hover:bg-[#f8faf6]"
+              >
+                {editingIndex === idx ? (
+                  <div className="flex w-full flex-wrap items-center gap-2">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <input
+                        type="text"
+                        value={editForm.name}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, name: e.target.value })
+                        }
+                        placeholder="Nama makanan"
+                        className="rounded border border-[#167653] bg-white px-2 py-1 text-xs font-semibold text-[#203d32] outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={editForm.detail}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, detail: e.target.value })
+                        }
+                        placeholder="Porsi / Keterangan"
+                        className="rounded border border-[#e1e7df] bg-white px-2 py-0.5 text-[10px] text-[#728078] outline-none"
+                      />
+                    </div>
+                    <div className="w-20">
+                      <input
+                        type="number"
+                        value={editForm.calories}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, calories: e.target.value })
+                        }
+                        placeholder="Kkal"
+                        className="w-full rounded border border-[#e1e7df] bg-white px-2 py-1 text-center text-xs text-[#203d32] outline-none focus:border-[#167653]"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEdit(idx)}
+                        title="Simpan perubahan"
+                        className="rounded-md bg-[#167653] p-1.5 text-white hover:bg-[#125f43] transition-colors"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        title="Batal edit"
+                        className="rounded-md border border-[#e1e7df] bg-white p-1.5 text-[#728078] hover:bg-[#f0f3ec] transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex min-w-0 flex-1 flex-col gap-px">
+                      <span
+                        className={`text-xs leading-[18px] text-[#203d32] ${mediumClass}`}
+                      >
+                        {item.name}
+                      </span>
+                      <span
+                        className={`text-[10px] leading-[15px] text-[#728078] ${textClass}`}
+                      >
+                        {item.detail}
+                      </span>
+                    </div>
+                    <span
+                      className={`text-xs leading-[18px] text-[#203d32] ${semiboldClass}`}
+                    >
+                      {item.calories} kkal
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(idx, item)}
+                        aria-label={`Edit ${item.name}`}
+                        title="Edit porsi atau kalori"
+                        className="rounded-md p-1.5 text-[#728078] transition-colors hover:bg-[#eaf3e9] hover:text-[#167653]"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteItem(idx)}
+                        aria-label={`Hapus ${item.name}`}
+                        title="Hapus makanan ini"
+                        className="rounded-md p-1.5 text-[#728078] opacity-60 group-hover:opacity-100 transition-all hover:bg-red-50 hover:text-red-500"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-              <span
-                className={`text-xs leading-[18px] text-[#203d32] ${semiboldClass}`}
-              >
-                {item.calories} kkal
-              </span>
-              <button
-                type="button"
-                aria-label={`Edit ${item.name}`}
-                className="rounded-md p-1.5 text-[#728078] transition-colors hover:bg-[#eaf3e9] hover:text-[#167653]"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+            ))
+          )}
 
           <div className="h-px w-full bg-[#e1e7df]" />
           <p className={`text-[10px] leading-[15px] text-[#728078] ${textClass}`}>
@@ -697,6 +844,43 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
       });
   }, [selectedDate]);
 
+  const handleUpdateMealSlot = (updatedSlot: Meal) => {
+    const newMeals = mealsList.map((m) =>
+      m.name === updatedSlot.name ? updatedSlot : m
+    );
+    setMealsList(newMeals);
+    updateSummaryFromMeals(newMeals);
+
+    // Simpan ke localStorage
+    try {
+      const savedStr = localStorage.getItem("fitbite_journal_slots");
+      const existing = savedStr ? JSON.parse(savedStr) : {};
+      existing[updatedSlot.name] = updatedSlot;
+      localStorage.setItem("fitbite_journal_slots", JSON.stringify(existing));
+    } catch (e) {
+      console.error(e);
+    }
+
+    // Sinkronkan ke backend FastAPI
+    axios
+      .post("http://localhost:8000/api/meals/log", {
+        date: selectedDate,
+        meal_slot: updatedSlot.name,
+        time: updatedSlot.time,
+        method: "manual",
+        items: updatedSlot.items.map((it) => ({
+          name: it.name,
+          detail: it.detail,
+          portion: "",
+          calories: it.calories,
+          nutrients: [0, 0, 0],
+        })),
+      })
+      .catch((err) =>
+        console.warn("Sinkronisasi update slot ke backend gagal:", err)
+      );
+  };
+
   return (
     <main className="relative flex h-screen min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-[#f8faf6]">
       <header className="sticky top-0 z-10 flex h-[78px] w-full shrink-0 items-center justify-between border-b border-solid border-[#e1e7df] bg-white px-9">
@@ -782,7 +966,11 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
         <section className="flex w-full items-start gap-6">
           <div className="flex w-[520px] flex-col gap-4">
             {mealsList.map((meal) => (
-              <MealCard key={meal.name} meal={meal} />
+              <MealCard
+                key={meal.name}
+                meal={meal}
+                onUpdateMeal={handleUpdateMealSlot}
+              />
             ))}
             <p
               className={`text-[10px] leading-[15px] text-[#728078] ${textClass}`}
