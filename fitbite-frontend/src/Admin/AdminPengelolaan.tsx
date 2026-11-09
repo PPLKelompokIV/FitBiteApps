@@ -34,6 +34,14 @@ interface FoodForm {
   verifikasi: Verifikasi;
 }
 
+type FormErrors = Partial<Record<keyof FoodForm, string>>;
+
+interface NotificationState {
+  type: 'success' | 'error';
+  title: string;
+  message: string;
+}
+
 // ─── Seed Data ────────────────────────────────────────────────────────────────
 
 const SUMBER_DEFAULT = 'Referensi internal v1 (contoh)';
@@ -65,7 +73,10 @@ const API_URL = 'http://localhost:5000/api/admin/foods';
 const fmt = (n: number): string =>
   n.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
 
-const toNum = (s: string): number => parseFloat(s.replace(',', '.'));
+const toNum = (s: string): number => {
+  if (!s || !s.trim()) return NaN;
+  return Number(s.trim().replace(',', '.'));
+};
 
 const EMPTY_FORM: FoodForm = {
   nama: '',
@@ -91,6 +102,46 @@ const toForm = (f: Food): FoodForm => ({
   verifikasi: f.verifikasi,
 });
 
+// Validasi data gizi positif (FIT-32)
+const validateFoodForm = (formData: FoodForm): FormErrors => {
+  const errors: FormErrors = {};
+
+  if (!formData.nama.trim()) {
+    errors.nama = 'Nama makanan wajib diisi';
+  }
+
+  if (!formData.kategori) {
+    errors.kategori = 'Kategori makanan wajib dipilih';
+  }
+
+  const basis = toNum(formData.basis);
+  if (Number.isNaN(basis) || basis <= 0) {
+    errors.basis = 'Basis berat harus bernilai positif (> 0 g)';
+  }
+
+  const kkal = toNum(formData.kkal);
+  if (Number.isNaN(kkal) || kkal <= 0) {
+    errors.kkal = 'Energi wajib diisi angka positif (> 0 kkal)';
+  }
+
+  const protein = toNum(formData.protein);
+  if (Number.isNaN(protein) || protein < 0) {
+    errors.protein = 'Protein harus bernilai positif (≥ 0 g)';
+  }
+
+  const karbo = toNum(formData.karbo);
+  if (Number.isNaN(karbo) || karbo < 0) {
+    errors.karbo = 'Karbo harus bernilai positif (≥ 0 g)';
+  }
+
+  const lemak = toNum(formData.lemak);
+  if (Number.isNaN(lemak) || lemak < 0) {
+    errors.lemak = 'Lemak harus bernilai positif (≥ 0 g)';
+  }
+
+  return errors;
+};
+
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 const Svg: React.FC<{ size?: number; sw?: number; children: React.ReactNode }> = ({ size = 16, sw = 1.8, children }) => (
@@ -105,6 +156,8 @@ const IconPencil = () => <Svg size={16} sw={2}><path d="M4 20h4L19 9a2.1 2.1 0 0
 const IconPower = () => <Svg size={16} sw={2}><path d="M12 3v8" /><path d="M7 6.3a8 8 0 1 0 10 0" /></Svg>;
 const IconPlus = () => <Svg size={16} sw={2.2}><path d="M12 5v14M5 12h14" /></Svg>;
 const IconTick = () => <Svg size={16} sw={2.2}><path d="M5 12.5l4.5 4.5L19 7.5" /></Svg>;
+const IconAlert = () => <Svg size={16}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></Svg>;
+const IconClose = () => <Svg size={14} sw={2.2}><path d="M18 6L6 18M6 6l12 12" /></Svg>;
 const IconScale = () => (
   <Svg size={16}>
     <path d="M12 3v18M7 21h10" />
@@ -122,8 +175,16 @@ const AdminPengelolaan: React.FC = () => {
   const [filterKategori, setFilterKategori] = useState('semua');
   const [filterStatus, setFilterStatus] = useState('Aktif');
   const [formData, setFormData] = useState<FoodForm>(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [notification, setNotification] = useState<NotificationState | null>(null);
   const [isAddMode, setIsAddMode] = useState(false);
   const [currentItem, setCurrentItem] = useState<Food | null>(null);
+
+  useEffect(() => {
+    if (!notification || notification.type !== 'success') return;
+    const timer = setTimeout(() => setNotification(null), 6000);
+    return () => clearTimeout(timer);
+  }, [notification]);
 
   const saveFoods = (updated: Food[]): void => {
     setFoods(updated);
@@ -165,37 +226,53 @@ const AdminPengelolaan: React.FC = () => {
 
   useEffect(() => { fetchFoods(); }, []);
 
-  const setField = <K extends keyof FoodForm>(key: K, value: FoodForm[K]): void =>
+  const setField = <K extends keyof FoodForm>(key: K, value: FoodForm[K]): void => {
     setFormData(prev => ({ ...prev, [key]: value }));
+    if (formErrors[key]) {
+      setFormErrors(prev => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  };
 
   const handleAddNew = (): void => {
     setIsAddMode(true);
     setCurrentItem(null);
     setFormData(EMPTY_FORM);
+    setFormErrors({});
+    setNotification(null);
   };
 
   const handleEdit = (item: Food): void => {
     setIsAddMode(false);
     setCurrentItem(item);
     setFormData(toForm(item));
+    setFormErrors({});
   };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (!formData.nama.trim()) { alert('Nama makanan wajib diisi'); return; }
-    if (!formData.kategori) { alert('Kategori wajib dipilih'); return; }
+
+    const errors = validateFoodForm(formData);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      setNotification({
+        type: 'error',
+        title: 'Validasi Data Gizi Gagal',
+        message: 'Pastikan seluruh nilai gizi (energi, protein, karbo, lemak, dan basis berat) bernilai positif dan tidak kosong.',
+      });
+      return;
+    }
+
+    setFormErrors({});
 
     const basis = toNum(formData.basis);
     const kkal = toNum(formData.kkal);
     const protein = toNum(formData.protein);
     const karbo = toNum(formData.karbo);
     const lemak = toNum(formData.lemak);
-
-    if (isNaN(basis) || basis <= 0) { alert('Basis berat harus berupa angka > 0'); return; }
-    if ([kkal, protein, karbo, lemak].some(n => isNaN(n) || n < 0)) {
-      alert('Energi, protein, karbo, dan lemak harus berupa angka ≥ 0');
-      return;
-    }
 
     const values = {
       nama: formData.nama.trim(),
@@ -211,40 +288,66 @@ const AdminPengelolaan: React.FC = () => {
 
     if (isAddMode) {
       let newItem: Food = { id: Date.now(), aktif: true, ...values };
+      let serverMsg = `Data gizi "${values.nama}" (${fmt(values.kkal)} kkal) berhasil divalidasi dan disimpan ke katalog.`;
       try {
         const response = await fetch(API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(values),
         });
-        if (response.ok) {
-          const result = await response.json();
-          if (result.data) newItem = result.data as Food;
+        const result = await response.json();
+        if (!response.ok) {
+          if (result.errors) setFormErrors(result.errors);
+          setNotification({
+            type: 'error',
+            title: 'Validasi Data Gizi Gagal',
+            message: result.message || 'Data gizi tidak valid.',
+          });
+          return;
         }
+        if (result.data) newItem = result.data as Food;
+        if (result.message) serverMsg = result.message;
       } catch {
         // Fallback ke localStorage jika server backend belum menyala
       }
       saveFoods([...foods, newItem]);
-      alert('Makanan berhasil ditambahkan');
       handleEdit(newItem);
+      setNotification({
+        type: 'success',
+        title: 'Berhasil Disimpan!',
+        message: serverMsg,
+      });
     } else if (currentItem) {
       let updatedItem: Food = { ...currentItem, ...values };
+      let serverMsg = `Perubahan data gizi "${values.nama}" berhasil divalidasi dan disimpan.`;
       try {
         const response = await fetch(`${API_URL}/${currentItem.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(values),
         });
-        if (response.ok) {
-          const result = await response.json();
-          if (result.data) updatedItem = result.data as Food;
+        const result = await response.json();
+        if (!response.ok) {
+          if (result.errors) setFormErrors(result.errors);
+          setNotification({
+            type: 'error',
+            title: 'Validasi Data Gizi Gagal',
+            message: result.message || 'Data gizi tidak valid.',
+          });
+          return;
         }
+        if (result.data) updatedItem = result.data as Food;
+        if (result.message) serverMsg = result.message;
       } catch {
         // Fallback ke localStorage
       }
       saveFoods(foods.map(f => (f.id === currentItem.id ? updatedItem : f)));
       setCurrentItem(updatedItem);
-      alert('Perubahan berhasil disimpan');
+      setNotification({
+        type: 'success',
+        title: 'Perubahan Berhasil Disimpan!',
+        message: serverMsg,
+      });
     }
   };
 
@@ -264,6 +367,11 @@ const AdminPengelolaan: React.FC = () => {
     }
     saveFoods(foods.map(f => (f.id === id ? { ...f, aktif: next } : f)));
     if (currentItem?.id === id) setCurrentItem({ ...target, aktif: next });
+    setNotification({
+      type: 'success',
+      title: next ? 'Makanan Diaktifkan' : 'Makanan Dinonaktifkan',
+      message: `Status "${target.nama}" berhasil diubah menjadi ${next ? 'Aktif' : 'Nonaktif'}.`,
+    });
   };
 
   const filtered = foods.filter(f => {
@@ -275,8 +383,12 @@ const AdminPengelolaan: React.FC = () => {
     return matchSearch && matchKategori && matchStatus;
   });
 
-  const inputCls =
-    'w-full text-sm border border-[#d0dbd5] rounded-lg px-3 py-2 outline-none focus:border-[#124b39] bg-white transition-colors duration-200';
+  const baseInputCls =
+    'w-full text-sm rounded-lg px-3 py-2 outline-none transition-colors duration-200';
+  const getInputCls = (field?: keyof FoodForm): string =>
+    field && formErrors[field]
+      ? `${baseInputCls} border border-red-400 bg-red-50/40 text-red-900 focus:border-red-600`
+      : `${baseInputCls} border border-[#d0dbd5] bg-white focus:border-[#124b39]`;
   const labelCls = 'text-xs font-medium text-[#4a7060]';
 
   return (
@@ -290,6 +402,41 @@ const AdminPengelolaan: React.FC = () => {
           animation: fadeSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       `}</style>
+
+      {/* Toast Notifikasi Melayang di Kanan Atas (FIT-32) */}
+      {notification && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed top-5 right-6 z-50 max-w-md flex items-start gap-3 px-4 py-3.5 rounded-xl shadow-lg border animate-tab-content ${
+            notification.type === 'success'
+              ? 'bg-[#eaf3e9] border-[#167653]/30 text-[#124b39]'
+              : 'bg-red-50 border-red-300 text-red-800'
+          }`}
+        >
+          <span
+            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+              notification.type === 'success'
+                ? 'bg-[#124b39] text-white'
+                : 'bg-red-600 text-white'
+            }`}
+          >
+            {notification.type === 'success' ? <IconTick /> : <IconAlert />}
+          </span>
+          <div className="flex-1 text-xs">
+            <p className="font-bold text-sm">{notification.title}</p>
+            <p className="mt-0.5 leading-relaxed">{notification.message}</p>
+          </div>
+          <button
+            type="button"
+            aria-label="Tutup notifikasi"
+            onClick={() => setNotification(null)}
+            className="opacity-70 hover:opacity-100 p-1 rounded-md transition-opacity"
+          >
+            <IconClose />
+          </button>
+        </div>
+      )}
 
       <div className="flex h-screen items-start overflow-hidden bg-[#f6f7f2] text-[#1d2926]">
         <AdministratorNavigationSection />
@@ -359,7 +506,7 @@ const AdminPengelolaan: React.FC = () => {
 
             {/* AREA KONTEN TAB DENGAN ANIMASI */}
             <div className="animate-tab-content">
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
                 {/* Tabel */}
                 <section className="bg-white rounded-2xl border border-[#e1e7df] p-6 shadow-sm min-w-0">
                   <h2 className="text-base font-bold text-[#1d2926]">Katalog makanan</h2>
@@ -376,7 +523,7 @@ const AdminPengelolaan: React.FC = () => {
                           placeholder="Cari nama atau kategori..."
                           value={search}
                           onChange={e => setSearch(e.target.value)}
-                          className={`${inputCls} pr-9 transition-shadow focus:shadow-sm`}
+                          className={`${getInputCls()} pr-9 transition-shadow focus:shadow-sm`}
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4a7060] pointer-events-none">
                           <IconSearch />
@@ -385,14 +532,14 @@ const AdminPengelolaan: React.FC = () => {
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className={labelCls}>Kategori</label>
-                      <select value={filterKategori} onChange={e => setFilterKategori(e.target.value)} className={inputCls}>
+                      <select value={filterKategori} onChange={e => setFilterKategori(e.target.value)} className={getInputCls()}>
                         <option value="semua">Semua</option>
                         {KATEGORI_LIST.map(k => <option key={k} value={k}>{k}</option>)}
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className={labelCls}>Status</label>
-                      <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={inputCls}>
+                      <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={getInputCls()}>
                         {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
@@ -490,12 +637,31 @@ const AdminPengelolaan: React.FC = () => {
                       </h2>
                       <p className="text-xs text-[#6b8c7a] mt-0.5">
                         {isAddMode
-                          ? 'Entri baru'
+                          ? 'Entri baru • validasi gizi positif aktif'
                           : `${currentItem?.nama ?? '-'} • entri ${currentItem?.aktif ? 'aktif' : 'nonaktif'}`}
                       </p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+                    {/* Banner Inline Notifikasi Sukses / Error di dalam Form (FIT-32) */}
+                    {notification && (
+                      <div
+                        className={`flex items-start gap-2.5 p-3 rounded-xl text-xs border animate-tab-content ${
+                          notification.type === 'success'
+                            ? 'bg-[#eaf3e9] border-[#167653]/30 text-[#124b39]'
+                            : 'bg-red-50 border-red-200 text-red-700'
+                        }`}
+                      >
+                        <span className="mt-0.5 shrink-0">
+                          {notification.type === 'success' ? <IconTick /> : <IconAlert />}
+                        </span>
+                        <div className="flex-1">
+                          <p className="font-bold">{notification.title}</p>
+                          <p className="mt-0.5 leading-relaxed">{notification.message}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
                       <div className="flex flex-col gap-1">
                         <label className={labelCls}>Nama makanan</label>
                         <input
@@ -503,32 +669,61 @@ const AdminPengelolaan: React.FC = () => {
                           value={formData.nama}
                           onChange={e => setField('nama', e.target.value)}
                           placeholder="cth. Nasi merah matang"
-                          className={inputCls}
+                          className={getInputCls('nama')}
                         />
+                        {formErrors.nama && (
+                          <span className="text-[11px] text-red-600 font-medium">{formErrors.nama}</span>
+                        )}
                       </div>
 
                       <div className="flex flex-col gap-1">
                         <label className={labelCls}>Kategori</label>
-                        <select value={formData.kategori} onChange={e => setField('kategori', e.target.value)} className={inputCls}>
+                        <select
+                          value={formData.kategori}
+                          onChange={e => setField('kategori', e.target.value)}
+                          className={getInputCls('kategori')}
+                        >
                           <option value="">Pilih kategori</option>
                           {KATEGORI_LIST.map(k => <option key={k} value={k}>{k}</option>)}
                         </select>
+                        {formErrors.kategori && (
+                          <span className="text-[11px] text-red-600 font-medium">{formErrors.kategori}</span>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-3">
                         <div className="flex flex-col gap-1">
                           <label className={labelCls}>Basis berat</label>
                           <div className="relative">
-                            <input type="text" inputMode="decimal" value={formData.basis} onChange={e => setField('basis', e.target.value)} className={`${inputCls} pr-8`} />
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={formData.basis}
+                              onChange={e => setField('basis', e.target.value)}
+                              className={`${getInputCls('basis')} pr-8`}
+                            />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6b8c7a] pointer-events-none">g</span>
                           </div>
+                          {formErrors.basis && (
+                            <span className="text-[10px] text-red-600 font-medium leading-tight">{formErrors.basis}</span>
+                          )}
                         </div>
                         <div className="flex flex-col gap-1">
                           <label className={labelCls}>Energi</label>
                           <div className="relative">
-                            <input type="text" inputMode="decimal" value={formData.kkal} onChange={e => setField('kkal', e.target.value)} className={`${inputCls} pr-11`} />
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={formData.kkal}
+                              onChange={e => setField('kkal', e.target.value)}
+                              placeholder="> 0"
+                              className={`${getInputCls('kkal')} pr-11`}
+                            />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6b8c7a] pointer-events-none">kkal</span>
                           </div>
+                          {formErrors.kkal && (
+                            <span className="text-[10px] text-red-600 font-medium leading-tight">{formErrors.kkal}</span>
+                          )}
                         </div>
                       </div>
 
@@ -546,22 +741,35 @@ const AdminPengelolaan: React.FC = () => {
                                 inputMode="decimal"
                                 value={formData[key]}
                                 onChange={e => setField(key, e.target.value)}
-                                className={`${inputCls} pr-7 px-2`}
+                                placeholder="≥ 0"
+                                className={`${getInputCls(key)} pr-7 px-2`}
                               />
                               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#6b8c7a] pointer-events-none">g</span>
                             </div>
+                            {formErrors[key] && (
+                              <span className="text-[10px] text-red-600 font-medium leading-tight">{formErrors[key]}</span>
+                            )}
                           </div>
                         ))}
                       </div>
 
                       <div className="flex flex-col gap-1">
                         <label className={labelCls}>Sumber referensi</label>
-                        <input type="text" value={formData.sumber} onChange={e => setField('sumber', e.target.value)} className={inputCls} />
+                        <input
+                          type="text"
+                          value={formData.sumber}
+                          onChange={e => setField('sumber', e.target.value)}
+                          className={getInputCls('sumber')}
+                        />
                       </div>
 
                       <div className="flex flex-col gap-1">
                         <label className={labelCls}>Status verifikasi</label>
-                        <select value={formData.verifikasi} onChange={e => setField('verifikasi', e.target.value as Verifikasi)} className={inputCls}>
+                        <select
+                          value={formData.verifikasi}
+                          onChange={e => setField('verifikasi', e.target.value as Verifikasi)}
+                          className={getInputCls('verifikasi')}
+                        >
                           {VERIFIKASI_LIST.map(v => <option key={v} value={v}>{v}</option>)}
                         </select>
                       </div>
@@ -589,7 +797,11 @@ const AdminPengelolaan: React.FC = () => {
                           Nonaktif menghilangkan entri dari pilihan baru, bukan menghapus catatan lama pengguna.
                         </p>
                       ) : (
-                        <button type="button" onClick={() => currentItem ? handleEdit(currentItem) : fetchFoods()} className="text-xs text-[#6b8c7a] hover:text-[#1d2926] hover:underline text-center mt-2 transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => currentItem ? handleEdit(currentItem) : fetchFoods()}
+                          className="text-xs text-[#6b8c7a] hover:text-[#1d2926] hover:underline text-center mt-2 transition-colors"
+                        >
                           Batal
                         </button>
                       )}

@@ -14,6 +14,58 @@ let foods = [
   { id: 7, nama: 'Yoghurt tawar', kategori: 'Susu & olahan', basis: 100, kkal: 60, protein: 6.7, karbo: 5, lemak: 1.5, sumber: SUMBER_DEFAULT, verifikasi: 'Perlu tinjau', aktif: true },
 ];
 
+// Helper validasi data gizi positif (FIT-32)
+function validatePositiveNutrition(body) {
+  const errors = {};
+  const { nama, kategori, basis = 100, kkal, protein, karbo, lemak } = body;
+
+  if (!nama || typeof nama !== 'string' || !nama.trim()) {
+    errors.nama = 'Nama makanan wajib diisi';
+  }
+
+  if (!kategori || typeof kategori !== 'string' || !kategori.trim()) {
+    errors.kategori = 'Kategori makanan wajib dipilih';
+  }
+
+  const numBasis = Number(basis);
+  const numKkal = kkal === '' || kkal === undefined || kkal === null ? NaN : Number(kkal);
+  const numProtein = protein === '' || protein === undefined || protein === null ? NaN : Number(protein);
+  const numKarbo = karbo === '' || karbo === undefined || karbo === null ? NaN : Number(karbo);
+  const numLemak = lemak === '' || lemak === undefined || lemak === null ? NaN : Number(lemak);
+
+  if (Number.isNaN(numBasis) || numBasis <= 0) {
+    errors.basis = 'Basis berat harus bernilai positif (> 0 g)';
+  }
+
+  if (Number.isNaN(numKkal) || numKkal <= 0) {
+    errors.kkal = 'Energi (kkal) harus bernilai positif (> 0)';
+  }
+
+  if (Number.isNaN(numProtein) || numProtein < 0) {
+    errors.protein = 'Protein harus bernilai positif (≥ 0 g)';
+  }
+
+  if (Number.isNaN(numKarbo) || numKarbo < 0) {
+    errors.karbo = 'Karbohidrat harus bernilai positif (≥ 0 g)';
+  }
+
+  if (Number.isNaN(numLemak) || numLemak < 0) {
+    errors.lemak = 'Lemak harus bernilai positif (≥ 0 g)';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors,
+    parsed: {
+      numBasis,
+      numKkal,
+      numProtein,
+      numKarbo,
+      numLemak,
+    },
+  };
+}
+
 // GET /api/admin/foods - Ambil daftar katalog makanan
 router.get('/', (req, res) => {
   res.status(200).json({
@@ -22,54 +74,19 @@ router.get('/', (req, res) => {
   });
 });
 
-// POST /api/admin/foods - Tambah makanan baru ke katalog master (FIT-31)
+// POST /api/admin/foods - Tambah makanan baru ke katalog master (FIT-31 & FIT-32)
 router.post('/', (req, res) => {
-  const {
-    nama,
-    kategori,
-    basis = 100,
-    kkal,
-    protein,
-    karbo,
-    lemak,
-    sumber,
-    verifikasi = 'Perlu tinjau',
-  } = req.body;
+  const { nama, kategori, sumber, verifikasi = 'Perlu tinjau' } = req.body;
 
-  // Validasi field wajib
-  if (!nama || typeof nama !== 'string' || !nama.trim()) {
+  const validation = validatePositiveNutrition(req.body);
+  if (!validation.isValid) {
     return res.status(400).json({
-      message: 'Nama makanan wajib diisi',
+      message: 'Validasi data gizi gagal: pastikan seluruh nilai gizi bernilai positif',
+      errors: validation.errors,
     });
   }
 
-  if (!kategori || typeof kategori !== 'string' || !kategori.trim()) {
-    return res.status(400).json({
-      message: 'Kategori makanan wajib dipilih',
-    });
-  }
-
-  const numBasis = Number(basis);
-  const numKkal = Number(kkal);
-  const numProtein = Number(protein);
-  const numKarbo = Number(karbo);
-  const numLemak = Number(lemak);
-
-  if (Number.isNaN(numBasis) || numBasis <= 0) {
-    return res.status(400).json({
-      message: 'Basis berat harus berupa angka lebih dari 0',
-    });
-  }
-
-  if (
-    [numKkal, numProtein, numKarbo, numLemak].some(
-      (n) => Number.isNaN(n) || n < 0
-    )
-  ) {
-    return res.status(400).json({
-      message: 'Energi (kkal), protein, karbo, dan lemak harus berupa angka >= 0',
-    });
-  }
+  const { numBasis, numKkal, numProtein, numKarbo, numLemak } = validation.parsed;
 
   const newFood = {
     id: foods.length > 0 ? Math.max(...foods.map((f) => f.id)) + 1 : 1,
@@ -88,12 +105,12 @@ router.post('/', (req, res) => {
   foods.push(newFood);
 
   return res.status(201).json({
-    message: 'Makanan berhasil ditambahkan',
+    message: `Data gizi "${newFood.nama}" (${newFood.kkal} kkal) berhasil divalidasi dan disimpan ke katalog.`,
     data: newFood,
   });
 });
 
-// PUT /api/admin/foods/:id - Update data makanan
+// PUT /api/admin/foods/:id - Update data makanan & validasi gizi positif (FIT-32)
 router.put('/:id', (req, res) => {
   const id = Number(req.params.id);
   const index = foods.findIndex((f) => f.id === id);
@@ -102,44 +119,53 @@ router.put('/:id', (req, res) => {
     return res.status(404).json({ message: 'Makanan tidak ditemukan' });
   }
 
-  const {
-    nama,
-    kategori,
-    basis,
-    kkal,
-    protein,
-    karbo,
-    lemak,
-    sumber,
-    verifikasi,
-    aktif,
-  } = req.body;
-
-  if (nama !== undefined && !String(nama).trim()) {
-    return res.status(400).json({ message: 'Nama makanan wajib diisi' });
+  // Jika hanya toggle status aktif/nonaktif
+  if (
+    Object.keys(req.body).length === 1 &&
+    typeof req.body.aktif === 'boolean'
+  ) {
+    foods[index] = { ...foods[index], aktif: req.body.aktif };
+    return res.status(200).json({
+      message: `Status "${foods[index].nama}" berhasil diubah menjadi ${req.body.aktif ? 'Aktif' : 'Nonaktif'}.`,
+      data: foods[index],
+    });
   }
+
+  const mergedPayload = {
+    ...foods[index],
+    ...req.body,
+  };
+
+  const validation = validatePositiveNutrition(mergedPayload);
+  if (!validation.isValid) {
+    return res.status(400).json({
+      message: 'Validasi data gizi gagal: pastikan seluruh nilai gizi bernilai positif',
+      errors: validation.errors,
+    });
+  }
+
+  const { numBasis, numKkal, numProtein, numKarbo, numLemak } = validation.parsed;
 
   const updated = {
     ...foods[index],
-    ...(nama !== undefined && { nama: String(nama).trim() }),
-    ...(kategori !== undefined && { kategori: String(kategori).trim() }),
-    ...(basis !== undefined && { basis: Number(basis) }),
-    ...(kkal !== undefined && { kkal: Number(kkal) }),
-    ...(protein !== undefined && { protein: Number(protein) }),
-    ...(karbo !== undefined && { karbo: Number(karbo) }),
-    ...(lemak !== undefined && { lemak: Number(lemak) }),
-    ...(sumber !== undefined && { sumber: String(sumber).trim() || SUMBER_DEFAULT }),
-    ...(verifikasi !== undefined && { verifikasi }),
-    ...(typeof aktif === 'boolean' && { aktif }),
+    nama: String(mergedPayload.nama).trim(),
+    kategori: String(mergedPayload.kategori).trim(),
+    basis: numBasis,
+    kkal: numKkal,
+    protein: numProtein,
+    karbo: numKarbo,
+    lemak: numLemak,
+    sumber: String(mergedPayload.sumber || '').trim() || SUMBER_DEFAULT,
+    verifikasi: mergedPayload.verifikasi === 'Terverifikasi' ? 'Terverifikasi' : 'Perlu tinjau',
+    ...(typeof req.body.aktif === 'boolean' && { aktif: req.body.aktif }),
   };
 
   foods[index] = updated;
 
   return res.status(200).json({
-    message: 'Perubahan makanan berhasil disimpan',
+    message: `Perubahan data gizi "${updated.nama}" berhasil divalidasi dan disimpan.`,
     data: updated,
   });
 });
 
 module.exports = router;
-
