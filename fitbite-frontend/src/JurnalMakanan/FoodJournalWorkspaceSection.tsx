@@ -1,4 +1,5 @@
 import { useState, type JSX } from "react";
+import { useNavigate } from "react-router-dom";
 import fotoHidangan from "../assets/foto-hidangan.png";
 import fotoHidangan2 from "../assets/foto-hidangan-2.png";
 import fotoHidangan3 from "../assets/foto-hidangan-3.png";
@@ -12,6 +13,8 @@ import {
   CheckCircle2,
   Plus,
   ScanBarcode,
+  Camera,
+  Sparkles,
 } from "lucide-react";
 
 type Meal = {
@@ -26,7 +29,7 @@ type Meal = {
   macros: string;
 };
 
-const meals: Meal[] = [
+const defaultMeals: Meal[] = [
   {
     name: "Sarapan",
     time: "07.30 WIB",
@@ -298,6 +301,7 @@ function Field({
 }
 
 function AddFoodPanel() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Katalog");
   const [activeMeal, setActiveMeal] = useState("Makan siang");
   const [food, setFood] = useState("Nasi merah");
@@ -450,7 +454,27 @@ function AddFoodPanel() {
           </>
         )}
 
-        {activeTab !== "Katalog" && (
+        {activeTab === "Foto AI" && (
+          <div className="flex w-full flex-col items-start gap-3.5 rounded-[12px] bg-[#eaf3e9] p-4 text-[#203d32] border border-[#dcebb2]">
+            <div className="flex items-center gap-2 font-bold text-xs text-[#167653]">
+              <Sparkles className="h-4 w-4 shrink-0 text-[#167653]" />
+              <span>Smart Food Recognition (9Router Vision AI)</span>
+            </div>
+            <p className={`text-xs text-[#728078] leading-relaxed ${textClass}`}>
+              Ambil foto piring makanmu atau unggah gambar untuk dideteksi porsi, kalori, dan makronutrisinya secara otomatis dalam hitungan detik.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/foto-ai")}
+              className={`inline-flex items-center gap-2 rounded-lg bg-[#167653] px-4 py-2.5 text-xs text-white transition-colors hover:bg-[#125f43] ${semiboldClass}`}
+            >
+              <Camera className="h-4 w-4" />
+              <span>Buka Foto AI & Analisis Piring</span>
+            </button>
+          </div>
+        )}
+
+        {activeTab !== "Katalog" && activeTab !== "Foto AI" && (
           <div
             className={`rounded-[10px] bg-[#eaf3e9] p-4 text-sm text-[#203d32] ${textClass}`}
           >
@@ -564,6 +588,25 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
   const [recommendationMeal, setRecommendationMeal] = useState("Makan siang");
   const [selectedRecommendation, setSelectedRecommendation] = useState("");
 
+  const [mealsList] = useState<Meal[]>(() => {
+    try {
+      const savedStr = localStorage.getItem("fitbite_journal_slots");
+      if (!savedStr) return defaultMeals;
+      const savedSlots = JSON.parse(savedStr);
+      return defaultMeals.map((dm) => {
+        if (savedSlots[dm.name]) {
+          return {
+            ...dm,
+            ...savedSlots[dm.name],
+          };
+        }
+        return dm;
+      });
+    } catch {
+      return defaultMeals;
+    }
+  });
+
   return (
     <main className="relative flex min-h-screen flex-1 flex-col items-start bg-[#f8faf6]">
       <header className="flex h-[78px] w-full items-center justify-between border-b border-solid border-[#e1e7df] bg-white px-9">
@@ -648,7 +691,7 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
         </section>
         <section className="flex w-full items-start gap-6">
           <div className="flex w-[520px] flex-col gap-4">
-            {meals.map((meal) => (
+            {mealsList.map((meal) => (
               <MealCard key={meal.name} meal={meal} />
             ))}
             <p

@@ -1,4 +1,6 @@
 import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import {
   ChevronRight,
   Bell,
@@ -10,6 +12,9 @@ import {
   Plus,
   Check,
   Trash2,
+  Loader2,
+  Sparkles,
+  AlertCircle,
 } from "lucide-react";
 
 type Meal = {
@@ -59,6 +64,7 @@ const initialMeals: Meal[] = [
 const mealTypes = ["Sarapan", "Makan siang", "Makan malam", "Camilan"];
 
 export const MealPhotoJournalSection = (): ReactElement => {
+  const navigate = useNavigate();
   const [selectedMealType, setSelectedMealType] = useState("Makan siang");
   const [checked, setChecked] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -79,11 +85,48 @@ export const MealPhotoJournalSection = (): ReactElement => {
     isSample: true,
   });
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisSuccess, setAnalysisSuccess] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const analyzePhoto = async (file: File) => {
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisSuccess(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await axios.post("http://localhost:8000/api/ai/food-snap", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 45000,
+      });
+
+      if (response.data && response.data.items && response.data.items.length > 0) {
+        setRows(response.data.items);
+        setAnalysisSuccess(`AI Vision berhasil mengenali ${response.data.items.length} komponen makanan dari foto!`);
+      } else {
+        setAnalysisError("AI tidak mendeteksi komponen makanan yang jelas. Silakan coba foto lain atau input manual.");
+      }
+    } catch (err: any) {
+      console.error("Error analyzing photo with 9Router AI:", err);
+      const detailMsg =
+        err?.response?.data?.detail ||
+        "Gagal terhubung ke service AI (port 8000). Pastikan server Python FastAPI sudah aktif.";
+      setAnalysisError(detailMsg);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       const url = URL.createObjectURL(file);
       setPhotoPreview(url);
       setPhotoInfo({
@@ -91,7 +134,47 @@ export const MealPhotoJournalSection = (): ReactElement => {
         size: `${(file.size / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`,
         isSample: false,
       });
+      // Trigger AI Vision recognition
+      analyzePhoto(file);
     }
+  };
+
+  const handleRetry = () => {
+    if (selectedFile) {
+      analyzePhoto(selectedFile);
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleSaveToJournal = () => {
+    setSaved(true);
+
+    const newEntry = {
+      name: selectedMealType,
+      time: `${entryTime} WIB`,
+      calories: `${Math.round(totalCalories)} kkal`,
+      items: rows.map((r) => ({
+        name: r.name,
+        detail: `${r.portion} • ${r.detail}`,
+        calories: r.calories,
+      })),
+      macros: `Protein ${Math.round(totalProtein)} g  ·  Karbo ${Math.round(totalCarb)} g  ·  Lemak ${Math.round(totalFat)} g`,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      const existingStr = localStorage.getItem("fitbite_journal_slots");
+      const existing = existingStr ? JSON.parse(existingStr) : {};
+      existing[selectedMealType] = newEntry;
+      localStorage.setItem("fitbite_journal_slots", JSON.stringify(existing));
+    } catch (err) {
+      console.error("Gagal menyimpan ke localStorage:", err);
+    }
+
+    setTimeout(() => {
+      navigate("/jurnal-makanan");
+    }, 800);
   };
 
   const updateMeal = (
@@ -191,6 +274,7 @@ export const MealPhotoJournalSection = (): ReactElement => {
           </div>
           <button
             type="button"
+            onClick={() => navigate("/jurnal-makanan")}
             className="inline-flex items-center gap-2 rounded-xl border border-[#e1e7df] bg-white px-4 py-2.5 font-semibold text-xs text-[#167653] transition-colors hover:bg-[#f8faf6]"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -206,6 +290,20 @@ export const MealPhotoJournalSection = (): ReactElement => {
           </p>
         </aside>
 
+        {analysisError && (
+          <div className="flex items-center gap-3 rounded-xl bg-red-50 p-4 text-xs text-red-700 border border-red-200">
+            <AlertCircle className="h-5 w-5 shrink-0 text-red-600" />
+            <p>{analysisError}</p>
+          </div>
+        )}
+
+        {analysisSuccess && (
+          <div className="flex items-center gap-3 rounded-xl bg-emerald-50 p-4 text-xs text-emerald-800 border border-emerald-200">
+            <Sparkles className="h-5 w-5 shrink-0 text-emerald-600" />
+            <p className="font-medium">{analysisSuccess}</p>
+          </div>
+        )}
+
         {/* 2-Column Layout */}
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
           {/* Kolom Kiri: Foto Makanan & Bantuan */}
@@ -216,10 +314,21 @@ export const MealPhotoJournalSection = (): ReactElement => {
               <div className="flex flex-col gap-2">
                 <div className="relative h-64 w-full overflow-hidden rounded-xl bg-[#f0f3ec]">
                   <img
-                    className="h-full w-full object-cover"
+                    className={`h-full w-full object-cover transition-all ${isAnalyzing ? "scale-105 filter blur-[2px]" : ""}`}
                     src={photoPreview}
                     alt="Foto hidangan makan siang"
                   />
+                  {isAnalyzing && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black/50 backdrop-blur-[2px] text-white p-4 text-center z-10 transition-all">
+                      <Loader2 className="h-9 w-9 animate-spin text-[#dcebb2]" />
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-bold">Menganalisis piringmu...</span>
+                        <span className="text-[11px] text-[#e1ede0]">
+                          Model AI sedang mendeteksi komponen makanan & nutrisi
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between pt-1 text-xs">
                   <span className="text-[#728078]">
@@ -237,24 +346,30 @@ export const MealPhotoJournalSection = (): ReactElement => {
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <button
                   type="button"
+                  disabled={isAnalyzing}
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#e1e7df] bg-white px-3 py-2.5 font-semibold text-xs text-[#167653] transition-colors hover:bg-[#f8faf6]"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#e1e7df] bg-white px-3 py-2.5 font-semibold text-xs text-[#167653] transition-colors hover:bg-[#f8faf6] disabled:opacity-50"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   <span>Ambil ulang</span>
                 </button>
                 <button
                   type="button"
+                  disabled={isAnalyzing}
                   onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#e1e7df] bg-white px-3 py-2.5 font-semibold text-xs text-[#167653] transition-colors hover:bg-[#f8faf6]"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#e1e7df] bg-white px-3 py-2.5 font-semibold text-xs text-[#167653] transition-colors hover:bg-[#f8faf6] disabled:opacity-50"
                 >
-                  <Upload className="h-3.5 w-3.5" />
+                  {isAnalyzing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5" />
+                  )}
                   <span>Unggah foto</span>
                 </button>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/png,image/jpeg"
+                  accept="image/png,image/jpeg,image/webp"
                   className="hidden"
                   onChange={handleFileUpload}
                   aria-label="Unggah foto makanan"
@@ -274,10 +389,15 @@ export const MealPhotoJournalSection = (): ReactElement => {
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#e1e7df] bg-white px-3 py-2.5 font-semibold text-xs text-[#167653] transition-colors hover:bg-[#f8faf6]"
+                  disabled={isAnalyzing}
+                  onClick={handleRetry}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#e1e7df] bg-white px-3 py-2.5 font-semibold text-xs text-[#167653] transition-colors hover:bg-[#f8faf6] disabled:opacity-50"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" />
+                  {isAnalyzing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
                   <span>Coba lagi</span>
                 </button>
                 <button
@@ -292,7 +412,7 @@ export const MealPhotoJournalSection = (): ReactElement => {
             </article>
 
             <p className="text-[11px] leading-relaxed text-[#728078]">
-              Simulasi hasil untuk mockup. Gemini Vision direncanakan sebagai layanan analisis foto; tidak ada integrasi aktif pada tampilan ini.
+              Integrasi aktif dengan 9Router Vision AI (ag/gemini-3.8-flash-high). Setiap komponen makanan dideteksi secara langsung dari citra piring.
             </p>
           </section>
 
@@ -300,13 +420,21 @@ export const MealPhotoJournalSection = (): ReactElement => {
           <section className="flex flex-col gap-5 lg:col-span-7">
             {/* Tabel Komponen Terdeteksi */}
             <article className="flex flex-col gap-4 rounded-2xl border border-[#e1e7df] bg-white p-6">
-              <div>
-                <h2 className="font-bold text-base text-[#203d32]">
-                  {rows.length} komponen terdeteksi
-                </h2>
-                <p className="text-xs text-[#728078]">
-                  Ubah porsi dan nutrisi jika berbeda dengan isi piringmu.
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-bold text-base text-[#203d32]">
+                    {rows.length} komponen terdeteksi
+                  </h2>
+                  <p className="text-xs text-[#728078]">
+                    Ubah porsi dan nutrisi jika berbeda dengan isi piringmu.
+                  </p>
+                </div>
+                {isAnalyzing && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eaf3e9] px-3 py-1 text-xs font-semibold text-[#167653] animate-pulse">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Memindai AI...
+                  </span>
+                )}
               </div>
 
               {/* Table Header */}
@@ -514,12 +642,12 @@ export const MealPhotoJournalSection = (): ReactElement => {
               {/* Submit Button */}
               <button
                 type="button"
-                disabled={!checked}
-                onClick={() => setSaved(true)}
+                disabled={!checked || isAnalyzing}
+                onClick={handleSaveToJournal}
                 className="flex items-center justify-center gap-2 rounded-xl bg-[#167653] px-4 py-3 font-semibold text-xs text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Check className="h-4 w-4" />
-                <span>{saved ? "Tersimpan di jurnal" : "Simpan ke jurnal"}</span>
+                <span>{saved ? "Tersimpan di jurnal! Mengalihkan..." : "Simpan ke jurnal"}</span>
               </button>
             </article>
           </section>

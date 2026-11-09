@@ -1,8 +1,21 @@
+import base64
+import json
+import os
+import re
+import uuid
 from typing import Literal
 
-from fastapi import FastAPI
+from dotenv import load_dotenv
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import requests
+
+load_dotenv()
+
+ROUTER_API_KEY = os.getenv("ROUTER_API_KEY", "sk-2b275c9f1cd52d50-1txvrl-5d0c63f7")
+ROUTER_BASE_URL = os.getenv("ROUTER_BASE_URL", "http://localhost:20128/v1")
+ROUTER_VISION_MODEL = os.getenv("ROUTER_VISION_MODEL", "ag/gemini-3.8-flash-high")
 
 app = FastAPI(title="FitBite AI & Calculation Service")
 
@@ -139,3 +152,134 @@ def adjust_calorie_target(data: CalorieTargetAdjustmentRequest):
             durasi_tidur_jam=data.durasi_tidur_jam,
         ),
     }
+
+
+def parse_ai_json_response(content: str) -> dict:
+    cleaned = content.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        match = re.search(r"(\{.*\})", cleaned, re.DOTALL)
+        if match:
+            return json.loads(match.group(1))
+        raise ValueError("Model AI tidak mengembalikan format JSON yang valid.")
+
+
+@app.post("/api/ai/food-snap")
+async def analyze_food_snap(file: UploadFile = File(...)):
+    """Menerima unggahan foto makanan dan mengembalikan estimasi komponen nutrisi dari 9Router."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Berkas yang diunggah harus berupa gambar (JPG, PNG, atau WebP).",
+        )
+
+    try:
+        image_bytes = await file.read()
+        if len(image_bytes) == 0:
+            raise HTTPException(status_code=400, detail="Berkas gambar kosong.")
+
+        b64_image = base64.b64encode(image_bytes).decode("utf-8")
+        mime_type = file.content_type or "image/jpeg"
+        data_url = f"data:{mime_type};base64,{b64_image}"
+
+        prompt = (
+            "Analisis gambar makanan atau piring hidangan ini. "
+            "Identifikasi komponen makanan/minuman yang terlihat, perkirakan porsinya, "
+            "jumlah kalori (kkal), serta makronutrien (protein, karbohidrat, dan lemak dalam gram). "
+            "Format respons HARUS berupa JSON valid tanpa teks pengantar dan tanpa markdown ```json. "
+            "Gunakan format persis berikut:\n"
+            "{\n"
+            '  "items": [\n'
+            "    {\n"
+            '      "name": "Nama makanan",\n'
+            '      "detail": "Keterangan porsi atau olahan",\n'
+            '      "portion": "100 g",\n'
+            '      "calories": "150",\n'
+            '      "nutrients": ["10", "20", "5"]\n'
+            "    }\n"
+            "  ]\n"
+            "}\n"
+            "PENTING: Nilai dalam nutrients adalah urutan [protein, karbohidrat, lemak] dalam gram (hanya angka numerik/desimal dalam string). "
+            "Gunakan Bahasa Indonesia untuk nama dan detail makanan."
+        )
+
+        payload = {
+            "model": ROUTER_VISION_MODEL,
+            "stream": False,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": data_url}},
+                    ],
+                }
+            ],
+            "temperature": 0.1,
+        }
+
+        response = requests.post(
+            f"{ROUTER_BASE_URL}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {ROUTER_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=45,
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail=f"Layanan 9Router merespons dengan status {response.status_code}: {response.text}",
+            )
+
+        resp_json = response.json()
+        ai_content = resp_json["choices"][0]["message"]["content"]
+        parsed_data = parse_ai_json_response(ai_content)
+        raw_items = parsed_data.get("items", [])
+
+        formatted_items = []
+        for i, item in enumerate(raw_items):
+            nutrients = item.get("nutrients", ["0", "0", "0"])
+            while len(nutrients) < 3:
+                nutrients.append("0")
+            nutrients = [str(nutrients[0]), str(nutrients[1]), str(nutrients[2])]
+
+            formatted_items.append({
+                "id": str(uuid.uuid4())[:8],
+                "name": str(item.get("name", f"Komponen {i+1}")),
+                "detail": str(item.get("detail", "Hasil estimasi AI")),
+                "portion": str(item.get("portion", "1 porsi")),
+                "calories": str(item.get("calories", "0")),
+                "nutrients": nutrients,
+            })
+
+        return {
+            "success": True,
+            "filename": file.filename,
+            "model_used": ROUTER_VISION_MODEL,
+            "items": formatted_items,
+        }
+
+    except HTTPException:
+        raise
+    except requests.exceptions.RequestException as re_err:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Gagal menghubungi server 9Router: {str(re_err)}",
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Terjadi kesalahan saat memproses gambar: {str(exc)}",
+        )
