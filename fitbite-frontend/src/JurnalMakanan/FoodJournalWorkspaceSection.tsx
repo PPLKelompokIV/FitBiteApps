@@ -21,15 +21,18 @@ import {
   X,
 } from "lucide-react";
 
+type MealItem = {
+  name: string;
+  detail: string;
+  calories: string;
+  nutrients?: number[];
+};
+
 type Meal = {
   name: string;
   time: string;
   calories: string;
-  items: {
-    name: string;
-    detail: string;
-    calories: string;
-  }[];
+  items: MealItem[];
   macros: string;
 };
 
@@ -221,11 +224,12 @@ function MealCard({
 
   const handleSaveEdit = (idx: number) => {
     const newItems = [...meal.items];
+    const parsedCal = Math.max(0, parseFloat(editForm.calories.replace(",", ".")) || 0);
     newItems[idx] = {
       ...newItems[idx],
       name: editForm.name.trim() || newItems[idx].name,
       detail: editForm.detail.trim(),
-      calories: editForm.calories.trim() || "0",
+      calories: String(Math.round(parsedCal)),
     };
 
     const totalCals = newItems.reduce(
@@ -415,11 +419,19 @@ function Field({
   label,
   value,
   unit,
+  placeholder,
+  type = "text",
+  min,
+  step,
   onChange,
 }: {
   label: string;
   value: string;
   unit?: string;
+  placeholder?: string;
+  type?: string;
+  min?: string | number;
+  step?: string | number;
   onChange?: (value: string) => void;
 }) {
   return (
@@ -431,9 +443,13 @@ function Field({
       </span>
       <span className="flex min-h-[47px] w-full items-center gap-2.5 rounded-[10px] border border-solid border-[#e1e7df] bg-white px-3.5 py-[11px] focus-within:border-[#167653] transition-colors">
         <input
+          type={type}
+          min={min}
+          step={step}
           value={value}
+          placeholder={placeholder}
           onChange={(event) => onChange?.(event.target.value)}
-          className={`min-w-0 flex-1 bg-transparent text-sm leading-[21px] text-[#203d32] outline-none ${textClass}`}
+          className={`min-w-0 flex-1 bg-transparent text-sm leading-[21px] text-[#203d32] outline-none placeholder:text-[#a0aba4] ${textClass}`}
           aria-label={label}
         />
         {unit && (
@@ -448,16 +464,129 @@ function Field({
   );
 }
 
-function AddFoodPanel() {
+function AddFoodPanel({
+  onAddMealItem,
+}: {
+  onAddMealItem: (
+    slotName: string,
+    item: {
+      name: string;
+      detail: string;
+      calories: string;
+      protein?: number;
+      carb?: number;
+      fat?: number;
+    }
+  ) => boolean;
+}) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Katalog");
   const [activeMeal, setActiveMeal] = useState("Makan siang");
-  const [food, setFood] = useState("Nasi merah");
+  const [food, setFood] = useState("Nasi merah matang");
   const [portion, setPortion] = useState("1,5");
-  const [manualName, setManualName] = useState("Jus jambu tanpa gula");
-  const [manualCalories, setManualCalories] = useState("90");
   const [barcode, setBarcode] = useState("8991234567890");
   const [notice, setNotice] = useState("");
+
+  // Quick Add State (Nama, Kalori, Porsi, Makronutrisi opsional)
+  const [qaName, setQaName] = useState("");
+  const [qaPortion, setQaPortion] = useState("");
+  const [qaCalories, setQaCalories] = useState("");
+  const [qaProtein, setQaProtein] = useState("");
+  const [qaCarb, setQaCarb] = useState("");
+  const [qaFat, setQaFat] = useState("");
+  const [qaError, setQaError] = useState("");
+
+  const handleExecuteQuickAdd = () => {
+    setQaError("");
+    setNotice("");
+    const trimmedName = qaName.trim();
+    if (!trimmedName) {
+      setQaError("Nama makanan wajib diisi.");
+      return;
+    }
+
+    const parsedCal = parseFloat(qaCalories.replace(",", "."));
+    if (isNaN(parsedCal) || parsedCal < 0) {
+      setQaError("Jumlah kalori harus berupa angka yang valid (minimal 0 kkal).");
+      return;
+    }
+
+    let p = 0;
+    if (qaProtein.trim() !== "") {
+      const parsedP = parseFloat(qaProtein.replace(",", "."));
+      if (isNaN(parsedP) || parsedP < 0) {
+        setQaError("Nilai protein harus berupa angka yang valid (minimal 0 g).");
+        return;
+      }
+      p = parsedP;
+    }
+
+    let k = 0;
+    if (qaCarb.trim() !== "") {
+      const parsedK = parseFloat(qaCarb.replace(",", "."));
+      if (isNaN(parsedK) || parsedK < 0) {
+        setQaError("Nilai karbohidrat harus berupa angka yang valid (minimal 0 g).");
+        return;
+      }
+      k = parsedK;
+    }
+
+    let l = 0;
+    if (qaFat.trim() !== "") {
+      const parsedL = parseFloat(qaFat.replace(",", "."));
+      if (isNaN(parsedL) || parsedL < 0) {
+        setQaError("Nilai lemak harus berupa angka yang valid (minimal 0 g).");
+        return;
+      }
+      l = parsedL;
+    }
+
+    const detailText = qaPortion.trim() || "Quick Add";
+
+    const success = onAddMealItem(activeMeal, {
+      name: trimmedName,
+      detail: detailText,
+      calories: String(Math.round(parsedCal)),
+      protein: p,
+      carb: k,
+      fat: l,
+    });
+
+    if (success) {
+      setNotice(`✓ Berhasil menambahkan ${trimmedName} (${Math.round(parsedCal)} kkal) ke ${activeMeal}!`);
+      setQaName("");
+      setQaPortion("");
+      setQaCalories("");
+      setQaProtein("");
+      setQaCarb("");
+      setQaFat("");
+      setQaError("");
+    }
+  };
+
+  const handleAddCatalogItem = () => {
+    const isPutih = food.toLowerCase().includes("putih");
+    const portMult = parseFloat(portion.replace(",", ".")) || 1;
+    const gramasi = Math.round(portMult * 100);
+    const calVal = isPutih ? Math.round(130 * portMult) : Math.round(110 * portMult);
+    const protVal = isPutih ? Number((2.4 * portMult).toFixed(1)) : Number((2.6 * portMult).toFixed(1));
+    const carbVal = isPutih ? Number((28 * portMult).toFixed(1)) : Number((23 * portMult).toFixed(1));
+    const fatVal = isPutih ? Number((0.2 * portMult).toFixed(1)) : Number((0.9 * portMult).toFixed(1));
+
+    const itemName = isPutih ? "Nasi putih matang" : "Nasi merah matang";
+    const success = onAddMealItem(activeMeal, {
+      name: itemName,
+      detail: `${gramasi} g`,
+      calories: String(calVal),
+      protein: protVal,
+      carb: carbVal,
+      fat: fatVal,
+    });
+
+    if (success) {
+      setNotice(`✓ ${itemName} (${calVal} kkal) ditambahkan ke ${activeMeal}!`);
+    }
+  };
 
   return (
     <div className="flex flex-col items-start gap-[18px]">
@@ -519,8 +648,12 @@ function AddFoodPanel() {
             <div className="flex w-full flex-col items-start gap-3">
               <button
                 type="button"
-                onClick={() => setNotice("Nasi merah matang ditambahkan")}
-                className="flex w-full items-start gap-3 rounded-[10px] bg-[#eaf3e9] p-[13px] text-left transition-colors hover:bg-[#e1ede0]"
+                onClick={() => setFood("Nasi merah matang")}
+                className={`flex w-full items-start gap-3 rounded-[10px] p-[13px] text-left transition-colors ${
+                  food === "Nasi merah matang"
+                    ? "bg-[#eaf3e9] border border-[#167653]/30"
+                    : "bg-[#f8faf6] hover:bg-[#eaf3e9]"
+                }`}
               >
                 <CheckCircle2 className="h-5 w-5 text-[#167653] shrink-0 mt-0.5" />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -541,8 +674,12 @@ function AddFoodPanel() {
               </button>
               <button
                 type="button"
-                onClick={() => setNotice("Nasi putih matang dipilih")}
-                className="flex w-full items-center gap-3 rounded-[10px] p-2 text-left transition-colors hover:bg-[#f8faf6]"
+                onClick={() => setFood("Nasi putih matang")}
+                className={`flex w-full items-center gap-3 rounded-[10px] p-2 text-left transition-colors ${
+                  food === "Nasi putih matang"
+                    ? "bg-[#eaf3e9] border border-[#167653]/30"
+                    : "hover:bg-[#f8faf6]"
+                }`}
               >
                 <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
                   <span
@@ -577,29 +714,120 @@ function AddFoodPanel() {
                 <strong
                   className={`text-[22px] leading-[33px] text-[#203d32] ${boldClass}`}
                 >
-                  165 kkal
+                  {food === "Nasi putih matang" ? "195 kkal" : "165 kkal"}
                 </strong>
                 <span
                   className={`text-[11px] leading-[16.5px] text-[#728078] ${textClass}`}
                 >
-                  150 g • P 3,9 · K 34,5 · L 1,4 g
+                  {food === "Nasi putih matang"
+                    ? "150 g • P 3,6 · K 42 · L 0,3 g"
+                    : "150 g • P 3,9 · K 34,5 · L 1,4 g"}
                 </span>
               </div>
               <button
                 type="button"
-                onClick={() => setNotice("Makanan ditambahkan ke jurnal")}
+                onClick={handleAddCatalogItem}
                 className={`flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-[#167653] px-[18px] py-[11px] text-sm leading-[21px] text-white transition-colors hover:bg-[#125f43] ${semiboldClass}`}
               >
                 <Plus className="h-[17px] w-[17px]" />
-                Tambah ke jurnal
+                Tambah ke {activeMeal}
               </button>
             </div>
             <p
               className={`text-[10px] leading-[15px] text-[#728078] ${textClass}`}
             >
-              Pratinjau tambahan — belum dimasukkan ke total hari ini.
+              Klik tombol di atas untuk memasukkan makanan ini ke jurnal {activeMeal}.
             </p>
           </>
+        )}
+
+        {activeTab === "Quick Add" && (
+          <div className="flex w-full flex-col items-start gap-4">
+            <div className="flex w-full flex-col gap-1">
+              <span className={`text-[13px] leading-[19.5px] text-[#203d32] ${semiboldClass}`}>
+                Catat Makanan Cepat (Quick Add)
+              </span>
+              <p className={`text-[11px] leading-[16.5px] text-[#728078] ${textClass}`}>
+                Masukkan nama makanan, kalori, dan makro opsional untuk dicatat ke <strong>{activeMeal}</strong>.
+              </p>
+            </div>
+
+            <div className="flex w-full flex-col gap-3">
+              <Field
+                label="Nama makanan *"
+                value={qaName}
+                onChange={setQaName}
+                placeholder="cth. Jus alpukat, Pisang goreng, Kopi latte"
+              />
+              <div className="flex w-full items-end gap-3.5">
+                <Field
+                  label="Porsi / Takaran (opsional)"
+                  value={qaPortion}
+                  onChange={setQaPortion}
+                  placeholder="cth. 1 gelas, 1 porsi, 150 g"
+                />
+                <div className="w-[145px]">
+                  <Field
+                    label="Kalori *"
+                    value={qaCalories}
+                    onChange={setQaCalories}
+                    type="number"
+                    min="0"
+                    step="any"
+                    unit="kkal"
+                    placeholder="150"
+                  />
+                </div>
+              </div>
+              <div className="flex w-full items-end gap-2.5">
+                <Field
+                  label="Protein (opsional)"
+                  value={qaProtein}
+                  onChange={setQaProtein}
+                  type="number"
+                  min="0"
+                  step="any"
+                  unit="g"
+                  placeholder="0"
+                />
+                <Field
+                  label="Karbo (opsional)"
+                  value={qaCarb}
+                  onChange={setQaCarb}
+                  type="number"
+                  min="0"
+                  step="any"
+                  unit="g"
+                  placeholder="0"
+                />
+                <Field
+                  label="Lemak (opsional)"
+                  value={qaFat}
+                  onChange={setQaFat}
+                  type="number"
+                  min="0"
+                  step="any"
+                  unit="g"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {qaError && (
+              <p className="text-xs text-red-600 font-medium">
+                {qaError}
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={handleExecuteQuickAdd}
+              className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#167653] px-[18px] py-[11px] text-sm leading-[21px] text-white transition-colors hover:bg-[#125f43] ${semiboldClass}`}
+            >
+              <Plus className="h-[17px] w-[17px]" />
+              Tambah ke {activeMeal}
+            </button>
+          </div>
         )}
 
         {activeTab === "Foto AI" && (
@@ -622,22 +850,27 @@ function AddFoodPanel() {
           </div>
         )}
 
-        {activeTab !== "Katalog" && activeTab !== "Foto AI" && (
-          <div
-            className={`rounded-[10px] bg-[#eaf3e9] p-4 text-sm text-[#203d32] ${textClass}`}
-          >
-            Fitur {activeTab} siap digunakan untuk menambahkan makanan.
+        {activeTab === "Barcode" && (
+          <div className="flex w-full flex-col items-start gap-3 rounded-[12px] bg-[#eaf3e9] p-4 text-[#203d32] border border-[#dcebb2]">
+            <div className="flex items-center gap-2 font-bold text-xs text-[#167653]">
+              <ScanBarcode className="h-4 w-4 text-[#167653]" />
+              <span>Pindai Barcode Kemasan</span>
+            </div>
+            <p className={`text-xs text-[#728078] leading-relaxed ${textClass}`}>
+              Arahkan kamera ke barcode produk makanan atau masukkan kode produk secara manual.
+            </p>
           </div>
         )}
+
         {notice && (
-          <p
-            role="status"
-            className={`text-xs text-[#167653] ${semiboldClass}`}
-          >
-            {notice}
-          </p>
+          <div className="flex w-full items-center gap-2 rounded-lg bg-[#eaf3e9] px-3.5 py-2.5 text-xs text-[#167653] border border-[#dcebb2] font-semibold">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-[#167653]" />
+            <span>{notice}</span>
+          </div>
         )}
       </section>
+
+      {/* Bagian Cara Cepat Lainnya */}
       <section className="flex w-full flex-col items-start gap-[18px] rounded-[18px] border border-solid border-[#e1e7df] bg-white p-5 shadow-xs">
         <header>
           <h2 className={`text-lg leading-[27px] text-[#203d32] ${boldClass}`}>
@@ -657,35 +890,73 @@ function AddFoodPanel() {
             <span
               className={`rounded-full bg-[#f0f3ec] px-2.5 py-1 text-[11px] text-[#728078] ${semiboldClass}`}
             >
-              Input manual
+              Target: {activeMeal}
             </span>
           </div>
           <div className="flex w-full items-end gap-3">
             <Field
-              label="Nama makanan"
-              value={manualName}
-              onChange={setManualName}
+              label="Nama makanan *"
+              value={qaName}
+              onChange={setQaName}
+              placeholder="cth. Jus jambu tanpa gula"
             />
             <div className="w-[145px]">
               <Field
-                label="Kalori"
-                value={manualCalories}
-                onChange={setManualCalories}
+                label="Kalori *"
+                value={qaCalories}
+                onChange={setQaCalories}
+                type="number"
+                min="0"
+                step="any"
                 unit="kkal"
+                placeholder="90"
               />
             </div>
           </div>
           <div className="flex w-full items-end gap-2.5">
-            <Field label="Protein (opsional)" value="—" unit="g" />
-            <Field label="Karbo (opsional)" value="—" unit="g" />
-            <Field label="Lemak (opsional)" value="—" unit="g" />
+            <Field
+              label="Protein (opsional)"
+              value={qaProtein}
+              onChange={setQaProtein}
+              type="number"
+              min="0"
+              step="any"
+              unit="g"
+              placeholder="0"
+            />
+            <Field
+              label="Karbo (opsional)"
+              value={qaCarb}
+              onChange={setQaCarb}
+              type="number"
+              min="0"
+              step="any"
+              unit="g"
+              placeholder="0"
+            />
+            <Field
+              label="Lemak (opsional)"
+              value={qaFat}
+              onChange={setQaFat}
+              type="number"
+              min="0"
+              step="any"
+              unit="g"
+              placeholder="0"
+            />
           </div>
+          {qaError && (
+            <p className="text-xs text-red-600 font-medium">
+              {qaError}
+            </p>
+          )}
           <button
             type="button"
-            onClick={() => setNotice(`${manualName} dicatat secara manual`)}
-            className={`flex min-h-11 w-full items-center justify-center rounded-[10px] border border-solid border-[#e1e7df] bg-white px-[18px] py-[11px] text-sm text-[#167653] transition-colors hover:bg-[#f0f3ec] ${semiboldClass}`}
+            onClick={handleExecuteQuickAdd}
+            className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] border border-solid border-[#167653] bg-white px-[18px] py-[11px] text-sm text-[#167653] transition-colors hover:bg-[#eaf3e9] ${semiboldClass}`}
           >
-            Catat manual
+            <Plus className="h-4 w-4" />
+            Catat manual ke {activeMeal}
           </button>
         </div>
         <div className="h-px w-full bg-[#e1e7df]" />
@@ -766,10 +1037,14 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
       const savedSlots = JSON.parse(savedStr);
       return defaultMeals.map((dm) => {
         if (savedSlots[dm.name]) {
-          return {
+          const slot = {
             ...dm,
             ...savedSlots[dm.name],
           };
+          if (slot.macros) {
+            slot.macros = slot.macros.replace(/-\d+/g, "0");
+          }
+          return slot;
         }
         return dm;
       });
@@ -794,14 +1069,14 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
     let totalFat = 0;
 
     meals.forEach((m) => {
-      totalCal += parseFloat(m.calories) || 0;
+      totalCal += Math.max(0, parseFloat(m.calories) || 0);
       const match = m.macros?.match(
-        /Protein\s+([\d.,]+)\s*g.*?Karbo\s+([\d.,]+)\s*g.*?Lemak\s+([\d.,]+)\s*g/i
+        /Protein\s+([-\d.,]+)\s*g.*?Karbo\s+([-\d.,]+)\s*g.*?Lemak\s+([-\d.,]+)\s*g/i
       );
       if (match) {
-        totalProt += parseFloat(match[1].replace(",", ".")) || 0;
-        totalCarb += parseFloat(match[2].replace(",", ".")) || 0;
-        totalFat += parseFloat(match[3].replace(",", ".")) || 0;
+        totalProt += Math.max(0, parseFloat(match[1].replace(",", ".")) || 0);
+        totalCarb += Math.max(0, parseFloat(match[2].replace(",", ".")) || 0);
+        totalFat += Math.max(0, parseFloat(match[3].replace(",", ".")) || 0);
       }
     });
 
@@ -827,10 +1102,14 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
           const savedSlots = savedStr ? JSON.parse(savedStr) : {};
 
           const mergedMeals = res.data.meals.map((m: Meal) => {
+            let slot = m;
             if (savedSlots[m.name]) {
-              return { ...m, ...savedSlots[m.name] };
+              slot = { ...m, ...savedSlots[m.name] };
             }
-            return m;
+            if (slot.macros) {
+              slot.macros = slot.macros.replace(/-\d+/g, "0");
+            }
+            return slot;
           });
 
           setMealsList(mergedMeals);
@@ -867,18 +1146,82 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
         date: selectedDate,
         meal_slot: updatedSlot.name,
         time: updatedSlot.time,
-        method: "manual",
+        method: "quick_add",
         items: updatedSlot.items.map((it) => ({
           name: it.name,
           detail: it.detail,
           portion: "",
           calories: it.calories,
-          nutrients: [0, 0, 0],
+          nutrients: it.nutrients || [0, 0, 0],
         })),
+        macros: updatedSlot.macros,
       })
       .catch((err) =>
         console.warn("Sinkronisasi update slot ke backend gagal:", err)
       );
+  };
+
+  const handleAddMealItem = (
+    slotName: string,
+    newItem: {
+      name: string;
+      detail: string;
+      calories: string;
+      protein?: number;
+      carb?: number;
+      fat?: number;
+    }
+  ): boolean => {
+    const targetMeal =
+      mealsList.find(
+        (m) => m.name.toLowerCase() === slotName.toLowerCase()
+      ) || mealsList[0];
+    if (!targetMeal) return false;
+
+    const p = newItem.protein || 0;
+    const k = newItem.carb || 0;
+    const l = newItem.fat || 0;
+
+    const updatedItems = [
+      ...targetMeal.items,
+      {
+        name: newItem.name,
+        detail: newItem.detail,
+        calories: newItem.calories,
+        nutrients: [p, k, l],
+      },
+    ];
+
+    const newSlotCalories = updatedItems.reduce(
+      (sum, it) => sum + (parseFloat(it.calories) || 0),
+      0
+    );
+
+    let curP = 0;
+    let curK = 0;
+    let curL = 0;
+    const match = targetMeal.macros?.match(
+      /Protein\s+([-\d.,]+)\s*g.*?Karbo\s+([-\d.,]+)\s*g.*?Lemak\s+([-\d.,]+)\s*g/i
+    );
+    if (match) {
+      curP = Math.max(0, parseFloat(match[1].replace(",", ".")) || 0);
+      curK = Math.max(0, parseFloat(match[2].replace(",", ".")) || 0);
+      curL = Math.max(0, parseFloat(match[3].replace(",", ".")) || 0);
+    }
+
+    const totalSlotP = Math.max(0, Math.round(curP + Math.max(0, p)));
+    const totalSlotK = Math.max(0, Math.round(curK + Math.max(0, k)));
+    const totalSlotL = Math.max(0, Math.round(curL + Math.max(0, l)));
+
+    const updatedSlot: Meal = {
+      ...targetMeal,
+      items: updatedItems,
+      calories: `${Math.round(newSlotCalories)} kkal`,
+      macros: `Protein ${totalSlotP} g  ·  Karbo ${totalSlotK} g  ·  Lemak ${totalSlotL} g`,
+    };
+
+    handleUpdateMealSlot(updatedSlot);
+    return true;
   };
 
   return (
@@ -981,7 +1324,7 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
             </p>
           </div>
           <div className="min-w-0 flex-1">
-            <AddFoodPanel />
+            <AddFoodPanel onAddMealItem={handleAddMealItem} />
           </div>
         </section>
         <section className="flex w-full flex-col gap-[15px]">
@@ -1032,12 +1375,22 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
                 </div>
                 <button
                   type="button"
-                  onClick={() =>
-                    setSelectedRecommendation(recommendation.title)
-                  }
+                  onClick={() => {
+                    setSelectedRecommendation(recommendation.title);
+                    const calMatch = recommendation.detail.match(/(\d+)\s*kkal/);
+                    const protMatch = recommendation.detail.match(/protein\s*(\d+)\s*g/i);
+                    const cal = calMatch ? calMatch[1] : "300";
+                    const prot = protMatch ? parseInt(protMatch[1], 10) : 0;
+                    handleAddMealItem(recommendationMeal, {
+                      name: recommendation.title,
+                      detail: recommendation.detail.split("•")[0]?.trim() || "1 porsi",
+                      calories: cal,
+                      protein: prot,
+                    });
+                  }}
                   className={`flex min-h-11 w-full items-center justify-center rounded-[10px] border border-solid border-[#e1e7df] bg-white px-[18px] py-[11px] text-sm text-[#167653] transition-colors hover:bg-[#eaf3e9] ${semiboldClass}`}
                 >
-                  Pilih &amp; catat
+                  Pilih &amp; catat ke {recommendationMeal}
                 </button>
               </article>
             ))}
@@ -1047,7 +1400,7 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
               role="status"
               className={`text-xs text-[#167653] ${semiboldClass}`}
             >
-              {selectedRecommendation} dipilih untuk dicatat.
+              ✓ {selectedRecommendation} berhasil dicatat ke {recommendationMeal}.
             </p>
           )}
         </section>
