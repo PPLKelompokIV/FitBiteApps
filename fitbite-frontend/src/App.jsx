@@ -6,6 +6,8 @@ import FotoAiTinjauHasil from './FotoAi';
 import AdminPantauAkun from './Admin/AdminPantau';
 import AdminPengelolaan from './Admin/AdminPengelolaan';
 import ProfilPengingat from './Profil & Pengingat/Profil&Pengingat';
+import DashboardHariIni from './Dashboard Hari Ini';
+import AktivitasHidrasi from './Aktivitas dan hidrasi';
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
       <Route path="/" element={<Masuk />} />
       <Route path="/login" element={<Masuk />} />
       <Route path="/register" element={<Daftar />} />
+      <Route path="/dashboard-hari-ini" element={<DashboardHariIni />} />
+      <Route path="/aktivitas-hidrasi" element={<AktivitasHidrasi />} />
       <Route path="/bodycheckpagi" element={<BodyCheckPagi />} />
       <Route path="/foto-ai" element={<FotoAiTinjauHasil />} />
       <Route path="/admin/pantau" element={<AdminPantauAkun />} />

@@ -1,14 +1,6 @@
+// @ts-nocheck
 import { useState } from "react";
-import image from "./image.svg";
-import vector from "./vector.svg";
-import vector2 from "./vector-2.svg";
-import vector3 from "./vector-3.svg";
-import vector4 from "./vector-4.svg";
-import vector5 from "./vector-5.svg";
-import vector6 from "./vector-6.svg";
-import vector7 from "./vector-7.svg";
-import vector8 from "./vector-8.svg";
-import vector9 from "./vector-9.svg";
+import { useNavigate } from "react-router-dom";
 
 type NavigationItem = {
   label: string;
@@ -19,43 +11,44 @@ type NavigationItem = {
 const navigationItems: NavigationItem[] = [
   {
     label: "Hari ini",
-    icon: image,
+    icon: "",
     iconClassName: "absolute w-[91.97%] h-[91.97%] top-[8.03%] left-[8.03%]",
   },
   {
     label: "Body Check pagi",
-    icon: vector2,
+    icon: "",
     iconClassName: "absolute w-[96.14%] h-[96.14%] top-[3.86%] left-[3.86%]",
   },
   {
     label: "Jurnal makanan",
-    icon: vector3,
+    icon: "",
     iconClassName: "absolute w-[91.97%] h-[96.14%] top-[3.86%] left-[8.03%]",
   },
   {
     label: "Aktivitas & hidrasi",
-    icon: vector4,
+    icon: "",
     iconClassName: "absolute w-[96.14%] h-[96.14%] top-[3.86%] left-[3.86%]",
   },
   {
     label: "Jurnal & evaluasi",
-    icon: vector5,
+    icon: "",
     iconClassName: "absolute w-[91.97%] h-[96.14%] top-[3.86%] left-[8.03%]",
   },
   {
     label: "Progres",
-    icon: vector6,
+    icon: "",
     iconClassName: "absolute w-[96.14%] h-[91.97%] top-[8.03%] left-[3.86%]",
   },
   {
     label: "Profil & pengingat",
-    icon: vector7,
+    icon: "",
     iconClassName: "absolute w-[87.80%] h-[87.80%] top-[12.20%] left-[12.20%]",
   },
 ];
 
 export const PrimaryNavigationSection = (): JSX.Element => {
   const [activeItem, setActiveItem] = useState("Hari ini");
+  const navigate = useNavigate();
 
   return (
     <aside className="flex flex-col w-[216px] items-start gap-[33px] px-[18px] py-[30px] relative self-stretch bg-white border-r [border-right-style:solid] border-[#e1e7df]">
@@ -68,7 +61,7 @@ export const PrimaryNavigationSection = (): JSX.Element => {
             <img
               className="absolute w-[95.53%] h-[98.78%] top-0 left-[4.47%]"
               alt=""
-              src={vector}
+              src={""}
             />
           </div>
         </div>
@@ -91,7 +84,13 @@ export const PrimaryNavigationSection = (): JSX.Element => {
               key={item.label}
               type="button"
               aria-current={isActive ? "page" : undefined}
-              onClick={() => setActiveItem(item.label)}
+              onClick={() => {
+                setActiveItem(item.label);
+                if (item.label === "Hari ini") navigate("/dashboard-hari-ini");
+                if (item.label === "Aktivitas & hidrasi") {
+                  navigate("/aktivitas-hidrasi");
+                }
+              }}
               className={`flex items-center gap-2.5 px-[11px] py-3 relative self-stretch w-full flex-[0_0_auto] rounded-[10px] overflow-hidden text-left ${
                 isActive ? "bg-[#eaf3e9]" : "bg-transparent"
               }`}
@@ -120,7 +119,7 @@ export const PrimaryNavigationSection = (): JSX.Element => {
           <img
             className="absolute w-[86.37%] h-[90.54%] top-[9.46%] left-[13.63%]"
             alt=""
-            src={vector8}
+            src={""}
           />
         </div>
         <h2
@@ -147,7 +146,7 @@ export const PrimaryNavigationSection = (): JSX.Element => {
               <img
                 className="absolute w-[96.14%] h-[96.14%] top-[3.86%] left-[3.86%]"
                 alt=""
-                src={vector9}
+                src={""}
               />
             </div>
           </div>

@@ -1,25 +1,8 @@
+
+// @ts-nocheck
 import { useState } from "react";
-import fotoHidangan from "./foto-hidangan.png";
-import image from "./image.png";
-import kaloriMasuk from "./kalori-masuk.svg";
-import lintasanKalori from "./lintasan-kalori.svg";
-import vector10 from "./vector-10.svg";
-import vector11 from "./vector-11.svg";
-import vector12 from "./vector-12.svg";
-import vector13 from "./vector-13.svg";
-import vector14 from "./vector-14.svg";
-import vector15 from "./vector-15.svg";
-import vector16 from "./vector-16.svg";
-import vector17 from "./vector-17.svg";
-import vector18 from "./vector-18.svg";
-import vector19 from "./vector-19.svg";
-import vector20 from "./vector-20.svg";
-import vector21 from "./vector-21.svg";
-import vector22 from "./vector-22.svg";
-import vector23 from "./vector-23.svg";
-import vector24 from "./vector-24.svg";
-import vector25 from "./vector-25.svg";
-import vector26 from "./vector-26.svg";
+import { useNavigate } from "react-router-dom";
+import { MealLogModal } from "./MealLogModal";
 
 type Meal = {
   name: string;
@@ -42,26 +25,26 @@ const meals: Meal[] = [
     name: "Sarapan",
     detail: "07.30 • Oat, pisang, yoghurt",
     calories: "350 kkal",
-    icon: vector20,
+    icon: "",
     iconClass: "w-[96.14%] h-[98.00%] top-[2.00%] left-[3.86%]",
   },
   {
     name: "Makan siang",
     detail: "12.30 • Nasi merah, ayam, tempe, sayur",
     calories: "600 kkal",
-    icon: vector21,
+    icon: "",
   },
   {
     name: "Camilan",
     detail: "15.00 • Pepaya & yoghurt",
     calories: "150 kkal",
-    icon: vector22,
+    icon: "",
   },
   {
     name: "Makan malam",
     detail: "18.00 • Sup sayur & tahu",
     calories: "250 kkal",
-    icon: vector23,
+    icon: "",
     iconClass: "w-[91.98%] h-[91.91%] top-[8.09%] left-[8.02%]",
   },
 ];
@@ -71,14 +54,14 @@ const activities: Activity[] = [
     name: "Bersepeda intens",
     detail: "16.00 • 30 menit · 6,0 MET",
     calories: "202 kkal",
-    icon: vector24,
+    icon: "",
     iconClass: "w-[96.14%] h-[87.80%] top-[12.20%] left-[3.86%]",
   },
   {
     name: "Yoga",
     detail: "17.00 • 20 menit · 2,5 MET",
     calories: "56 kkal",
-    icon: vector25,
+    icon: "",
     iconClass: "w-[79.48%] h-[87.80%] top-[12.20%] left-[20.52%]",
   },
 ];
@@ -159,7 +142,22 @@ const ActivityRow = ({
 
 export const WellnessDashboardSection = (): JSX.Element => {
   const [water, setWater] = useState(1750);
+  const [isMealModalOpen, setIsMealModalOpen] = useState(false);
+  const [mealList, setMealList] = useState<Array<{ name: string; calories: number; time: string }>>([]);
+  const navigate = useNavigate();
   const _remaining = Math.max(0, 2640 - water);
+  const handleSaveMeal = (newMeal: { name: string; calories: number; time: string }) => {
+    setMealList((prev) => [...prev, newMeal]);
+  };
+  const displayedMeals = [
+    ...meals,
+    ...mealList.map((meal) => ({
+      name: meal.name,
+      detail: `${meal.time} • Dicatat hari ini`,
+      calories: `${meal.calories} kkal`,
+      icon: "",
+    })),
+  ];
 
   return (
     <main className="relative flex min-w-0 flex-1 grow flex-col items-start bg-[#f8faf6]">
@@ -172,7 +170,7 @@ export const WellnessDashboardSection = (): JSX.Element => {
             <img
               className="absolute left-[30.96%] top-[18.46%] h-[81.54%] w-[69.04%]"
               alt=""
-              src={vector10}
+              src={""}
             />
           </span>
           <strong className="[font-family:'Inter-SemiBold',Helvetica] text-xs font-semibold leading-[18px] text-[#203d32]">
@@ -192,7 +190,7 @@ export const WellnessDashboardSection = (): JSX.Element => {
               <img
                 className="absolute left-[8.03%] top-[3.86%] h-[96.14%] w-[91.97%]"
                 alt=""
-                src={vector11}
+                src={""}
               />
             </span>
             <span className="h-1.5 w-1.5 rounded-[3px] bg-[#167653]" />
@@ -224,17 +222,17 @@ export const WellnessDashboardSection = (): JSX.Element => {
                 <img
                   className="absolute left-[7.5%] top-[7.5%] h-[92.5%] w-[92.5%]"
                   alt=""
-                  src={vector12}
+                  src={""}
                 />
               </span>
               Foto AI
             </ActionButton>
-            <ActionButton primary>
+            <ActionButton primary onClick={() => setIsMealModalOpen(true)}>
               <span className="relative h-[17px] w-[17px]">
                 <img
                   className="absolute left-[15.83%] top-[15.83%] h-[84.17%] w-[84.17%]"
                   alt=""
-                  src={vector13}
+                  src={""}
                 />
               </span>
               Catat makanan
@@ -247,7 +245,7 @@ export const WellnessDashboardSection = (): JSX.Element => {
               <img
                 className="absolute left-[5.18%] top-[5.18%] h-[94.82%] w-[94.82%]"
                 alt=""
-                src={vector14}
+                src={""}
               />
             </span>
             <span className="flex flex-col gap-0.5">
@@ -293,19 +291,19 @@ export const WellnessDashboardSection = (): JSX.Element => {
                 <img
                   className="absolute left-0 top-0 h-52 w-52"
                   alt=""
-                  src={lintasanKalori}
+                  src={""}
                 />
                 <img
                   className="absolute left-2 top-0 h-52 w-[200px]"
                   alt=""
-                  src={kaloriMasuk}
+                  src={""}
                 />
                 <div className="relative flex w-[156px] flex-col items-center">
                   <span className="relative h-[23px] w-[23px]">
                     <img
                       className="absolute left-[17.13%] top-[6.02%] h-[93.98%] w-[82.87%]"
                       alt=""
-                      src={vector15}
+                      src={""}
                     />
                   </span>
                   <strong className="[font-family:'Inter-Regular',Helvetica] text-[43px] font-normal leading-[64.5px] text-[#203d32]">
@@ -319,9 +317,9 @@ export const WellnessDashboardSection = (): JSX.Element => {
               <div className="flex flex-1 flex-col gap-[17px]">
                 <div className="flex w-full items-start gap-[15px]">
                   {[
-                    ["Masuk", "1.350", vector16],
-                    ["Target", "1.700", vector17],
-                    ["Terbakar", "258", vector18],
+                    ["Masuk", "1.350", ""],
+                    ["Target", "1.700", ""],
+                    ["Terbakar", "258", ""],
                   ].map(([label, value, icon]) => (
                     <div
                       key={label}
@@ -437,7 +435,7 @@ export const WellnessDashboardSection = (): JSX.Element => {
                   <img
                     className="absolute left-[8.03%] top-[3.86%] h-[96.14%] w-[91.97%]"
                     alt=""
-                    src={vector19}
+                    src={""}
                   />
                 </span>
               </div>
@@ -476,8 +474,8 @@ export const WellnessDashboardSection = (): JSX.Element => {
                 Buka jurnal →
               </button>
             </div>
-            {meals.map((meal) => (
-              <div key={meal.name} className="flex w-full items-center gap-3">
+            {displayedMeals.map((meal, index) => (
+              <div key={`${meal.name}-${index}`} className="flex w-full items-center gap-3">
                 <div className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-[#eaf3e9]">
                   <span className="relative h-[19px] w-[19px]">
                     <img
@@ -513,6 +511,7 @@ export const WellnessDashboardSection = (): JSX.Element => {
               </div>
               <button
                 type="button"
+                onClick={() => navigate("/aktivitas-hidrasi")}
                 className="text-xs font-semibold leading-[18px] text-[#167653]"
               >
                 Lihat aktivitas →
@@ -542,12 +541,12 @@ export const WellnessDashboardSection = (): JSX.Element => {
           <div className="flex w-full items-start gap-5">
             {[
               {
-                src: fotoHidangan,
+                src: "",
                 title: "Gado-gado, saus terpisah",
                 detail: "1 porsi 250 g • 330 kkal • protein 18 g",
               },
               {
-                src: image,
+                src: "",
                 title: "Pepes ikan & nasi merah",
                 detail: "1 porsi 280 g • 420 kkal • protein 32 g",
               },
@@ -583,7 +582,7 @@ export const WellnessDashboardSection = (): JSX.Element => {
                 <img
                   className="absolute left-[9.23%] top-[5.06%] h-[94.94%] w-[90.77%]"
                   alt=""
-                  src={vector26}
+                  src={""}
                 />
               </span>
               <h3 className="[font-family:'Inter-Bold',Helvetica] text-sm font-bold leading-[21px] text-[#203d32]">
@@ -606,6 +605,11 @@ export const WellnessDashboardSection = (): JSX.Element => {
           FitBite © 2026
         </span>
       </footer>
+      <MealLogModal
+        isOpen={isMealModalOpen}
+        onClose={() => setIsMealModalOpen(false)}
+        onSave={handleSaveMeal}
+      />
     </main>
   );
 };
