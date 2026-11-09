@@ -24,10 +24,10 @@ type NavigationItem = {
 
 // PASTIKAN SEMUA MENU MEMILIKI PATH 'to' AGAR BISA DIKLIK BERPINDAH HALAMAN
 const navigationItems: NavigationItem[] = [
-  { label: "Hari ini", icon: LayoutGrid },
+  { label: "Hari ini", icon: LayoutGrid, to: "/dashboard-hari-ini" },
   { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
   { label: "Jurnal makanan", icon: Utensils, to: "/jurnal-makanan" },
-  { label: "Aktivitas & hidrasi", icon: Activity },
+  { label: "Aktivitas & hidrasi", icon: Activity, to: "/aktivitas-hidrasi" },
   { label: "Jurnal & evaluasi", icon: CalendarCheck },
   { label: "Progres", icon: TrendingUp },
   { label: "Profil & pengingat", icon: SlidersHorizontal, to: "/profil-pengingat" },
