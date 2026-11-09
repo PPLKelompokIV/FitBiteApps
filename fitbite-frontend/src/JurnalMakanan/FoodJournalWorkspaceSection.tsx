@@ -1,5 +1,6 @@
-import { useState, type JSX } from "react";
+import { useState, useEffect, type JSX } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import fotoHidangan from "../assets/foto-hidangan.png";
 import fotoHidangan2 from "../assets/foto-hidangan-2.png";
 import fotoHidangan3 from "../assets/foto-hidangan-3.png";
@@ -588,7 +589,30 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
   const [recommendationMeal, setRecommendationMeal] = useState("Makan siang");
   const [selectedRecommendation, setSelectedRecommendation] = useState("");
 
-  const [mealsList] = useState<Meal[]>(() => {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    return localStorage.getItem("fitbite_journal_date") || todayStr;
+  });
+
+  const dateObj = new Date(selectedDate);
+  const formattedDateLong = isNaN(dateObj.getTime())
+    ? "Senin, 19 Oktober 2026"
+    : dateObj.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+
+  const formattedDateShort = isNaN(dateObj.getTime())
+    ? "19 Okt 2026"
+    : dateObj.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+
+  const [mealsList, setMealsList] = useState<Meal[]>(() => {
     try {
       const savedStr = localStorage.getItem("fitbite_journal_slots");
       if (!savedStr) return defaultMeals;
@@ -607,9 +631,75 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
     }
   });
 
+  const [dailySummary, setDailySummary] = useState({
+    totalCalories: "1.350 kkal",
+    protein: "90 / 100 g",
+    karbo: "150 / 190 g",
+    lemak: "43 / 60 g",
+    sisaEnergi: "608 kkal",
+  });
+
+  // Fungsi helper untuk menghitung akumulasi total ringkasan gizi
+  const updateSummaryFromMeals = (meals: Meal[]) => {
+    let totalCal = 0;
+    let totalProt = 0;
+    let totalCarb = 0;
+    let totalFat = 0;
+
+    meals.forEach((m) => {
+      totalCal += parseFloat(m.calories) || 0;
+      const match = m.macros?.match(
+        /Protein\s+([\d.,]+)\s*g.*?Karbo\s+([\d.,]+)\s*g.*?Lemak\s+([\d.,]+)\s*g/i
+      );
+      if (match) {
+        totalProt += parseFloat(match[1].replace(",", ".")) || 0;
+        totalCarb += parseFloat(match[2].replace(",", ".")) || 0;
+        totalFat += parseFloat(match[3].replace(",", ".")) || 0;
+      }
+    });
+
+    const targetCal = 1958;
+    const sisa = Math.max(0, targetCal - Math.round(totalCal));
+
+    setDailySummary({
+      totalCalories: `${Math.round(totalCal).toLocaleString("id-ID")} kkal`,
+      protein: `${Math.round(totalProt)} / 100 g`,
+      karbo: `${Math.round(totalCarb)} / 190 g`,
+      lemak: `${Math.round(totalFat)} / 60 g`,
+      sisaEnergi: `${sisa.toLocaleString("id-ID")} kkal`,
+    });
+  };
+
+  useEffect(() => {
+    // Sinkronkan data log harian dari backend FastAPI
+    axios
+      .get(`http://localhost:8000/api/meals/daily?date=${selectedDate}`)
+      .then((res) => {
+        if (res.data && res.data.meals) {
+          const savedStr = localStorage.getItem("fitbite_journal_slots");
+          const savedSlots = savedStr ? JSON.parse(savedStr) : {};
+
+          const mergedMeals = res.data.meals.map((m: Meal) => {
+            if (savedSlots[m.name]) {
+              return { ...m, ...savedSlots[m.name] };
+            }
+            return m;
+          });
+
+          setMealsList(mergedMeals);
+          updateSummaryFromMeals(mergedMeals);
+        }
+      })
+      .catch((err) => {
+        console.warn("Backend /api/meals/daily belum aktif atau error:", err);
+        // Fallback hitung dari storage lokal
+        updateSummaryFromMeals(mealsList);
+      });
+  }, [selectedDate]);
+
   return (
-    <main className="relative flex min-h-screen flex-1 flex-col items-start bg-[#f8faf6]">
-      <header className="flex h-[78px] w-full items-center justify-between border-b border-solid border-[#e1e7df] bg-white px-9">
+    <main className="relative flex h-screen min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-[#f8faf6]">
+      <header className="sticky top-0 z-10 flex h-[78px] w-full shrink-0 items-center justify-between border-b border-solid border-[#e1e7df] bg-white px-9">
         <nav className="flex items-center gap-2" aria-label="Breadcrumb">
           <span
             className={`text-xs leading-[18px] text-[#728078] ${textClass}`}
@@ -653,7 +743,7 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
             <p
               className={`text-[13px] leading-[19.5px] text-[#728078] ${textClass}`}
             >
-              Senin, 19 Oktober 2026 • Catatan hingga 18.30 WIB
+              {formattedDateLong} • Catatan hingga 18.30 WIB
             </p>
           </div>
           <button
@@ -661,7 +751,7 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
             className={`flex min-h-11 items-center gap-2 rounded-[10px] border border-solid border-[#e1e7df] bg-white px-[18px] py-[11px] text-sm text-[#167653] transition-colors hover:bg-[#f0f3ec] ${semiboldClass}`}
           >
             <Calendar className="h-[17px] w-[17px]" />
-            19 Okt 2026
+            {formattedDateShort}
           </button>
         </section>
         <section
@@ -669,11 +759,11 @@ export const FoodJournalWorkspaceSection = (): JSX.Element => {
           aria-label="Ringkasan nutrisi"
         >
           {[
-            ["Kalori masuk", "1.350 kkal"],
-            ["Protein", "90 / 100 g"],
-            ["Karbohidrat", "150 / 190 g"],
-            ["Lemak", "43 / 60 g"],
-            ["Sisa energi", "608 kkal"],
+            ["Kalori masuk", dailySummary.totalCalories],
+            ["Protein", dailySummary.protein],
+            ["Karbohidrat", dailySummary.karbo],
+            ["Lemak", dailySummary.lemak],
+            ["Sisa energi", dailySummary.sisaEnergi],
           ].map(([label, value]) => (
             <div key={label} className="flex flex-1 flex-col gap-[5px]">
               <span

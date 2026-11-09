@@ -1,4 +1,5 @@
 import base64
+import datetime
 import json
 import os
 import re
@@ -13,7 +14,7 @@ import requests
 
 load_dotenv()
 
-ROUTER_API_KEY = os.getenv("ROUTER_API_KEY", "sk-2b275c9f1cd52d50-1txvrl-5d0c63f7")
+ROUTER_API_KEY = os.getenv("ROUTER_API_KEY", "")
 ROUTER_BASE_URL = os.getenv("ROUTER_BASE_URL", "http://localhost:20128/v1")
 ROUTER_VISION_MODEL = os.getenv("ROUTER_VISION_MODEL", "ag/gemini-3.8-flash-high")
 
@@ -176,6 +177,12 @@ def parse_ai_json_response(content: str) -> dict:
 @app.post("/api/ai/food-snap")
 async def analyze_food_snap(file: UploadFile = File(...)):
     """Menerima unggahan foto makanan dan mengembalikan estimasi komponen nutrisi dari 9Router."""
+    if not ROUTER_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="ROUTER_API_KEY belum dikonfigurasi di file .env server.",
+        )
+
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
             status_code=400,
@@ -283,3 +290,204 @@ async def analyze_food_snap(file: UploadFile = File(...)):
             status_code=500,
             detail=f"Terjadi kesalahan saat memproses gambar: {str(exc)}",
         )
+
+
+# In-memory store untuk data log makanan (sebelum migrasi skema PostgreSQL)
+DEFAULT_MEAL_SLOTS = [
+    {
+        "name": "Sarapan",
+        "time": "07.30 WIB",
+        "calories": "350 kkal",
+        "items": [
+            {"name": "Oat matang", "detail": "1 mangkuk • 200 g", "calories": "200"},
+            {"name": "Pisang", "detail": "1 buah kecil • 100 g", "calories": "90"},
+            {"name": "Yoghurt tawar", "detail": "100 g", "calories": "60"},
+        ],
+        "macros": "Protein 20 g  ·  Karbo 50 g  ·  Lemak 8 g",
+        "protein_g": 20.0,
+        "karbo_g": 50.0,
+        "lemak_g": 8.0,
+        "calories_num": 350.0,
+    },
+    {
+        "name": "Makan siang",
+        "time": "12.30 WIB",
+        "calories": "600 kkal",
+        "items": [
+            {"name": "Nasi merah", "detail": "150 g", "calories": "165"},
+            {"name": "Ayam panggang", "detail": "120 g", "calories": "220"},
+            {"name": "Tempe panggang", "detail": "75 g", "calories": "145"},
+            {"name": "Sayur bening", "detail": "1 mangkuk • 150 g", "calories": "70"},
+        ],
+        "macros": "Protein 42 g  ·  Karbo 65 g  ·  Lemak 19 g",
+        "protein_g": 42.0,
+        "karbo_g": 65.0,
+        "lemak_g": 19.0,
+        "calories_num": 600.0,
+    },
+    {
+        "name": "Makan malam",
+        "time": "18.00 WIB",
+        "calories": "250 kkal",
+        "items": [
+            {"name": "Sup sayur", "detail": "1 mangkuk • 250 g", "calories": "170"},
+            {"name": "Tahu kukus", "detail": "100 g", "calories": "80"},
+        ],
+        "macros": "Protein 18 g  ·  Karbo 15 g  ·  Lemak 13 g",
+        "protein_g": 18.0,
+        "karbo_g": 15.0,
+        "lemak_g": 13.0,
+        "calories_num": 250.0,
+    },
+    {
+        "name": "Camilan",
+        "time": "15.00 WIB",
+        "calories": "150 kkal",
+        "items": [
+            {"name": "Pepaya", "detail": "150 g", "calories": "60"},
+            {"name": "Yoghurt tawar", "detail": "150 g", "calories": "90"},
+        ],
+        "macros": "Protein 10 g  ·  Karbo 20 g  ·  Lemak 3 g",
+        "protein_g": 10.0,
+        "karbo_g": 20.0,
+        "lemak_g": 3.0,
+        "calories_num": 150.0,
+    },
+]
+
+# Key: date_string (YYYY-MM-DD), Value: dict of meal_slots { "Makan siang": slot_data, ... }
+meal_logs_db: dict[str, dict[str, dict]] = {}
+
+
+class MealItemInput(BaseModel):
+    id: str | None = None
+    name: str = Field(min_length=1)
+    detail: str = ""
+    portion: str = ""
+    calories: float | str = 0
+    nutrients: list[float | str] = Field(default_factory=list)
+
+
+class MealLogRequest(BaseModel):
+    date: str
+    meal_slot: Literal["Sarapan", "Makan siang", "Makan malam", "Camilan"]
+    time: str = ""
+    method: Literal["foto_ai", "katalog", "barcode", "quick_add"] = "foto_ai"
+    items: list[MealItemInput]
+
+
+@app.post("/api/meals/log")
+def save_meal_log(payload: MealLogRequest):
+    """Menyimpan atau memperbarui log makanan pada slot tertentu untuk tanggal tertentu."""
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="Daftar makanan tidak boleh kosong.")
+
+    date_key = payload.date
+    if date_key not in meal_logs_db:
+        meal_logs_db[date_key] = {}
+
+    total_calories = 0.0
+    total_p = 0.0
+    total_k = 0.0
+    total_l = 0.0
+
+    items_list = []
+    for it in payload.items:
+        try:
+            cal = float(str(it.calories).replace(",", "."))
+        except (ValueError, TypeError):
+            cal = 0.0
+        total_calories += cal
+
+        p, k, l_val = 0.0, 0.0, 0.0
+        if len(it.nutrients) >= 3:
+            try:
+                p = float(str(it.nutrients[0]).replace(",", "."))
+            except (ValueError, TypeError):
+                p = 0.0
+            try:
+                k = float(str(it.nutrients[1]).replace(",", "."))
+            except (ValueError, TypeError):
+                k = 0.0
+            try:
+                l_val = float(str(it.nutrients[2]).replace(",", "."))
+            except (ValueError, TypeError):
+                l_val = 0.0
+        total_p += p
+        total_k += k
+        total_l += l_val
+
+        detail_text = it.detail
+        if it.portion and it.portion not in it.detail:
+            detail_text = f"{it.portion} • {it.detail}" if it.detail else it.portion
+
+        items_list.append({
+            "name": it.name,
+            "detail": detail_text,
+            "calories": str(int(round(cal))) if cal.is_integer() else f"{cal:.1f}",
+        })
+
+    slot_data = {
+        "name": payload.meal_slot,
+        "time": payload.time or "12.00 WIB",
+        "calories": f"{int(round(total_calories))} kkal",
+        "items": items_list,
+        "macros": f"Protein {int(round(total_p))} g  ·  Karbo {int(round(total_k))} g  ·  Lemak {int(round(total_l))} g",
+        "protein_g": round(total_p, 1),
+        "karbo_g": round(total_k, 1),
+        "lemak_g": round(total_l, 1),
+        "calories_num": round(total_calories, 1),
+        "method": payload.method,
+    }
+
+    meal_logs_db[date_key][payload.meal_slot] = slot_data
+
+    return {
+        "success": True,
+        "message": f"Log makanan {payload.meal_slot} berhasil disimpan.",
+        "date": date_key,
+        "data": slot_data,
+    }
+
+
+@app.get("/api/meals/daily")
+def get_daily_meals(date: str | None = None):
+    """Mengambil seluruh log makanan untuk 4 slot makan pada tanggal tertentu."""
+    target_date = date or datetime.date.today().isoformat()
+
+    daily_slots = meal_logs_db.get(target_date, {})
+
+    result_meals = []
+    total_cal = 0.0
+    total_p = 0.0
+    total_k = 0.0
+    total_l = 0.0
+
+    for default_slot in DEFAULT_MEAL_SLOTS:
+        slot_name = default_slot["name"]
+        if slot_name in daily_slots:
+            slot = daily_slots[slot_name]
+        else:
+            slot = default_slot
+
+        result_meals.append({
+            "name": slot["name"],
+            "time": slot["time"],
+            "calories": slot["calories"],
+            "items": slot["items"],
+            "macros": slot["macros"],
+        })
+        total_cal += slot.get("calories_num", 0.0)
+        total_p += slot.get("protein_g", 0.0)
+        total_k += slot.get("karbo_g", 0.0)
+        total_l += slot.get("lemak_g", 0.0)
+
+    return {
+        "date": target_date,
+        "total_calories": round(total_cal, 1),
+        "total_protein": round(total_p, 1),
+        "total_carb": round(total_k, 1),
+        "total_fat": round(total_l, 1),
+        "meals": result_meals,
+    }
+

@@ -147,8 +147,27 @@ export const MealPhotoJournalSection = (): ReactElement => {
     }
   };
 
-  const handleSaveToJournal = () => {
+  const handleSaveToJournal = async () => {
     setSaved(true);
+
+    try {
+      // 1. Simpan ke Backend FastAPI
+      await axios.post("http://localhost:8000/api/meals/log", {
+        date: entryDate,
+        meal_slot: selectedMealType,
+        time: `${entryTime} WIB`,
+        method: "foto_ai",
+        items: rows.map((r) => ({
+          name: r.name,
+          detail: r.detail,
+          portion: r.portion,
+          calories: r.calories,
+          nutrients: r.nutrients,
+        })),
+      });
+    } catch (err) {
+      console.warn("Gagal simpan ke backend /api/meals/log, fallback ke storage lokal:", err);
+    }
 
     const newEntry = {
       name: selectedMealType,
@@ -164,6 +183,7 @@ export const MealPhotoJournalSection = (): ReactElement => {
     };
 
     try {
+      localStorage.setItem("fitbite_journal_date", entryDate);
       const existingStr = localStorage.getItem("fitbite_journal_slots");
       const existing = existingStr ? JSON.parse(existingStr) : {};
       existing[selectedMealType] = newEntry;
@@ -174,7 +194,7 @@ export const MealPhotoJournalSection = (): ReactElement => {
 
     setTimeout(() => {
       navigate("/jurnal-makanan");
-    }, 800);
+    }, 600);
   };
 
   const updateMeal = (
