@@ -1,6 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { Masuk } from './Login';
 import Daftar from './Register';
+import DashboardHariIni from './Dashboard hari ini';
+import AktivitasHidrasi from './Aktivitas & hidrasi';
 import BodyCheckPagi from './Body Check Pagi/bodycheckpagi';
 import FotoAiTinjauHasil from './FotoAi';
 import AdminPantauAkun from './Admin/AdminPantau';

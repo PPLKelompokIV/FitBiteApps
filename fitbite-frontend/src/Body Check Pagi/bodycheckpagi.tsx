@@ -1,9 +1,5 @@
 import { useMemo, useState } from "react";
-
-type NavigationItem = {
-  label: string;
-  icon: string;
-};
+import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 
 type CheckItem = {
   id: number;
@@ -13,13 +9,6 @@ type CheckItem = {
   score: number;
   updated: string;
 };
-
-const navigationItems: NavigationItem[] = [
-  { label: "Overview", icon: "grid" },
-  { label: "Body Check", icon: "body" },
-  { label: "Progress", icon: "chart" },
-  { label: "Appointments", icon: "calendar" },
-];
 
 const checkItems: CheckItem[] = [
   {
@@ -169,68 +158,6 @@ function Icon({
     </svg>
   );
 }
-
-export const MainNavigationSection = (): JSX.Element => {
-  const [activeItem, setActiveItem] = useState("Body Check");
-
-  return (
-    <aside
-      aria-label="Main navigation"
-      className="flex min-h-screen w-[154px] shrink-0 flex-col border-r border-[#e7e9e1] bg-[#fbfcf8] px-4 py-6"
-    >
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:rounded-md focus:bg-[#173f35] focus:px-3 focus:py-2 focus:text-sm focus:text-white"
-      >
-        Skip to content
-      </a>
-      <div className="mb-12 flex items-center justify-center">
-        <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#173f35] text-lg font-semibold text-white">
-          a
-        </div>
-      </div>
-      <nav className="flex flex-1 flex-col gap-2">
-        {navigationItems.map((item) => {
-          const isActive = activeItem === item.label;
-
-          return (
-            <button
-              key={item.label}
-              type="button"
-              aria-current={isActive ? "page" : undefined}
-              onClick={() => setActiveItem(item.label)}
-              className={`group flex flex-col items-center gap-2 rounded-xl px-2 py-3 text-center text-[11px] transition-colors ${
-                isActive
-                  ? "bg-[#e9f0e8] font-medium text-[#173f35]"
-                  : "text-[#78817c] hover:bg-[#f0f3ed] hover:text-[#173f35]"
-              }`}
-            >
-              <Icon name={item.icon} size={21} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-      <div className="mt-auto flex flex-col items-center gap-4">
-        <button
-          type="button"
-          aria-label="Open notifications"
-          className="relative rounded-full p-2 text-[#78817c] transition-colors hover:bg-[#eef2ec] hover:text-[#173f35]"
-        >
-          <Icon name="bell" size={20} />
-          <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#d97552]" />
-        </button>
-        <button
-          type="button"
-          aria-label="Open profile menu"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-[#d8e4d7] text-xs font-semibold text-[#31594d]"
-        >
-          JD
-        </button>
-      </div>
-    </aside>
-  );
-};
 
 export const BodyCheckWorkspaceSection = (): JSX.Element => {
   const [query, setQuery] = useState("");
@@ -455,8 +382,14 @@ export const BodyCheckWorkspaceSection = (): JSX.Element => {
 
 export const BodyCheckPagi = (): JSX.Element => {
   return (
-    <div className="flex min-h-screen items-start relative bg-[#f6f7f2]">
-      <MainNavigationSection />
+    <div className="relative flex min-h-screen items-start bg-[#f6f7f2]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:rounded-md focus:bg-[#173f35] focus:px-3 focus:py-2 focus:text-sm focus:text-white"
+      >
+        Skip to content
+      </a>
+      <HealthAppSidebarSection />
       <BodyCheckWorkspaceSection />
     </div>
   );
