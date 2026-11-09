@@ -21,7 +21,7 @@ function App() {
       <Route path="/admin/pengelolaan" element={<AdminPengelolaan />} />
       <Route path="/admin/aktivitas" element={<ActivitiesPage />} />
       <Route path="/profil-pengingat" element={<ProfilPengingat />} />
-       <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
+      <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
     </Routes>
   );
 }

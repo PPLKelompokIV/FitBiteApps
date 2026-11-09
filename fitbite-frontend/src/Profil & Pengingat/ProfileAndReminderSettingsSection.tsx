@@ -14,44 +14,54 @@ import {
   LogOut,
   AlertTriangle,
   ArrowRight,
+  Loader2,
+  X,
 } from "lucide-react";
 
 type Reminder = {
+  key: string;
   title: string;
   description: string;
   time: string;
   hasBorderBottom?: boolean;
 };
 
-const reminders: Reminder[] = [
+// 6 Pengingat harian FitBite sesuai ERD dan mock UI
+const defaultReminders: Reminder[] = [
   {
+    key: "body_check",
     title: "Body Check pagi",
     description: "Mulai hari dengan mengenali kondisi tubuh.",
     time: "06.30",
     hasBorderBottom: true,
   },
   {
+    key: "sarapan",
     title: "Sarapan",
     description: "Pengingat catat makan pagi.",
     time: "07.30",
   },
   {
+    key: "makan_siang",
     title: "Makan siang",
     description: "Beri jeda, nikmati, lalu catat.",
     time: "12.30",
   },
   {
+    key: "makan_malam",
     title: "Makan malam",
     description: "Lengkapi jurnal makan harian.",
     time: "18.00",
     hasBorderBottom: true,
   },
   {
+    key: "minum_air",
     title: "Minum air",
     description: "Setiap 2 jam, pukul 09.00–21.00.",
     time: "2 jam",
   },
   {
+    key: "evaluasi_malam",
     title: "Evaluasi malam",
     description: "Laporan tersedia setiap hari pukul 20.00.",
     time: "20.00",
@@ -148,12 +158,27 @@ const Card = ({
 export const ProfileAndReminderSettingsSection = () => {
   const [personalization, setPersonalization] = useState(true);
   const [foodPhotos, setFoodPhotos] = useState(false);
+  const [remindersList, setRemindersList] = useState<Reminder[]>(defaultReminders);
   const [enabledReminders, setEnabledReminders] = useState<boolean[]>(
-    reminders.map(() => true)
+    defaultReminders.map(() => true)
   );
   const [browserPermission, setBrowserPermission] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // State untuk Toast Notification Elegan
+  const [toast, setToast] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error";
+  }>({
+    show: false,
+    title: "",
+    message: "",
+    type: "success",
+  });
 
   const toggleReminder = (index: number) => {
     setEnabledReminders((current) =>
@@ -161,6 +186,80 @@ export const ProfileAndReminderSettingsSection = () => {
         itemIndex === index ? !enabled : enabled
       )
     );
+  };
+
+  // Langsung ubah nilai waktu/interval secara inline tanpa prompt
+  const handleDirectTimeChange = (index: number, newTime: string) => {
+    setRemindersList((prev) =>
+      prev.map((item, idx) =>
+        idx === index ? { ...item, time: newTime } : item
+      )
+    );
+  };
+
+  // FIT-51 & FIT-52: Simpan jadwal ke FastAPI dan tampilkan Toast elegan
+  const handleSimpanPengaturan = async () => {
+    setLoading(true);
+    try {
+      const payloadJadwal = remindersList.map((item, index) => ({
+        jenis_pengingat: item.key,
+        waktu_jadwal: item.time,
+        saluran: "in_app",
+        status_aktif: enabledReminders[index],
+      }));
+
+      const response = await fetch("http://127.0.0.1:8000/api/reminders/save", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id_user: 1, // ID pengguna Nadia Putri
+          jadwal: payloadJadwal,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        const errorDetail =
+          result.detail?.[0]?.msg ||
+          result.detail ||
+          "Format waktu atau interval tidak valid.";
+        setToast({
+          show: true,
+          title: "Gagal Menyimpan",
+          message: String(errorDetail),
+          type: "error",
+        });
+        setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 4000);
+        return;
+      }
+
+      setSaved(true);
+      setToast({
+        show: true,
+        title: "Pengaturan Tersimpan",
+        message: "Jadwal pengingat harianmu berhasil diperbarui ke sistem.",
+        type: "success",
+      });
+
+      setTimeout(() => {
+        setSaved(false);
+        setToast((prev) => ({ ...prev, show: false }));
+      }, 3500);
+    } catch (err) {
+      console.error("Gagal koneksi ke server backend:", err);
+      setToast({
+        show: true,
+        title: "Koneksi Gagal",
+        message: "Tidak dapat terhubung ke server FastAPI (port 8000).",
+        type: "error",
+      });
+      setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 4000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const enableNotifications = () => {
@@ -175,6 +274,51 @@ export const ProfileAndReminderSettingsSection = () => {
 
   return (
     <div className="relative flex h-screen min-h-0 flex-1 flex-col justify-between overflow-y-auto bg-[#f6f7f2]">
+      {/* Toast Notification Elegan - FitBite Theme */}
+      <aside
+        aria-live="polite"
+        className={`fixed top-6 right-8 z-50 flex items-start gap-3.5 rounded-[14px] border px-4 py-3.5 shadow-[0_8px_24px_rgba(22,118,83,0.12)] transition-all duration-300 ease-out ${
+          toast.show
+            ? "translate-y-0 opacity-100 scale-100"
+            : "-translate-y-4 opacity-0 pointer-events-none scale-95"
+        } ${
+          toast.type === "success"
+            ? "border-[#cce1d8] bg-[#f2f7f4] text-[#167653]"
+            : "border-[#e9cdc6] bg-[#fcf0ed] text-[#b15348]"
+        }`}
+      >
+        <div
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+            toast.type === "success"
+              ? "bg-[#167653] text-white"
+              : "bg-[#b15348] text-white"
+          }`}
+        >
+          {toast.type === "success" ? (
+            <CheckCircle2 className="h-5 w-5" strokeWidth={2.3} />
+          ) : (
+            <AlertTriangle className="h-4 w-4" />
+          )}
+        </div>
+
+        <div className="flex flex-col pr-3">
+          <strong className="text-xs font-bold leading-[18px] text-[#203d32]">
+            {toast.title}
+          </strong>
+          <span className="text-[11px] leading-[16px] text-[#5c6b62]">
+            {toast.message}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setToast((prev) => ({ ...prev, show: false }))}
+          className="ml-auto -mr-1 -mt-1 rounded-md p-1 text-[#728078] hover:bg-[#e1e7df]/60 hover:text-[#203d32] transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </aside>
+
       <div className="w-full">
         {/* Top Header */}
         <header className="sticky top-0 z-10 flex h-[72px] w-full shrink-0 items-center justify-between border-b border-[#e1e7df] bg-[#f6f7f2] px-9">
@@ -220,19 +364,28 @@ export const ProfileAndReminderSettingsSection = () => {
             </div>
             <button
               type="button"
-              onClick={() => setSaved(true)}
-              className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[10px] bg-[#167653] hover:bg-[#126244] px-[18px] py-[10px] text-white transition-colors cursor-pointer"
+              disabled={loading}
+              onClick={handleSimpanPengaturan}
+              className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[10px] bg-[#167653] hover:bg-[#126244] disabled:opacity-60 px-[18px] py-[10px] text-white transition-colors cursor-pointer shadow-sm"
             >
-              <Check className="h-4 w-4" strokeWidth={2.5} />
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" strokeWidth={2.5} />
+              )}
               <span className="text-xs font-semibold leading-[18px]">
-                {saved ? "Pengaturan tersimpan" : "Simpan pengaturan"}
+                {loading
+                  ? "Menyimpan..."
+                  : saved
+                  ? "Pengaturan tersimpan"
+                  : "Simpan pengaturan"}
               </span>
             </button>
           </div>
 
           {/* 2 Kolom Utama */}
           <div className="flex w-full items-start gap-6">
-            {/* Kolom Kiri */}
+            {/* Kolom Kiri: Profil & Privasi */}
             <div className="flex w-[380px] shrink-0 flex-col gap-5">
               {/* Kartu 1: Akun & profil tubuh */}
               <Card
@@ -399,15 +552,15 @@ export const ProfileAndReminderSettingsSection = () => {
               </Card>
             </div>
 
-            {/* Kolom Kanan */}
+            {/* Kolom Kanan: Pengingat & Notifikasi (PBI-11 / FIT-49 & PBI-12 / FIT-53) */}
             <div className="flex min-w-0 flex-1 flex-col gap-5">
-              {/* Kartu 4: Pengingat yang mendukungmu */}
+              {/* Kartu 4: Pengingat yang mendukungmu (FIT-49) */}
               <Card
                 title="Pengingat yang mendukungmu"
                 subtitle="Waktu Indonesia Barat (WIB) • Atur sesuai rutinitasmu."
               >
                 <div className="flex w-full flex-col">
-                  {reminders.map((reminder, index) => (
+                  {remindersList.map((reminder, index) => (
                     <React.Fragment key={reminder.title}>
                       <div className="flex w-full items-center gap-4 py-2.5 first:pt-0 last:pb-0">
                         <div className="flex-1">
@@ -419,14 +572,22 @@ export const ProfileAndReminderSettingsSection = () => {
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-2 rounded-[8px] border border-[#e1e7df] bg-white px-3 py-1.5 text-xs font-medium text-[#203d32] hover:bg-[#f8faf7]"
-                        >
-                          <span>{reminder.time}</span>
-                          <Clock className="h-3.5 w-3.5 text-[#728078]" />
-                        </button>
+                        {/* Input Waktu/Interval Inline Langsung di Kolom (Tanpa Prompt Browser) */}
+                        <div className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#e1e7df] bg-white px-2.5 py-1 text-xs font-medium text-[#203d32] focus-within:border-[#167653] focus-within:ring-1 focus-within:ring-[#167653] transition-colors shadow-2xs">
+                          <input
+                            type="text"
+                            value={reminder.time}
+                            onChange={(e) =>
+                              handleDirectTimeChange(index, e.target.value)
+                            }
+                            aria-label={`Waktu ${reminder.title}`}
+                            className="w-[50px] bg-transparent text-center text-xs font-medium text-[#203d32] outline-none"
+                            placeholder={reminder.key === "minum_air" ? "2 jam" : "07.00"}
+                          />
+                          <Clock className="h-3.5 w-3.5 text-[#728078] shrink-0" />
+                        </div>
 
+                        {/* Toggle Aktif/Nonaktif */}
                         <Toggle
                           checked={enabledReminders[index]}
                           onChange={() => toggleReminder(index)}
@@ -472,7 +633,7 @@ export const ProfileAndReminderSettingsSection = () => {
                 )}
               </Card>
 
-              {/* Kartu 5: Notifikasi dalam aplikasi */}
+              {/* Kartu 5: Notifikasi dalam aplikasi (FIT-53) */}
               <Card
                 title="Notifikasi dalam aplikasi"
                 subtitle="1 belum dibaca"
