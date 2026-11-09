@@ -2,12 +2,9 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-<<<<<<< Updated upstream
-=======
 const adminFoodsRouter = require('./routes/adminFoods');
 const { router: smartRemindersRouter } = require('./routes/smartReminders');
 
->>>>>>> Stashed changes
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -18,8 +15,6 @@ app.get('/', (req, res) => {
   res.send('API Node.js FitBite Utama Berjalan!');
 });
 
-<<<<<<< Updated upstream
-=======
 app.use('/api/admin/foods', adminFoodsRouter);
 app.use('/api/smart-reminders', smartRemindersRouter);
 
@@ -30,7 +25,6 @@ app.use((error, req, res, next) => {
   });
 });
 
->>>>>>> Stashed changes
 app.listen(PORT, () => {
   console.log(`Server Node.js berjalan di http://localhost:${PORT}`);
 });
