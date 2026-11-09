@@ -204,7 +204,7 @@ export const DashboardHariIni = () => {
           {/* Greeting and main actions */}
           <section className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
             <div>
-              <h1 className="text-[32px] font-normal leading-[40px] tracking-[-0.3px] text-[#203d32]">
+              <h1 className="text-[25px] font-extrabold leading-tight tracking-[-0.5px] text-[#203d32] sm:text-[29px]">
                 Hari baik dimulai dari pilihan kecil.
               </h1>
               <p className="mt-1.5 text-xs leading-[19px] text-[#728078] sm:text-[13px]">
