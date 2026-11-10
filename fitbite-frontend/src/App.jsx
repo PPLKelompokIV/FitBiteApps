@@ -1,6 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import { Masuk } from './Login';
 import Daftar from './Register';
+import DashboardHariIni from './Dashboard hari ini';
+import AktivitasHidrasi from './Aktivitas & hidrasi';
 import BodyCheckPagi from './Body Check Pagi/bodycheckpagi';
 import FotoAiTinjauHasil from './FotoAi';
 import AdminPantauAkun from './Admin/AdminPantau';
@@ -15,13 +17,15 @@ function App() {
       <Route path="/" element={<Masuk />} />
       <Route path="/login" element={<Masuk />} />
       <Route path="/register" element={<Daftar />} />
+      <Route path="/dashboard-hari-ini" element={<DashboardHariIni />} />
+      <Route path="/aktivitas-hidrasi" element={<AktivitasHidrasi />} />
       <Route path="/bodycheckpagi" element={<BodyCheckPagi />} />
       <Route path="/foto-ai" element={<FotoAiTinjauHasil />} />
       <Route path="/admin/pantau" element={<AdminPantauAkun />} />
       <Route path="/admin/pengelolaan" element={<AdminPengelolaan />} />
       <Route path="/admin/aktivitas" element={<ActivitiesPage />} />
       <Route path="/profil-pengingat" element={<ProfilPengingat />} />
-       <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
+      <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
     </Routes>
   );
 }
