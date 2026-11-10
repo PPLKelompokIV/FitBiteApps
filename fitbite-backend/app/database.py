@@ -1,18 +1,12 @@
 import os
-from pathlib import Path
-from dotenv import load_dotenv
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Membaca .env dari folder fitbite-backend
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
-
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not SQLALCHEMY_DATABASE_URL:
-    raise RuntimeError("DATABASE_URL belum ditemukan di file .env")
+# Menggunakan koneksi lokal langsung (aman tanpa file .env)
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg2://postgres:Faiz050105@localhost:5432/fitbite_db"
+)
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
@@ -23,7 +17,6 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
-
 
 def get_db():
     db = SessionLocal()
