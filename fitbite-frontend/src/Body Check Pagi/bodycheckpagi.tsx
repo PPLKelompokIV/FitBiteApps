@@ -1,95 +1,68 @@
-import { useMemo, useState } from "react";
-import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
+import { useState, type ReactElement } from "react";
+import {
+  BodyCheckSidebar,
+  BodyCheckHeader,
+  BodyCheckBanner,
+  BodyCheckFormSection,
+  BodyCheckOverviewSection,
+  BodyCheckFooter,
+  type SleepQuality,
+  type PlannedIntensity,
+} from "./bodycheckmainnavigation";
 
-type CheckItem = {
-  id: number;
-  title: string;
-  category: string;
-  status: "Complete" | "In progress" | "Not started";
-  score: number;
-  updated: string;
-};
+export const BodyCheckPagi = (): ReactElement => {
+  // Form State initialized to match reference frame exactly
+  const [weight, setWeight] = useState("64,0");
+  const [sleepDuration, setSleepDuration] = useState("7,5");
+  const [sleepQuality, setSleepQuality] = useState<SleepQuality>("Nyenyak");
+  const [energyLevel, setEnergyLevel] = useState<number>(4);
+  const [plannedIntensity, setPlannedIntensity] = useState<PlannedIntensity>("Tinggi");
+  const [isSaved, setIsSaved] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-const checkItems: CheckItem[] = [
-  {
-    id: 1,
-    title: "Posture assessment",
-    category: "Mobility",
-    status: "Complete",
-    score: 86,
-    updated: "Today, 9:42 AM",
-  },
-  {
-    id: 2,
-    title: "Shoulder mobility",
-    category: "Upper body",
-    status: "Complete",
-    score: 78,
-    updated: "Today, 9:38 AM",
-  },
-  {
-    id: 3,
-    title: "Hip alignment",
-    category: "Lower body",
-    status: "In progress",
-    score: 64,
-    updated: "Today, 9:31 AM",
-  },
-  {
-    id: 4,
-    title: "Balance and stability",
-    category: "Movement",
-    status: "Not started",
-    score: 0,
-    updated: "Not yet checked",
-  },
-];
-
-function Icon({
-  name,
-  size = 20,
-}: {
-  name: string;
-  size?: number;
-}): JSX.Element {
-  const commonProps = {
-    width: size,
-    height: size,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
+  const handleSave = () => {
+    setIsSaved(true);
+    setToastMessage("Body Check tersimpan!");
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
   };
 
   return (
-    <svg {...commonProps}>
-      <circle cx="12" cy="12" r="8" />
-    </svg>
-  );
-}
+    <div className="flex h-screen items-stretch overflow-hidden bg-[#f6f7f2] font-sans text-[#1f2d2a]">
+      {/* Sidebar Navigasi */}
+      <BodyCheckSidebar />
 
-export const BodyCheckWorkspaceSection = (): JSX.Element => {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("All");
-  const [showAll, setShowAll] = useState(false);
+      {/* Main Container */}
+      <div className="relative flex h-screen min-h-0 flex-1 flex-col justify-between overflow-y-auto bg-[#f6f7f2]">
+        <div className="w-full">
+          {/* Top Header / Breadcrumb Bar */}
+          <BodyCheckHeader />
 
-  const filteredItems = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+          {/* Main Body Content */}
+          <main className="flex w-full flex-col items-start gap-6 px-9 pb-7 pt-[28px]">
+            <div className="w-full">
+              {/* Title & Banner Info */}
+              <BodyCheckBanner isSaved={isSaved} />
 
-    return checkItems
-      .filter((item) => filter === "All" || item.status === filter)
-      .filter(
-        (item) =>
-          !normalizedQuery ||
-          item.title.toLowerCase().includes(normalizedQuery) ||
-          item.category.toLowerCase().includes(normalizedQuery),
-      );
-  }, [filter, query]);
-
-  const visibleItems = showAll ? filteredItems : filteredItems.slice(0, 4);
+              {/* Two-Column Grid */}
+              <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+                {/* Form Input Section */}
+                <BodyCheckFormSection
+                  weight={weight}
+                  setWeight={setWeight}
+                  sleepDuration={sleepDuration}
+                  setSleepDuration={setSleepDuration}
+                  sleepQuality={sleepQuality}
+                  setSleepQuality={setSleepQuality}
+                  energyLevel={energyLevel}
+                  setEnergyLevel={setEnergyLevel}
+                  plannedIntensity={plannedIntensity}
+                  setPlannedIntensity={setPlannedIntensity}
+                  isSaved={isSaved}
+                  onSave={handleSave}
+                  toastMessage={toastMessage}
+                />
 
                 {/* Right Overview & Insights */}
                 <BodyCheckOverviewSection />
@@ -103,24 +76,8 @@ export const BodyCheckWorkspaceSection = (): JSX.Element => {
           <BodyCheckFooter />
         </div>
       </div>
-    </main>
-  );
-};
-
-export const BodyCheckPagi = (): JSX.Element => {
-  return (
-    <div className="relative flex min-h-screen items-start bg-[#f6f7f2]">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:rounded-md focus:bg-[#173f35] focus:px-3 focus:py-2 focus:text-sm focus:text-white"
-      >
-        Skip to content
-      </a>
-      <HealthAppSidebarSection />
-      <BodyCheckWorkspaceSection />
     </div>
   );
 };
 
 export default BodyCheckPagi;
-//
