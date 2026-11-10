@@ -268,6 +268,16 @@ const AdminPengelolaan: React.FC = () => {
 
     setFormErrors({});
 
+    if (isAddMode && foods.some(f => f.nama.trim().toLowerCase() === formData.nama.trim().toLowerCase())) {
+      setFormErrors({ nama: 'Makanan dengan nama tersebut sudah ada di katalog' });
+      setNotification({
+        type: 'error',
+        title: 'Validasi Data Gizi Gagal',
+        message: 'Makanan dengan nama tersebut sudah ada di katalog.',
+      });
+      return;
+    }
+
     const basis = toNum(formData.basis);
     const kkal = toNum(formData.kkal);
     const protein = toNum(formData.protein);
