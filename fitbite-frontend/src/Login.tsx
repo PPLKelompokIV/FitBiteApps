@@ -15,9 +15,9 @@ export const Masuk = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-  };
+const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
+};
 
   return (
     <main className="flex h-screen w-screen items-center justify-center p-4 bg-[#f6f7f2] overflow-hidden">

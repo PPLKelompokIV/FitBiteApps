@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import identitasFitbite from "../assets/Identitas FitBite.png";
 import {
   LayoutDashboard,
@@ -10,8 +11,9 @@ import {
   User,
   LogOut,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const navigationItems = [
+const navigationItems: { label: string; icon: LucideIcon; to?: string }[] = [
   {
     label: "Ringkasan",
     icon: LayoutDashboard,
@@ -19,15 +21,17 @@ const navigationItems = [
   {
     label: "Katalog makanan",
     icon: Utensils,
+    to: "/admin/pengelolaan",
   },
   {
     label: "Aktivitas & MET",
     icon: Activity,
+    to: "/admin/aktivitas",
   },
   {
     label: "Akun pengguna",
     icon: Users,
-    active: true,
+    to: "/admin/pantau",
   },
   {
     label: "Log pengelolaan",
@@ -36,8 +40,9 @@ const navigationItems = [
 ];
 
 export const AdministratorNavigationSection = () => {
-  const [activeItem, setActiveItem] = useState("Akun pengguna");
+  const [activeItem, setActiveItem] = useState("");
   const [isSignedOut, setIsSignedOut] = useState(false);
+  const location = useLocation();
 
   const handleSignOut = () => {
     setIsSignedOut(true);
@@ -57,26 +62,44 @@ export const AdministratorNavigationSection = () => {
           RUANG ADMINISTRATOR
         </div>
         {navigationItems.map((item) => {
-          const isActive = activeItem === item.label;
+          const isActive = item.to
+            ? location.pathname === item.to
+            : activeItem === item.label;
           const Icon = item.icon;
 
-          return (
+          return item.to ? (
+            <Link
+              key={item.label}
+              to={item.to}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex items-center gap-2.5 px-[11px] py-3 relative self-stretch w-full flex-[0_0_auto] rounded-[10px] overflow-hidden text-left transition-colors ${isActive ? "bg-[#2d644e]" : "hover:bg-[#1a5b46]"
+                }`}
+            >
+              <Icon className="w-[19px] h-[19px] text-white shrink-0" />
+              <span
+                className={`relative flex-1 mt-[-0.50px] ${isActive
+                  ? "[font-family:'Inter-Bold',Helvetica] font-bold"
+                  : "[font-family:'Inter-Medium',Helvetica] font-medium"
+                  } text-white text-xs tracking-[0] leading-[18px]`}
+              >
+                {item.label}
+              </span>
+            </Link>
+          ) : (
             <button
               key={item.label}
               type="button"
               aria-current={isActive ? "page" : undefined}
               onClick={() => setActiveItem(item.label)}
-              className={`flex items-center gap-2.5 px-[11px] py-3 relative self-stretch w-full flex-[0_0_auto] rounded-[10px] overflow-hidden text-left transition-colors ${
-                isActive ? "bg-[#2d644e]" : "hover:bg-[#1a5b46]"
-              }`}
+              className={`flex items-center gap-2.5 px-[11px] py-3 relative self-stretch w-full flex-[0_0_auto] rounded-[10px] overflow-hidden text-left transition-colors ${isActive ? "bg-[#2d644e]" : "hover:bg-[#1a5b46]"
+                }`}
             >
               <Icon className="w-[19px] h-[19px] text-white shrink-0" />
               <span
-                className={`relative flex-1 mt-[-0.50px] ${
-                  isActive
-                    ? "[font-family:'Inter-Bold',Helvetica] font-bold"
-                    : "[font-family:'Inter-Medium',Helvetica] font-medium"
-                } text-white text-xs tracking-[0] leading-[18px]`}
+                className={`relative flex-1 mt-[-0.50px] ${isActive
+                  ? "[font-family:'Inter-Bold',Helvetica] font-bold"
+                  : "[font-family:'Inter-Medium',Helvetica] font-medium"
+                  } text-white text-xs tracking-[0] leading-[18px]`}
               >
                 {item.label}
               </span>
