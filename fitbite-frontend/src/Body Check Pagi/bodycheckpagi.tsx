@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState, type JSX } from "react";
 
 type NavigationItem = {
   label: string;
