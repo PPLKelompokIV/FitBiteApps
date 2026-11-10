@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 
 const iconPlaceholder =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'/%3E";
@@ -97,7 +97,7 @@ const Icon = ({
   alt?: string;
 }) => <img src={src} className={className} alt={alt} aria-hidden={!alt} />;
 
-export const ActivityAndHydrationSection = (): JSX.Element => {
+export const ActivityAndHydrationSection = (): ReactElement => {
   const [selectedActivity, setSelectedActivity] = useState("Jalan kaki");
   const [duration, setDuration] = useState("20");
   const [_startTime, setStartTime] = useState("19.00");

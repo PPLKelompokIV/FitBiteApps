@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 import vector10 from "./vector-10.svg";
 import vector11 from "./vector-11.svg";
 import vector12 from "./vector-12.svg";
@@ -180,7 +180,7 @@ const Card = ({
   </section>
 );
 
-export const ActivityHydrationWorkspaceSection = (): JSX.Element => {
+export const ActivityHydrationWorkspaceSection = (): ReactElement => {
   const [activities, setActivities] = useState<Activity[]>(initialActivities);
   const [drinks, setDrinks] = useState<Drink[]>(initialDrinks);
   const [selectedActivity, setSelectedActivity] = useState("Jalan kaki");
@@ -644,7 +644,7 @@ export const ActivityHydrationWorkspaceSection = (): JSX.Element => {
                 disabled={!drinks.length}
                 className="text-left text-[11px] font-semibold text-[#167653] disabled:opacity-40"
               >
-                ↶ Batalkan catatan terakhir ({drinks.at(-1)?.amount ?? 0} ml)
+                ↶ Batalkan catatan terakhir ({drinks[drinks.length - 1]?.amount ?? 0} ml)
               </button>
             </Card>
           </div>

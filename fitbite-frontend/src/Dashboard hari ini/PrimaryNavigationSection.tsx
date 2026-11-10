@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 
 type NavigationItem = {
@@ -46,7 +46,7 @@ const navigationItems: NavigationItem[] = [
   },
 ];
 
-export const PrimaryNavigationSection = (): JSX.Element => {
+export const PrimaryNavigationSection = (): ReactElement => {
   const [activeItem, setActiveItem] = useState("Hari ini");
   const navigate = useNavigate();
 

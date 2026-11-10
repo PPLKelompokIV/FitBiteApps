@@ -408,6 +408,8 @@ const AdminPengelolaan: React.FC = () => {
         <div
           role="status"
           aria-live="polite"
+          data-testid="toast-notifikasi"
+          data-status={notification.type}
           className={`fixed top-5 right-6 z-50 max-w-md flex items-start gap-3 px-4 py-3.5 rounded-xl shadow-lg border animate-tab-content ${
             notification.type === 'success'
               ? 'bg-[#eaf3e9] border-[#167653]/30 text-[#124b39]'
@@ -456,6 +458,7 @@ const AdminPengelolaan: React.FC = () => {
               </div>
               <button
                 type="button"
+                data-testid="btn-tambah-makanan"
                 onClick={handleAddNew}
                 className="flex items-center gap-2 bg-[#124b39] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#0e3a2c] hover:shadow-md transition-all duration-300 whitespace-nowrap active:scale-95"
               >
@@ -520,6 +523,7 @@ const AdminPengelolaan: React.FC = () => {
                       <div className="relative">
                         <input
                           type="text"
+                          data-testid="input-cari"
                           placeholder="Cari nama atau kategori..."
                           value={search}
                           onChange={e => setSearch(e.target.value)}
@@ -532,14 +536,14 @@ const AdminPengelolaan: React.FC = () => {
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className={labelCls}>Kategori</label>
-                      <select value={filterKategori} onChange={e => setFilterKategori(e.target.value)} className={getInputCls()}>
+                      <select data-testid="filter-kategori" value={filterKategori} onChange={e => setFilterKategori(e.target.value)} className={getInputCls()}>
                         <option value="semua">Semua</option>
                         {KATEGORI_LIST.map(k => <option key={k} value={k}>{k}</option>)}
                       </select>
                     </div>
                     <div className="flex flex-col gap-1">
                       <label className={labelCls}>Status</label>
-                      <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={getInputCls()}>
+                      <select data-testid="filter-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={getInputCls()}>
                         {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
@@ -564,10 +568,11 @@ const AdminPengelolaan: React.FC = () => {
                             <th className="text-center px-3 py-3 rounded-r-lg">Aksi</th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody data-testid="tabel-makanan">
                           {filtered.map(f => (
                             <tr
                               key={f.id}
+                              data-testid="baris-makanan"
                               onClick={() => handleEdit(f)}
                               className={`border-t border-[#f0f5f2] cursor-pointer transition-all duration-200 ${
                                 currentItem?.id === f.id ? 'bg-[#eaf3e9]' : 'hover:bg-[#f6f9f7]'
@@ -666,19 +671,21 @@ const AdminPengelolaan: React.FC = () => {
                         <label className={labelCls}>Nama makanan</label>
                         <input
                           type="text"
+                          data-testid="input-nama"
                           value={formData.nama}
                           onChange={e => setField('nama', e.target.value)}
                           placeholder="cth. Nasi merah matang"
                           className={getInputCls('nama')}
                         />
                         {formErrors.nama && (
-                          <span className="text-[11px] text-red-600 font-medium">{formErrors.nama}</span>
+                          <span data-testid="error-nama" className="text-[11px] text-red-600 font-medium">{formErrors.nama}</span>
                         )}
                       </div>
 
                       <div className="flex flex-col gap-1">
                         <label className={labelCls}>Kategori</label>
                         <select
+                          data-testid="select-kategori"
                           value={formData.kategori}
                           onChange={e => setField('kategori', e.target.value)}
                           className={getInputCls('kategori')}
@@ -698,6 +705,7 @@ const AdminPengelolaan: React.FC = () => {
                             <input
                               type="text"
                               inputMode="decimal"
+                              data-testid="input-basis"
                               value={formData.basis}
                               onChange={e => setField('basis', e.target.value)}
                               className={`${getInputCls('basis')} pr-8`}
@@ -705,7 +713,7 @@ const AdminPengelolaan: React.FC = () => {
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6b8c7a] pointer-events-none">g</span>
                           </div>
                           {formErrors.basis && (
-                            <span className="text-[10px] text-red-600 font-medium leading-tight">{formErrors.basis}</span>
+                            <span data-testid="error-basis" className="text-[10px] text-red-600 font-medium leading-tight">{formErrors.basis}</span>
                           )}
                         </div>
                         <div className="flex flex-col gap-1">
@@ -714,6 +722,7 @@ const AdminPengelolaan: React.FC = () => {
                             <input
                               type="text"
                               inputMode="decimal"
+                              data-testid="input-kkal"
                               value={formData.kkal}
                               onChange={e => setField('kkal', e.target.value)}
                               placeholder="> 0"
@@ -722,7 +731,7 @@ const AdminPengelolaan: React.FC = () => {
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#6b8c7a] pointer-events-none">kkal</span>
                           </div>
                           {formErrors.kkal && (
-                            <span className="text-[10px] text-red-600 font-medium leading-tight">{formErrors.kkal}</span>
+                            <span data-testid="error-kkal" className="text-[10px] text-red-600 font-medium leading-tight">{formErrors.kkal}</span>
                           )}
                         </div>
                       </div>
@@ -739,6 +748,7 @@ const AdminPengelolaan: React.FC = () => {
                               <input
                                 type="text"
                                 inputMode="decimal"
+                                data-testid={`input-${key}`}
                                 value={formData[key]}
                                 onChange={e => setField(key, e.target.value)}
                                 placeholder="≥ 0"
@@ -747,7 +757,7 @@ const AdminPengelolaan: React.FC = () => {
                               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#6b8c7a] pointer-events-none">g</span>
                             </div>
                             {formErrors[key] && (
-                              <span className="text-[10px] text-red-600 font-medium leading-tight">{formErrors[key]}</span>
+                              <span data-testid={`error-${key}`} className="text-[10px] text-red-600 font-medium leading-tight">{formErrors[key]}</span>
                             )}
                           </div>
                         ))}
@@ -777,6 +787,7 @@ const AdminPengelolaan: React.FC = () => {
                       <div className="flex flex-col gap-2 pt-2">
                         <button
                           type="submit"
+                          data-testid="btn-simpan"
                           className="flex items-center justify-center gap-2 bg-[#124b39] text-white text-sm font-medium py-2 rounded-lg hover:bg-[#0e3a2c] active:scale-[0.98] transition-all duration-200"
                         >
                           <IconTick /> {isAddMode ? 'Tambah makanan' : 'Simpan perubahan'}
