@@ -26,6 +26,10 @@ import {
 
 import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 import { MealLogModal } from "./MealLogModal";
+import {
+  calculateCalorieTargets,
+  sampleCalorieProfile,
+} from "../calorieTargets";
 
 const initialMeals = [
   {
@@ -89,6 +93,8 @@ const nutrients = [
   { name: "Karbohidrat", value: "150 / 190 g", percent: 79, color: "#8eab58" },
   { name: "Lemak", value: "43 / 60 g", percent: 72, color: "#cbab6d" },
 ];
+
+const calorieTargets = calculateCalorieTargets(sampleCalorieProfile);
 
 const Card = ({ children, className = "" }) => (
   <section
@@ -160,6 +166,18 @@ export const DashboardHariIni = () => {
     [mealList],
   );
 
+  const caloriesConsumed = displayedMeals.reduce(
+    (total, meal) => total + meal.calories,
+    0,
+  );
+  const caloriesBurned = activities.reduce(
+    (total, activity) => total + activity.calories,
+    0,
+  );
+  const remainingCalories = Math.max(
+    0,
+    calorieTargets.calorieTarget + caloriesBurned - caloriesConsumed,
+  );
   const waterTarget = 2640;
   const waterPercent = Math.min(100, (water / waterTarget) * 100);
   const remainingWater = Math.max(0, waterTarget - water);
@@ -301,7 +319,7 @@ export const DashboardHariIni = () => {
                   <div className="absolute flex flex-col items-center">
                     <Flame size={20} className="mb-1 text-[#167653]" />
                     <strong className="text-[40px] font-semibold leading-[1.1] text-[#203d32]">
-                      608
+                      {remainingCalories.toLocaleString("id-ID")}
                     </strong>
                     <span className="mt-1 text-xs text-[#728078]">
                       kkal tersisa
@@ -312,9 +330,21 @@ export const DashboardHariIni = () => {
                 <div className="flex min-w-0 flex-col gap-4">
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { label: "Masuk", value: "1.350", icon: Utensils },
-                      { label: "Target", value: "1.700", icon: CircleUserRound },
-                      { label: "Terbakar", value: "258", icon: Flame },
+                      {
+                        label: "Masuk",
+                        value: caloriesConsumed.toLocaleString("id-ID"),
+                        icon: Utensils,
+                      },
+                      {
+                        label: "Target",
+                        value: calorieTargets.calorieTarget.toLocaleString("id-ID"),
+                        icon: CircleUserRound,
+                      },
+                      {
+                        label: "Terbakar",
+                        value: caloriesBurned.toLocaleString("id-ID"),
+                        icon: Flame,
+                      },
                     ].map((item) => {
                       const Icon = item.icon;
                       return (
@@ -334,7 +364,10 @@ export const DashboardHariIni = () => {
                       Sisa = Target + Terbakar − Masuk
                     </p>
                     <p className="mt-1 text-[11px] text-[#728078]">
-                      1.700 + 258 − 1.350 = 608 kkal
+                      {calorieTargets.calorieTarget.toLocaleString("id-ID")} +{" "}
+                      {caloriesBurned.toLocaleString("id-ID")} −{" "}
+                      {caloriesConsumed.toLocaleString("id-ID")} ={" "}
+                      {remainingCalories.toLocaleString("id-ID")} kkal
                     </p>
                   </div>
                 </div>
