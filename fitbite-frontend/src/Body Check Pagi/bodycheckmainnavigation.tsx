@@ -62,25 +62,25 @@ export const BodyCheckSidebar = (): ReactElement => {
 
   return (
     <aside
-      className="sticky top-0 flex h-screen w-[220px] shrink-0 flex-col items-start justify-between border-r border-[#e6ebe3] bg-white px-4 py-6 select-none overflow-y-auto"
+      className="sticky top-0 flex h-screen w-[216px] shrink-0 flex-col items-start justify-between self-stretch border-r border-[#e1e7df] bg-white px-[18px] py-[28px] overflow-y-auto"
       aria-label="Navigasi FitBite"
     >
-      <div className="flex w-full flex-col items-start gap-6">
+      <div className="flex w-full flex-col items-start gap-[30px]">
         {/* Logo */}
-        <header className="inline-flex items-center px-1">
+        <header className="inline-flex items-center gap-2.5">
           <img
-            className="h-7 w-auto max-w-[125px] object-contain"
-            alt="FitBite"
+            className="h-7 w-auto max-w-[120px] object-contain px-1"
+            alt="Identitas FitBite"
             src={identitasFitbite}
           />
         </header>
 
         {/* Navigation Items */}
         <nav
-          className="flex w-full flex-col items-start gap-1"
+          className="flex w-full flex-col items-start gap-[6px]"
           aria-label="Ruang sehatmu"
         >
-          <h2 className="mb-1.5 px-2.5 text-[10px] font-bold uppercase tracking-wider text-[#798880]">
+          <h2 className="mb-1 px-2.5 text-[10px] font-bold uppercase leading-[15px] tracking-wider text-[#728078]">
             RUANG SEHATMU
           </h2>
           {navigationItems.map((item) => {
@@ -89,10 +89,10 @@ export const BodyCheckSidebar = (): ReactElement => {
                 ? location.pathname === "/bodycheckpagi"
                 : location.pathname === item.to;
             const IconComponent = item.icon;
-            const linkClassName = `flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition-colors ${
+            const linkClassName = `flex w-full items-center gap-3 rounded-[10px] px-[12px] py-2.5 text-left transition-colors ${
               isActive
-                ? "bg-[#eaf3e9] font-bold text-[#14533a]"
-                : "bg-transparent font-medium text-[#728078] hover:bg-[#f4f7f3] hover:text-[#14533a]"
+                ? "bg-[#eaf3e9] font-bold text-[#167653]"
+                : "bg-transparent font-medium text-[#728078] hover:bg-[#f4f7f3]"
             }`;
 
             return (
@@ -104,11 +104,11 @@ export const BodyCheckSidebar = (): ReactElement => {
               >
                 <IconComponent
                   className={`h-[18px] w-[18px] shrink-0 ${
-                    isActive ? "text-[#14533a]" : "text-[#728078]"
+                    isActive ? "text-[#167653]" : "text-[#728078]"
                   }`}
                   strokeWidth={isActive ? 2.2 : 1.8}
                 />
-                <span className="flex-1 text-xs leading-tight">{item.label}</span>
+                <span className="flex-1 text-xs leading-[18px]">{item.label}</span>
               </Link>
             );
           })}
@@ -119,37 +119,38 @@ export const BodyCheckSidebar = (): ReactElement => {
           className="flex w-full flex-col items-start gap-2 rounded-2xl bg-[#eaf3e9] p-4"
           aria-label="Pesan motivasi"
         >
-          <Sprout className="h-5 w-5 text-[#14533a]" strokeWidth={2} />
-          <h3 className="mt-0.5 text-[13px] font-bold leading-snug text-[#124b39]">
+          <Sprout className="h-6 w-6 text-[#167653]" strokeWidth={1.8} />
+          <h2 className="mt-0.5 text-[13px] font-bold leading-[18.5px] text-[#124b39]">
             Konsisten, bukan sempurna.
-          </h3>
-          <p className="text-[11px] font-normal leading-relaxed text-[#6f7e76]">
+          </h2>
+          <p className="text-[11px] font-normal leading-[16px] text-[#728078]">
             Satu pilihan baik hari ini adalah langkah maju untuk dirimu.
           </p>
         </section>
       </div>
 
       {/* User profile footer */}
-      <footer className="flex w-full flex-col items-start gap-3 pt-6">
+      <footer className="flex w-full flex-col items-start gap-3.5 pt-6">
+        <div className="h-px w-full bg-[#e1e7df]" aria-hidden="true" />
         <div className="flex w-full items-center gap-3">
           <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#eaf3e9] text-[#14533a]"
+            className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#eaf3e9] text-[#167653]"
             aria-hidden="true"
           >
             <User className="h-[18px] w-[18px]" strokeWidth={2} />
           </div>
           <div className="flex min-w-0 flex-1 flex-col items-start">
-            <span className="w-full truncate text-[13px] font-semibold leading-tight text-[#1b3d30]">
+            <div className="w-full truncate text-[13px] font-semibold leading-[18px] text-[#203d32]">
               Nadia Putri
-            </span>
-            <span className="text-[11px] font-normal text-[#788880]">
+            </div>
+            <div className="text-[11px] font-normal leading-[16px] text-[#728078]">
               Anggota FitBite
-            </span>
+            </div>
           </div>
         </div>
         <button
           type="button"
-          className="inline-flex items-center gap-1 text-[11px] font-normal text-[#788880] transition-colors hover:text-[#1b3d30]"
+          className="inline-flex items-center gap-1 text-[11px] font-normal leading-[16.5px] text-[#728078] transition-colors hover:text-[#203d32]"
         >
           <span>Keluar dari akun</span>
           <ArrowUpRight className="h-3 w-3" />
@@ -165,35 +166,35 @@ export const BodyCheckSidebar = (): ReactElement => {
 
 export const BodyCheckHeader = (): ReactElement => {
   return (
-    <header className="flex h-14 items-center justify-between px-6 pt-2 sm:px-10">
+    <header className="sticky top-0 z-10 flex h-[72px] w-full shrink-0 items-center justify-between border-b border-[#e1e7df] bg-[#f6f7f2] px-9">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs text-[#718278]">
-        <span className="hover:text-[#183d30] transition-colors cursor-pointer">
+      <nav aria-label="Breadcrumb" className="inline-flex items-center gap-2">
+        <span className="text-xs leading-[18px] text-[#728078]">
           Ruang sehat
         </span>
-        <ChevronRight className="h-3.5 w-3.5 text-[#9cb0a4]" />
-        <span className="font-semibold text-[#183d30]">
+        <ChevronRight className="h-3.5 w-3.5 text-[#728078]" />
+        <strong className="text-xs font-semibold leading-[18px] text-[#203d32]">
           Body Check pagi
-        </span>
-      </div>
+        </strong>
+      </nav>
 
       {/* Right Actions */}
-      <div className="flex items-center gap-3">
-        <span className="rounded-full border border-[#dbe2da] bg-[#eef2ec] px-3 py-1 text-xs font-medium text-[#56685f]">
+      <div className="inline-flex items-center gap-4">
+        <span className="rounded-full bg-[#e8ece3] px-3 py-1 text-[11px] font-medium leading-[16.5px] text-[#5c6b62]">
           Data contoh
         </span>
 
         <button
           type="button"
           aria-label="Notifikasi"
-          className="relative flex h-8 w-8 items-center justify-center rounded-full text-[#5a6c62] transition-colors hover:bg-[#eaf0e8] hover:text-[#183d30]"
+          className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#e8ece3] transition-colors"
         >
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#186445]" />
+          <Bell className="h-[18px] w-[18px] text-[#203d32]" />
+          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#167653]" />
         </button>
 
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#d3ded0] text-xs font-semibold text-[#2f4a3b]">
-          NP
+        <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#dcebb2]">
+          <span className="text-[11px] font-bold text-[#203d32]">NP</span>
         </div>
       </div>
     </header>
