@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 import {
   BodyCheckBanner,
@@ -55,7 +55,7 @@ function Icon({
   size = 20,
 }: {
   size?: number;
-}): JSX.Element {
+}): ReactElement {
   const commonProps = {
     width: size,
     height: size,
@@ -75,7 +75,7 @@ function Icon({
   );
 }
 
-export const BodyCheckWorkspaceSection = (): JSX.Element => {
+export const BodyCheckWorkspaceSection = (): ReactElement => {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
   const [showAll, setShowAll] = useState(false);
@@ -195,7 +195,7 @@ export const BodyCheckWorkspaceSection = (): JSX.Element => {
   );
 };
 
-export const BodyCheckPagi = (): JSX.Element => {
+export const BodyCheckPagi = (): ReactElement => {
   return (
     <div className="relative flex min-h-screen items-start bg-[#f6f7f2]">
       <a

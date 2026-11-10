@@ -1,6 +1,6 @@
 
 // @ts-nocheck
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import { MealLogModal } from "./MealLogModal";
 
@@ -140,7 +140,7 @@ const ActivityRow = ({
   </>
 );
 
-export const WellnessDashboardSection = (): JSX.Element => {
+export const WellnessDashboardSection = (): ReactElement => {
   const [water, setWater] = useState(1750);
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
   const [mealList, setMealList] = useState<Array<{ name: string; calories: number; time: string }>>([]);
