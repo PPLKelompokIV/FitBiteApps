@@ -214,6 +214,9 @@ const AdminPengelolaan: React.FC = () => {
         list = SEED_FOODS;
       }
     } finally {
+      if (!list || list.length === 0) {
+        list = SEED_FOODS;
+      }
       setFoods(list);
       if (list.length) {
         setIsAddMode(false);

@@ -2,12 +2,6 @@ from fastapi import FastAPI  # type: ignore
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 
 try:
-    from app.database import engine, Base
-    Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print(f"Warning: Database PostgreSQL belum terhubung ({e}). Operasi in-memory tetap berjalan.")
-
-try:
     from app.routers import admin_foods
 except (ImportError, ValueError):
     from .routers import admin_foods
@@ -35,6 +29,15 @@ app.add_middleware(
 # Pasang router admin_foods dan reminders
 app.include_router(admin_foods.router)
 app.include_router(reminders.router)
+
+
+@app.on_event("startup")
+def startup_db():
+    try:
+        from app.database import engine, Base
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Info: Database PostgreSQL lokal belum menyala ({e}). Backend katalog makanan tetap siap melayani.")
 
 
 @app.get("/")
