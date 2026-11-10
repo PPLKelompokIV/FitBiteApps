@@ -3,7 +3,7 @@ import { MealPhotoJournalSection } from "./MealPhotoJournalSection";
 
 export const FotoAiTinjauHasil = (): JSX.Element => {
   return (
-    <div className="flex min-h-screen bg-[#f6f7f2] text-[#1d2b24]">
+    <div className="flex h-screen overflow-hidden bg-[#f6f7f2] text-[#1d2b24]">
       <HealthAppSidebarSection />
       <MealPhotoJournalSection />
     </div>

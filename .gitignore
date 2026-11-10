@@ -1,3 +1,9 @@
+# Environment variables & secrets
+.env
+.env.*
+*.env
+!.env.example
+
 # Abaikan virtual environment python jika ada
 venv/
 .venv/
