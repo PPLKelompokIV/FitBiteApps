@@ -9,7 +9,7 @@ class ReminderItemSchema(BaseModel):
     jenis_pengingat: str
     waktu_jadwal: str
     saluran: str = "in_app"
-    status_aktif: bool
+    status_aktif: bool = True
 
     @field_validator("waktu_jadwal")
     @classmethod
