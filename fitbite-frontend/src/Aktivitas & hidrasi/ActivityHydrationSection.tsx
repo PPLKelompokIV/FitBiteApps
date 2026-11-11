@@ -159,7 +159,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
         {/* Title Bar */}
         <div className="flex items-center justify-between gap-6">
           <div>
-            <h1 className="font-bold text-3xl tracking-[-0.24px] text-[#124b39]">
+            <h1 className="text-[32px] font-normal leading-[40px] tracking-[-0.3px] text-[#203d32]">
               Bergerak cukup. Minum teratur.
             </h1>
             <p className="mt-1 text-[13px] text-[#728078]">
