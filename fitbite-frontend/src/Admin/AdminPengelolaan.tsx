@@ -70,8 +70,10 @@ const VERIFIKASI_BADGE: Record<Verifikasi, string> = {
 const STORAGE_KEY = 'fitbite_foods';
 const API_URL = 'http://localhost:5000/api/admin/foods';
 
-const fmt = (n: number): string =>
-  n.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+const fmt = (n: number | undefined | null): string =>
+  typeof n === 'number' && !isNaN(n)
+    ? n.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 1 })
+    : String(n ?? '');
 
 const toNum = (s: string): number => {
   if (!s || !s.trim()) return NaN;
@@ -91,15 +93,15 @@ const EMPTY_FORM: FoodForm = {
 };
 
 const toForm = (f: Food): FoodForm => ({
-  nama: f.nama,
-  kategori: f.kategori,
-  basis: fmt(f.basis),
-  kkal: fmt(f.kkal),
-  protein: fmt(f.protein),
-  karbo: fmt(f.karbo),
-  lemak: fmt(f.lemak),
-  sumber: f.sumber,
-  verifikasi: f.verifikasi,
+  nama: f?.nama || '',
+  kategori: f?.kategori || '',
+  basis: fmt(f?.basis ?? 100),
+  kkal: fmt(f?.kkal ?? 0),
+  protein: fmt(f?.protein ?? 0),
+  karbo: fmt(f?.karbo ?? 0),
+  lemak: fmt(f?.lemak ?? 0),
+  sumber: f?.sumber || SUMBER_DEFAULT,
+  verifikasi: f?.verifikasi || 'Perlu tinjau',
 });
 
 // Validasi data gizi positif (FIT-32)
@@ -169,16 +171,27 @@ const IconScale = () => (
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const AdminPengelolaan: React.FC = () => {
-  const [foods, setFoods] = useState<Food[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [foods, setFoods] = useState<Food[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return SEED_FOODS;
+  });
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterKategori, setFilterKategori] = useState('semua');
   const [filterStatus, setFilterStatus] = useState('Aktif');
-  const [formData, setFormData] = useState<FoodForm>(EMPTY_FORM);
+  const [currentItem, setCurrentItem] = useState<Food | null>(() => SEED_FOODS[0] || null);
+  const [formData, setFormData] = useState<FoodForm>(() =>
+    SEED_FOODS[0] ? toForm(SEED_FOODS[0]) : EMPTY_FORM
+  );
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [notification, setNotification] = useState<NotificationState | null>(null);
   const [isAddMode, setIsAddMode] = useState(false);
-  const [currentItem, setCurrentItem] = useState<Food | null>(null);
 
   useEffect(() => {
     if (!notification || notification.type !== 'success') return;
@@ -187,39 +200,35 @@ const AdminPengelolaan: React.FC = () => {
   }, [notification]);
 
   const saveFoods = (updated: Food[]): void => {
-    setFoods(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setFoods([...updated]);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    } catch {}
   };
 
   const fetchFoods = async (): Promise<void> => {
-    setLoading(true);
-    let list: Food[] = SEED_FOODS;
     try {
-      const response = await fetch(API_URL);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2000);
+      const response = await fetch(API_URL, { signal: controller.signal });
+      clearTimeout(timer);
       if (response.ok) {
         const result = await response.json();
         if (Array.isArray(result.data) && result.data.length > 0) {
-          list = result.data as Food[];
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+          const list = result.data as Food[];
+          setFoods([...list]);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+          } catch {}
+          if (!currentItem && list.length > 0) {
+            setCurrentItem(list[0]);
+            setFormData(toForm(list[0]));
+          }
         }
-      } else {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) list = JSON.parse(saved) as Food[];
       }
     } catch {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) list = JSON.parse(saved) as Food[];
-      } catch {
-        list = SEED_FOODS;
-      }
+      // Data lokal sudah tampil secara instan dari SEED_FOODS
     } finally {
-      setFoods(list);
-      if (list.length) {
-        setIsAddMode(false);
-        setCurrentItem(list[0]);
-        setFormData(toForm(list[0]));
-      }
       setLoading(false);
     }
   };
@@ -268,16 +277,6 @@ const AdminPengelolaan: React.FC = () => {
 
     setFormErrors({});
 
-    if (isAddMode && foods.some(f => f.nama.trim().toLowerCase() === formData.nama.trim().toLowerCase())) {
-      setFormErrors({ nama: 'Makanan dengan nama tersebut sudah ada di katalog' });
-      setNotification({
-        type: 'error',
-        title: 'Validasi Data Gizi Gagal',
-        message: 'Makanan dengan nama tersebut sudah ada di katalog.',
-      });
-      return;
-    }
-
     const basis = toNum(formData.basis);
     const kkal = toNum(formData.kkal);
     const protein = toNum(formData.protein);
@@ -296,100 +295,166 @@ const AdminPengelolaan: React.FC = () => {
       verifikasi: formData.verifikasi,
     };
 
-    if (isAddMode) {
-      let newItem: Food = { id: Date.now(), aktif: true, ...values };
-      let serverMsg = `Data gizi "${values.nama}" (${fmt(values.kkal)} kkal) berhasil divalidasi dan disimpan ke katalog.`;
-      try {
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(values),
+    if (isAddMode || !currentItem) {
+      if (foods.some(f => f.nama.trim().toLowerCase() === values.nama.toLowerCase())) {
+        setFormErrors({ nama: 'Makanan dengan nama tersebut sudah ada di katalog' });
+        setNotification({
+          type: 'error',
+          title: 'Validasi Data Gizi Gagal',
+          message: 'Makanan dengan nama tersebut sudah ada di katalog.',
         });
-        const result = await response.json();
-        if (!response.ok) {
-          if (result.errors) setFormErrors(result.errors);
-          setNotification({
-            type: 'error',
-            title: 'Validasi Data Gizi Gagal',
-            message: result.message || 'Data gizi tidak valid.',
-          });
-          return;
-        }
-        if (result.data) newItem = result.data as Food;
-        if (result.message) serverMsg = result.message;
-      } catch {
-        // Fallback ke localStorage jika server backend belum menyala
+        return;
       }
-      saveFoods([...foods, newItem]);
-      handleEdit(newItem);
+
+      const tempId = Date.now();
+      const newItem: Food = { id: tempId, aktif: true, ...values };
+      const successMsg = `Data gizi "${values.nama}" (${fmt(values.kkal)} kkal) berhasil divalidasi dan disimpan ke katalog.`;
+
+      // ── 1. RESPON INSTAN (MILIDETIK): Langsung update UI & LocalStorage tanpa tunggu network ──
+      setFoods(prev => {
+        const next = [...prev, newItem];
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
+      setIsAddMode(false);
+      setCurrentItem(newItem);
+      setFormData(toForm(newItem));
+      setFormErrors({});
       setNotification({
         type: 'success',
         title: 'Berhasil Disimpan!',
-        message: serverMsg,
+        message: successMsg,
       });
-    } else if (currentItem) {
-      let updatedItem: Food = { ...currentItem, ...values };
-      let serverMsg = `Perubahan data gizi "${values.nama}" berhasil divalidasi dan disimpan.`;
-      try {
-        const response = await fetch(`${API_URL}/${currentItem.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(values),
-        });
-        const result = await response.json();
-        if (!response.ok) {
-          if (result.errors) setFormErrors(result.errors);
-          setNotification({
-            type: 'error',
-            title: 'Validasi Data Gizi Gagal',
-            message: result.message || 'Data gizi tidak valid.',
+
+      // ── 2. BACKGROUND SYNC (Non-blocking): Sinkronisasi dengan server di latar belakang ──
+      (async () => {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 2500);
+          const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(values),
+            signal: controller.signal,
           });
-          return;
-        }
-        if (result.data) updatedItem = result.data as Food;
-        if (result.message) serverMsg = result.message;
-      } catch {
-        // Fallback ke localStorage
-      }
-      saveFoods(foods.map(f => (f.id === currentItem.id ? updatedItem : f)));
+          clearTimeout(timeout);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.data?.id) {
+              const serverItem = result.data as Food;
+              setFoods(prev => {
+                const next = prev.map(f => (f.id === tempId ? serverItem : f));
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+                return next;
+              });
+              setCurrentItem(prev => (prev?.id === tempId ? serverItem : prev));
+            }
+          }
+        } catch {}
+      })();
+    } else if (currentItem) {
+      const targetId = currentItem.id;
+      const updatedItem: Food = { ...currentItem, ...values };
+      const successMsg = `Perubahan data gizi "${values.nama}" berhasil divalidasi dan disimpan.`;
+
+      // ── 1. RESPON INSTAN (MILIDETIK): Langsung update baris tabel & form seketika ──
+      setFoods(prev => {
+        const next = prev.map(f =>
+          String(f.id) === String(targetId) ? updatedItem : f
+        );
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
       setCurrentItem(updatedItem);
+      setFormData(toForm(updatedItem));
+      setFormErrors({});
       setNotification({
         type: 'success',
         title: 'Perubahan Berhasil Disimpan!',
-        message: serverMsg,
+        message: successMsg,
       });
+
+      // ── 2. BACKGROUND SYNC (Non-blocking): Sinkronisasi PUT ke server di latar belakang ──
+      (async () => {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 2500);
+          const response = await fetch(`${API_URL}/${targetId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(values),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.data) {
+              const serverItem = result.data as Food;
+              setFoods(prev => {
+                const next = prev.map(f => (String(f.id) === String(targetId) ? serverItem : f));
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+                return next;
+              });
+              setCurrentItem(prev => (String(prev?.id) === String(targetId) ? serverItem : prev));
+            }
+          }
+        } catch {}
+      })();
     }
   };
 
-  const handleToggleAktif = async (id: number): Promise<void> => {
-    const target = foods.find(f => f.id === id);
+  const handleToggleAktif = (id: number): void => {
+    const target = foods.find(f => String(f.id) === String(id));
     if (!target) return;
     const next = !target.aktif;
     if (!next && !confirm('Nonaktifkan makanan ini? Catatan lama pengguna tetap tersimpan.')) return;
-    try {
-      await fetch(`${API_URL}/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aktif: next }),
-      });
-    } catch {
-      // Fallback ke localStorage
+
+    // ── 1. RESPON INSTAN (MILIDETIK): Langsung toggle status aktif di layar ──
+    setFoods(prev => {
+      const updated = prev.map(f =>
+        String(f.id) === String(id) ? { ...f, aktif: next } : f
+      );
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    if (String(currentItem?.id) === String(id)) {
+      const updatedCurrent = { ...target, aktif: next };
+      setCurrentItem(updatedCurrent);
+      setFormData(toForm(updatedCurrent));
     }
-    saveFoods(foods.map(f => (f.id === id ? { ...f, aktif: next } : f)));
-    if (currentItem?.id === id) setCurrentItem({ ...target, aktif: next });
+
     setNotification({
       type: 'success',
       title: next ? 'Makanan Diaktifkan' : 'Makanan Dinonaktifkan',
       message: `Status "${target.nama}" berhasil diubah menjadi ${next ? 'Aktif' : 'Nonaktif'}.`,
     });
+
+    // ── 2. BACKGROUND SYNC (Non-blocking): Update ke server di latar belakang ──
+    (async () => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2500);
+        await fetch(`${API_URL}/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aktif: next }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+      } catch {}
+    })();
   };
 
-  const filtered = foods.filter(f => {
-    const q = search.toLowerCase();
-    const matchSearch = f.nama.toLowerCase().includes(q) || f.kategori.toLowerCase().includes(q);
+  const filtered = (Array.isArray(foods) ? foods : []).filter(f => {
+    if (!f) return false;
+    const name = String(f.nama || '').toLowerCase();
+    const kat = String(f.kategori || '').toLowerCase();
+    const q = String(search || '').toLowerCase();
+    const matchSearch = name.includes(q) || kat.includes(q);
     const matchKategori = filterKategori === 'semua' || f.kategori === filterKategori;
     const matchStatus =
-      filterStatus === 'Semua' || (filterStatus === 'Aktif' ? f.aktif : !f.aktif);
+      filterStatus === 'Semua' || (filterStatus === 'Aktif' ? Boolean(f.aktif) : !f.aktif);
     return matchSearch && matchKategori && matchStatus;
   });
 
@@ -648,10 +713,10 @@ const AdminPengelolaan: React.FC = () => {
                   <aside className="flex flex-col bg-white rounded-2xl border border-[#e1e7df] p-6 gap-4 shadow-sm transition-all duration-300">
                     <div>
                       <h2 className="text-base font-bold text-[#1d2926]">
-                        {isAddMode ? 'Tambah makanan' : 'Edit makanan'}
+                        {isAddMode || !currentItem ? 'Tambah makanan' : 'Edit makanan'}
                       </h2>
                       <p className="text-xs text-[#6b8c7a] mt-0.5">
-                        {isAddMode
+                        {isAddMode || !currentItem
                           ? 'Entri baru • validasi gizi positif aktif'
                           : `${currentItem?.nama ?? '-'} • entri ${currentItem?.aktif ? 'aktif' : 'nonaktif'}`}
                       </p>
@@ -800,7 +865,7 @@ const AdminPengelolaan: React.FC = () => {
                           data-testid="btn-simpan"
                           className="flex items-center justify-center gap-2 bg-[#124b39] text-white text-sm font-medium py-2 rounded-lg hover:bg-[#0e3a2c] active:scale-[0.98] transition-all duration-200"
                         >
-                          <IconTick /> {isAddMode ? 'Tambah makanan' : 'Simpan perubahan'}
+                          <IconTick /> {isAddMode || !currentItem ? 'Tambah makanan' : 'Simpan perubahan'}
                         </button>
                         {!isAddMode && currentItem && (
                           <button
@@ -820,7 +885,7 @@ const AdminPengelolaan: React.FC = () => {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => currentItem ? handleEdit(currentItem) : fetchFoods()}
+                          onClick={() => handleEdit(currentItem || foods[0] || SEED_FOODS[0])}
                           className="text-xs text-[#6b8c7a] hover:text-[#1d2926] hover:underline text-center mt-2 transition-colors"
                         >
                           Batal

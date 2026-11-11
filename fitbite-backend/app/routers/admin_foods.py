@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, Tuple
-from fastapi import APIRouter, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request, status  # type: ignore
+from fastapi.responses import JSONResponse  # type: ignore
 
 router = APIRouter(prefix="/api/admin/foods", tags=["Pengelolaan Katalog Makanan Admin"])
 
