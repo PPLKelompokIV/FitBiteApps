@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
 // @ts-nocheck
->>>>>>> e8107cb9a4b01ef48cf81c1d4305f0f2fd7fa2b4
 import { useState, type ReactElement } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -126,4 +123,3 @@ export const HealthAppSidebarSection = (): ReactElement => {
     </aside>
   );
 };
-
