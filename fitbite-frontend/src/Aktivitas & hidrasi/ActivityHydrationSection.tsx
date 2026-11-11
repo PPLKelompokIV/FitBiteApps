@@ -132,9 +132,9 @@ export const ActivityAndHydrationSection = (): ReactElement => {
   const remainingHydration = Math.max(0, 2640 - hydration);
 
   return (
-    <main className="relative flex min-h-screen flex-1 grow flex-col items-start bg-[#f7f9f5] text-[#203d32]">
+    <main className="relative flex h-screen min-h-0 min-w-0 flex-1 flex-col items-start overflow-y-auto bg-[#f7f9f5] text-[#203d32]">
       {/* Header Atas */}
-      <header className="flex h-[78px] w-full items-center justify-between border-b border-[#e1e7df] bg-white px-9">
+      <header className="sticky top-0 z-20 flex h-[78px] w-full shrink-0 items-center justify-between border-b border-[#e1e7df] bg-white px-9">
         <nav aria-label="Breadcrumb" className="inline-flex items-center gap-2 text-xs">
           <span className="text-[#728078]">Ruang sehat</span>
           <ChevronRight className="h-3.5 w-3.5 text-[#728078]" />
