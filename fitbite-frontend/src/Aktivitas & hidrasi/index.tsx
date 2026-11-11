@@ -1,13 +1,23 @@
-import { useMemo, useState, type ReactElement } from "react";
-import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
+import { useMemo, useState } from "react";
 
 type IconName =
+  | "grid"
   | "activity"
+  | "calendar"
+  | "users"
+  | "settings"
+  | "help"
   | "bell"
   | "plus"
   | "chevron"
+  | "water"
   | "check"
   | "more";
+
+type NavigationItem = {
+  label: string;
+  icon: IconName;
+};
 
 type HydrationEntry = {
   id: number;
@@ -16,6 +26,13 @@ type HydrationEntry = {
   type: string;
   completed: boolean;
 };
+
+const navigationItems: NavigationItem[] = [
+  { label: "Overview", icon: "grid" },
+  { label: "Activity", icon: "activity" },
+  { label: "Calendar", icon: "calendar" },
+  { label: "Community", icon: "users" },
+];
 
 const hydrationEntries: HydrationEntry[] = [
   {
@@ -55,8 +72,41 @@ const hydrationEntries: HydrationEntry[] = [
   },
 ];
 
-const iconPaths: Record<IconName, ReactElement> = {
+const iconPaths: Record<IconName, JSX.Element> = {
+  grid: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </>
+  ),
   activity: <path d="M3 12h4l2.2-6 4.1 12 2.2-6H21" />,
+  calendar: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 10h18" />
+    </>
+  ),
+  users: (
+    <>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.42 1.42-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2v-.08a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.42-1.42.06-.06A1.7 1.7 0 0 0 9.4 15a1.7 1.7 0 0 0-1.56-1.03H7v-2h.84A1.7 1.7 0 0 0 9.4 11a1.7 1.7 0 0 0-.34-1.88L9 9.06l1.42-1.42.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 13.4 6.5V6h2v.5a1.7 1.7 0 0 0 1.03 1.54 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.42 1.42-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 12H21v2h-.04A1.7 1.7 0 0 0 19.4 15Z" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.6 9a2.5 2.5 0 1 1 4.5 1.5c-.8 1-2.1 1.2-2.1 2.7M12 16.5h.01" />
+    </>
+  ),
   bell: (
     <>
       <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
@@ -64,6 +114,7 @@ const iconPaths: Record<IconName, ReactElement> = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   chevron: <path d="m9 18 6-6-6-6" />,
+  water: <path d="M12 2.5S6 9.1 6 13.7a6 6 0 0 0 12 0C18 9.1 12 2.5 12 2.5Z" />,
   check: <path d="m5 12 4 4L19 6" />,
   more: <path d="M5 12h.01M12 12h.01M19 12h.01" />,
 };
@@ -92,6 +143,81 @@ function Icon({
     >
       {iconPaths[name]}
     </svg>
+  );
+}
+
+function MainNavigationSection() {
+  const [activeItem, setActiveItem] = useState("Activity");
+
+  return (
+    <aside
+      aria-label="Main navigation"
+      className="sticky top-0 flex h-screen w-[136px] shrink-0 flex-col border-r border-[#e4e8df] bg-[#fbfcf8] px-3 py-6"
+      data-id="main-navigation-section"
+    >
+      <a
+        className="mb-10 flex items-center justify-center gap-2 text-[#26352f]"
+        href="#main-content"
+        aria-label="Hydra home"
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#243b35] text-[#dff36d]">
+          <Icon name="water" size={21} strokeWidth={2} />
+        </span>
+      </a>
+      <nav className="flex flex-1 flex-col gap-2">
+        {navigationItems.map((item) => {
+          const isActive = activeItem === item.label;
+
+          return (
+            <button
+              key={item.label}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex flex-col items-center gap-2 rounded-xl px-2 py-3 text-[10px] font-medium transition-colors ${
+                isActive
+                  ? "bg-[#e7f0d4] text-[#263b32]"
+                  : "text-[#87928b] hover:bg-[#f0f3ec] hover:text-[#263b32]"
+              }`}
+              onClick={() => setActiveItem(item.label)}
+              type="button"
+            >
+              <Icon
+                name={item.icon}
+                size={20}
+                strokeWidth={isActive ? 2 : 1.6}
+              />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <div className="flex flex-col gap-2 border-t border-[#e4e8df] pt-4">
+        <button
+          aria-label="Help and support"
+          className="flex flex-col items-center gap-2 rounded-xl px-2 py-3 text-[10px] font-medium text-[#87928b] transition-colors hover:bg-[#f0f3ec] hover:text-[#263b32]"
+          type="button"
+        >
+          <Icon name="help" size={20} />
+          <span>Help</span>
+        </button>
+        <button
+          aria-label="Open settings"
+          className="flex flex-col items-center gap-2 rounded-xl px-2 py-3 text-[10px] font-medium text-[#87928b] transition-colors hover:bg-[#f0f3ec] hover:text-[#263b32]"
+          type="button"
+        >
+          <Icon name="settings" size={20} />
+          <span>Settings</span>
+        </button>
+        <button
+          aria-label="Open profile menu"
+          className="mt-2 flex items-center justify-center rounded-xl border border-[#e5e9e0] bg-white p-2"
+          type="button"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#d9e7c4] text-xs font-semibold text-[#354b3e]">
+            AM
+          </span>
+        </button>
+      </div>
+    </aside>
   );
 }
 
@@ -398,16 +524,10 @@ function ActivityHydrationWorkspaceSection() {
   );
 }
 
-export const AktivitasHidrasi = (): ReactElement => {
+export const AktivitasHidrasi = (): JSX.Element => {
   return (
     <div className="flex min-h-screen items-start bg-[#f6f7f2] text-[#26352f]">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:rounded-md focus:bg-[#173f35] focus:px-3 focus:py-2 focus:text-sm focus:text-white"
-      >
-        Skip to content
-      </a>
-      <HealthAppSidebarSection />
+      <MainNavigationSection />
       <ActivityHydrationWorkspaceSection />
     </div>
   );
