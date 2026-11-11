@@ -1,9 +1,4 @@
-<<<<<<< Updated upstream
 import { useState, type ReactElement } from "react";
-=======
-// @ts-nocheck
-import type { ReactElement } from "react";
->>>>>>> Stashed changes
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutGrid,
@@ -27,17 +22,10 @@ type NavigationItem = {
 };
 
 const navigationItems: NavigationItem[] = [
-<<<<<<< Updated upstream
-  { label: "Hari ini", icon: LayoutGrid },
-  { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
-  { label: "Jurnal makanan", icon: Utensils, to: "/jurnal-makanan" },
-  { label: "Aktivitas & hidrasi", icon: Activity },
-=======
   { label: "Hari ini", icon: LayoutGrid, to: "/dashboard-hari-ini" },
   { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
   { label: "Jurnal makanan", icon: Utensils, to: "/jurnal-makanan" },
   { label: "Aktivitas & hidrasi", icon: Activity, to: "/aktivitas-hidrasi" },
->>>>>>> Stashed changes
   { label: "Jurnal & evaluasi", icon: CalendarCheck },
   { label: "Progres", icon: TrendingUp },
   { label: "Profil & pengingat", icon: SlidersHorizontal, to: "/profil-pengingat" },
