@@ -372,16 +372,14 @@ class MealLogRequest(BaseModel):
     date: str
     meal_slot: Literal["Sarapan", "Makan siang", "Makan malam", "Camilan"]
     time: str = ""
-    method: Literal["foto_ai", "katalog", "barcode", "quick_add"] = "foto_ai"
+    method: Literal["foto_ai", "katalog", "barcode", "quick_add", "manual"] = "foto_ai"
     items: list[MealItemInput]
+    macros: str | None = None
 
 
 @app.post("/api/meals/log")
 def save_meal_log(payload: MealLogRequest):
     """Menyimpan atau memperbarui log makanan pada slot tertentu untuk tanggal tertentu."""
-    if not payload.items:
-        raise HTTPException(status_code=400, detail="Daftar makanan tidak boleh kosong.")
-
     date_key = payload.date
     if date_key not in meal_logs_db:
         meal_logs_db[date_key] = {}
@@ -394,7 +392,7 @@ def save_meal_log(payload: MealLogRequest):
     items_list = []
     for it in payload.items:
         try:
-            cal = float(str(it.calories).replace(",", "."))
+            cal = max(0.0, float(str(it.calories).replace(",", ".")))
         except (ValueError, TypeError):
             cal = 0.0
         total_calories += cal
@@ -402,15 +400,15 @@ def save_meal_log(payload: MealLogRequest):
         p, k, l_val = 0.0, 0.0, 0.0
         if len(it.nutrients) >= 3:
             try:
-                p = float(str(it.nutrients[0]).replace(",", "."))
+                p = max(0.0, float(str(it.nutrients[0]).replace(",", ".")))
             except (ValueError, TypeError):
                 p = 0.0
             try:
-                k = float(str(it.nutrients[1]).replace(",", "."))
+                k = max(0.0, float(str(it.nutrients[1]).replace(",", ".")))
             except (ValueError, TypeError):
                 k = 0.0
             try:
-                l_val = float(str(it.nutrients[2]).replace(",", "."))
+                l_val = max(0.0, float(str(it.nutrients[2]).replace(",", ".")))
             except (ValueError, TypeError):
                 l_val = 0.0
         total_p += p
@@ -427,12 +425,26 @@ def save_meal_log(payload: MealLogRequest):
             "calories": str(int(round(cal))) if cal.is_integer() else f"{cal:.1f}",
         })
 
+    if total_p == 0.0 and total_k == 0.0 and total_l == 0.0 and payload.macros:
+        macros_str = payload.macros
+        m = re.search(r"Protein\s+([-\d.,]+)\s*g.*?Karbo\s+([-\d.,]+)\s*g.*?Lemak\s+([-\d.,]+)\s*g", payload.macros, re.I)
+        if m:
+            try:
+                total_p = max(0.0, float(m.group(1).replace(",", ".")))
+                total_k = max(0.0, float(m.group(2).replace(",", ".")))
+                total_l = max(0.0, float(m.group(3).replace(",", ".")))
+            except Exception:
+                pass
+        macros_str = f"Protein {int(round(total_p))} g  ·  Karbo {int(round(total_k))} g  ·  Lemak {int(round(total_l))} g"
+    else:
+        macros_str = f"Protein {int(round(total_p))} g  ·  Karbo {int(round(total_k))} g  ·  Lemak {int(round(total_l))} g"
+
     slot_data = {
         "name": payload.meal_slot,
         "time": payload.time or "12.00 WIB",
         "calories": f"{int(round(total_calories))} kkal",
         "items": items_list,
-        "macros": f"Protein {int(round(total_p))} g  ·  Karbo {int(round(total_k))} g  ·  Lemak {int(round(total_l))} g",
+        "macros": macros_str,
         "protein_g": round(total_p, 1),
         "karbo_g": round(total_k, 1),
         "lemak_g": round(total_l, 1),

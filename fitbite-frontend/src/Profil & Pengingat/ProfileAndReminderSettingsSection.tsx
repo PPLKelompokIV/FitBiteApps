@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ChevronRight,
   Bell,
@@ -17,6 +17,10 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import {
+  calculateCalorieTargets,
+  sampleCalorieProfile,
+} from "../calorieTargets";
 
 type Reminder = {
   key: string;
@@ -68,11 +72,21 @@ const defaultReminders: Reminder[] = [
   },
 ];
 
+const calorieTargets = calculateCalorieTargets(sampleCalorieProfile);
+
 const profileStats = [
-  ["Usia • perempuan", "28 tahun", "12 April 1998"],
-  ["Tinggi badan", "160 cm", ""],
+  [
+    `Usia • ${sampleCalorieProfile.sex === "female" ? "perempuan" : "laki-laki"}`,
+    `${sampleCalorieProfile.age} tahun`,
+    "12 April 1998",
+  ],
+  ["Tinggi badan", `${sampleCalorieProfile.heightCm} cm`, ""],
   ["Berat awal • 5 Okt", "64,8 kg", ""],
-  ["Berat kini • 19 Okt", "64,0 kg", ""],
+  [
+    "Berat kini • 19 Okt",
+    `${sampleCalorieProfile.weightKg.toLocaleString("id-ID", { minimumFractionDigits: 1 })} kg`,
+    "",
+  ],
 ];
 
 const Toggle = ({
@@ -179,6 +193,51 @@ export const ProfileAndReminderSettingsSection = () => {
     message: "",
     type: "success",
   });
+
+  // 1. Cek izin notifikasi browser secara otomatis saat halaman dibuka
+  useEffect(() => {
+    if ("Notification" in window) {
+      setBrowserPermission(Notification.permission === "granted");
+    }
+  }, []);
+
+  // 2. Ambil data konfigurasi jadwal & status aktif dari database PostgreSQL via FastAPI
+  useEffect(() => {
+    const fetchSavedReminders = async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/reminders/1");
+        const resData = await response.json();
+
+        const dataList = Array.isArray(resData) ? resData : (resData.data || []);
+
+        if (response.ok && Array.isArray(dataList) && dataList.length > 0) {
+          // Sinkronkan waktu/jam
+          setRemindersList((prevList) =>
+            prevList.map((item) => {
+              const matched = dataList.find(
+                (d: { jenis_pengingat: string }) => d.jenis_pengingat === item.key
+              );
+              return matched ? { ...item, time: matched.waktu_jadwal } : item;
+            })
+          );
+
+          // Sinkronkan toggle aktif/nonaktif
+          setEnabledReminders(
+            defaultReminders.map((item, idx) => {
+              const matched = dataList.find(
+                (d: { jenis_pengingat: string }) => d.jenis_pengingat === item.key
+              );
+              return matched !== undefined ? Boolean(matched.status_aktif) : true;
+            })
+          );
+        }
+      } catch (err) {
+        console.error("Gagal memuat jadwal dari database:", err);
+      }
+    };
+
+    fetchSavedReminders();
+  }, []);
 
   const toggleReminder = (index: number) => {
     setEnabledReminders((current) =>
@@ -482,11 +541,43 @@ export const ProfileAndReminderSettingsSection = () => {
                   value="Ringan • 1–3 hari/minggu"
                 />
 
+                <div
+                  aria-label="Hasil estimasi kebutuhan kalori harian"
+                  className="grid w-full grid-cols-3 gap-2"
+                >
+                  {[
+                    ["BMR", calorieTargets.bmr],
+                    ["TDEE", calorieTargets.tdee],
+                    ["Sasaran kalori", calorieTargets.calorieTarget],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="min-w-0 rounded-[10px] bg-[#f0f3ec] p-2.5"
+                    >
+                      <p className="text-[10px] leading-[15px] text-[#728078]">
+                        {label}
+                      </p>
+                      <strong className="mt-1 block text-sm font-bold text-[#203d32]">
+                        {Number(value).toLocaleString("id-ID")}
+                      </strong>
+                      <span className="text-[10px] text-[#728078]">kkal/hari</span>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-[10px] leading-[15px] text-[#728078]">
+                  Estimasi Mifflin-St Jeor. Sasaran turun berat memakai defisit
+                  15% dari TDEE; kebutuhan tiap orang dapat berbeda.
+                </p>
+
                 <div className="flex w-full items-start gap-2.5 rounded-[12px] bg-[#eaf3e9] p-3.5">
                   <Target className="h-4 w-4 shrink-0 text-[#167653] mt-0.5" />
                   <p className="flex-1 text-[11px] leading-[16.5px] text-[#124b39]">
-                    Perubahan profil akan digunakan pada perhitungan target Body
-                    Check berikutnya.
+                    Sasaran kalori harianmu sekitar{" "}
+                    <strong>
+                      {calorieTargets.calorieTarget.toLocaleString("id-ID")} kkal
+                    </strong>
+                    .
                   </p>
                 </div>
               </Card>
@@ -572,7 +663,7 @@ export const ProfileAndReminderSettingsSection = () => {
                           </p>
                         </div>
 
-                        {/* Input Waktu/Interval Inline Langsung di Kolom (Tanpa Prompt Browser) */}
+                        {/* Input Waktu/Interval Inline Langsung di Kolom */}
                         <div className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#e1e7df] bg-white px-2.5 py-1 text-xs font-medium text-[#203d32] focus-within:border-[#167653] focus-within:ring-1 focus-within:ring-[#167653] transition-colors shadow-2xs">
                           <input
                             type="text"
