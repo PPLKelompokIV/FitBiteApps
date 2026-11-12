@@ -1,20 +1,17 @@
 import os
-from pathlib import Path
-from dotenv import load_dotenv
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Membaca .env dari folder fitbite-backend
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+# Ganti default ke SQLite agar bisa langsung jalan di laptop Anda tanpa PostgreSQL
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite:///./fitbite.db"
+)
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+# SQLite membutuhkan argumen tambahan 'check_same_thread'
+connect_args = {"check_same_thread": False} if SQLALCHEMY_DATABASE_URL.startswith("sqlite") else {}
 
-if not SQLALCHEMY_DATABASE_URL:
-    raise RuntimeError("DATABASE_URL belum ditemukan di file .env")
-
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -23,7 +20,6 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
-
 
 def get_db():
     db = SessionLocal()

@@ -1,4 +1,4 @@
-import { useState, useEffect, type JSX } from "react";
+import { useState, useEffect, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import fotoHidangan from "../assets/foto-hidangan.png";
@@ -1003,7 +1003,7 @@ function AddFoodPanel({
   );
 }
 
-export const FoodJournalWorkspaceSection = (): JSX.Element => {
+export const FoodJournalWorkspaceSection = (): ReactElement => {
   const [recommendationMeal, setRecommendationMeal] = useState("Makan siang");
   const [selectedRecommendation, setSelectedRecommendation] = useState("");
 
