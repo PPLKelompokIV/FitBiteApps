@@ -20,12 +20,37 @@ export const BodyCheckPagi = (): ReactElement => {
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setIsSaved(true);
-    setToastMessage("Body Check tersimpan!");
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3000);
+  const handleSave = async () => {
+    try {
+      // Menembak data ke backend Python FastAPI di port 8000
+      const response = await fetch("http://127.0.0.1:8000/api/body-check", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          // Mengubah format koma menjadi titik agar dikenali sebagai float oleh Python
+          weight: parseFloat(weight.replace(',', '.')), 
+          sleepDuration: parseFloat(sleepDuration.replace(',', '.')),
+          sleepQuality: sleepQuality,
+          energyLevel: energyLevel,
+          plannedIntensity: plannedIntensity
+        }),
+      });
+
+      // Jika response dari Python sukses (status 200/201)
+      if (response.ok) {
+        setIsSaved(true);
+        setToastMessage("Body Check tersimpan!");
+        setTimeout(() => {
+          setToastMessage(null);
+        }, 3000);
+      } else {
+        console.error("Backend menolak data");
+      }
+    } catch (error) {
+      console.error("Gagal menghubungi backend:", error);
+    }
   };
 
   return (
