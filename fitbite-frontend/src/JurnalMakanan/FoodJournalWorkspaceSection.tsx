@@ -88,7 +88,6 @@ const catalogFoods: CatalogFoodItem[] = [
   },
 ];
 
-// Helper menghitung string macros & total kalori dari array items secara presisi
 function recalculateMealSlot(meal: Meal, items: MealItem[]): Meal {
   let totalCal = 0;
   let totalP = 0;
@@ -112,7 +111,8 @@ function recalculateMealSlot(meal: Meal, items: MealItem[]): Meal {
   };
 }
 
-const defaultMeals: Meal[] = [
+// Data Default Hari Ini (Total 1.350 kkal)
+const defaultTodayMeals: Meal[] = [
   {
     name: "Sarapan",
     time: "07.30 WIB",
@@ -213,6 +213,132 @@ const defaultMeals: Meal[] = [
   },
 ];
 
+// Data Default Hari Kemarin (Total 1.200 kkal sesuai TC-PBI06-006 baris 49)
+const defaultYesterdayMeals: Meal[] = [
+  {
+    name: "Sarapan",
+    time: "07.30 WIB",
+    calories: "350 kkal",
+    items: [
+      {
+        name: "Roti gandum & telur rebus",
+        detail: "2 lembar • 150 g",
+        calories: "260",
+        nutrients: [14, 30, 8],
+      },
+      {
+        name: "Pisang",
+        detail: "1 buah • 100 g",
+        calories: "90",
+        nutrients: [1, 23, 0],
+      },
+    ],
+    macros: "Protein 15 g  ·  Karbo 53 g  ·  Lemak 8 g",
+  },
+  {
+    name: "Makan siang",
+    time: "12.30 WIB",
+    calories: "450 kkal",
+    items: [
+      {
+        name: "Nasi putih",
+        detail: "150 g",
+        calories: "200",
+        nutrients: [4, 42, 1],
+      },
+      {
+        name: "Ikan bakar & lalapan",
+        detail: "1 porsi • 180 g",
+        calories: "250",
+        nutrients: [28, 8, 10],
+      },
+    ],
+    macros: "Protein 32 g  ·  Karbo 50 g  ·  Lemak 11 g",
+  },
+  {
+    name: "Makan malam",
+    time: "18.00 WIB",
+    calories: "250 kkal",
+    items: [
+      {
+        name: "Capcay kuah sayur",
+        detail: "1 mangkuk • 250 g",
+        calories: "170",
+        nutrients: [9, 18, 6],
+      },
+      {
+        name: "Tahu kukus",
+        detail: "100 g",
+        calories: "80",
+        nutrients: [8, 2, 4],
+      },
+    ],
+    macros: "Protein 17 g  ·  Karbo 20 g  ·  Lemak 10 g",
+  },
+  {
+    name: "Camilan",
+    time: "15.00 WIB",
+    calories: "150 kkal",
+    items: [
+      {
+        name: "Apel & kacang almond",
+        detail: "1 porsi • 120 g",
+        calories: "150",
+        nutrients: [4, 19, 6],
+      },
+    ],
+    macros: "Protein 4 g  ·  Karbo 19 g  ·  Lemak 6 g",
+  },
+];
+
+function getDefaultMealsForDate(dateStr: string, todayStr: string): Meal[] {
+  if (dateStr === todayStr) {
+    return defaultTodayMeals;
+  }
+  const todayDate = new Date(`${todayStr}T00:00:00`);
+  const yesterdayDate = new Date(todayDate);
+  yesterdayDate.setDate(todayDate.getDate() - 1);
+  const yYear = yesterdayDate.getFullYear();
+  const yMonth = String(yesterdayDate.getMonth() + 1).padStart(2, "0");
+  const yDay = String(yesterdayDate.getDate()).padStart(2, "0");
+  const yesterdayStr = `${yYear}-${yMonth}-${yDay}`;
+
+  if (dateStr === yesterdayStr) {
+    return defaultYesterdayMeals;
+  }
+
+  return [
+    {
+      name: "Sarapan",
+      time: "07.30 WIB",
+      calories: "0 kkal",
+      items: [],
+      macros: "Protein 0 g  ·  Karbo 0 g  ·  Lemak 0 g",
+    },
+    {
+      name: "Makan siang",
+      time: "12.30 WIB",
+      calories: "0 kkal",
+      items: [],
+      macros: "Protein 0 g  ·  Karbo 0 g  ·  Lemak 0 g",
+    },
+    {
+      name: "Makan malam",
+      time: "18.00 WIB",
+      calories: "0 kkal",
+      items: [],
+      macros: "Protein 0 g  ·  Karbo 0 g  ·  Lemak 0 g",
+    },
+    {
+      name: "Camilan",
+      time: "15.00 WIB",
+      calories: "0 kkal",
+      items: [],
+      macros: "Protein 0 g  ·  Karbo 0 g  ·  Lemak 0 g",
+    },
+  ];
+}
+
 const recommendations = [
   {
     title: "Gado-gado, saus terpisah",
@@ -300,13 +426,16 @@ function MealCard({
   meal,
   onUpdateMeal,
   onDeleteFromServer,
+  onValidationError,
 }: {
   meal: Meal;
   onUpdateMeal?: (updated: Meal) => void;
   onDeleteFromServer?: (id_food_log?: number) => void;
+  onValidationError?: (msg: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editError, setEditError] = useState("");
   const [editForm, setEditForm] = useState({
     name: "",
     detail: "",
@@ -315,6 +444,7 @@ function MealCard({
 
   const handleStartEdit = (idx: number, item: MealItem) => {
     setEditingIndex(idx);
+    setEditError("");
     setEditForm({
       name: item.name,
       detail: item.detail,
@@ -324,20 +454,28 @@ function MealCard({
 
   const handleCancelEdit = () => {
     setEditingIndex(null);
+    setEditError("");
   };
 
   const handleSaveEdit = (idx: number) => {
+    const rawCal = parseFloat(editForm.calories.replace(",", "."));
+    if (isNaN(rawCal) || rawCal < 0) {
+      const errMsg = "Nilai kalori tidak boleh bernilai negatif.";
+      setEditError(errMsg);
+      onValidationError?.(errMsg);
+      return;
+    }
+
     const newItems = [...meal.items];
     const oldCal = parseFloat(newItems[idx].calories) || 1;
-    const parsedCal = Math.max(0, parseFloat(editForm.calories.replace(",", ".")) || 0);
-    const ratio = oldCal > 0 ? parsedCal / oldCal : 1;
+    const ratio = oldCal > 0 ? rawCal / oldCal : 1;
 
     const oldNutrients = newItems[idx].nutrients || [0, 0, 0];
     newItems[idx] = {
       ...newItems[idx],
       name: editForm.name.trim() || newItems[idx].name,
       detail: editForm.detail.trim(),
-      calories: String(Math.round(parsedCal)),
+      calories: String(Math.round(rawCal)),
       nutrients: [
         Number((oldNutrients[0] * ratio).toFixed(1)),
         Number((oldNutrients[1] * ratio).toFixed(1)),
@@ -348,6 +486,7 @@ function MealCard({
     const updatedMeal = recalculateMealSlot(meal, newItems);
     onUpdateMeal?.(updatedMeal);
     setEditingIndex(null);
+    setEditError("");
   };
 
   const handleDeleteItem = (idx: number) => {
@@ -405,100 +544,110 @@ function MealCard({
             meal.items.map((item, idx) => (
               <div
                 key={`${item.name}-${idx}`}
-                className="group flex w-full items-center gap-[13px] rounded-lg p-1 transition-colors hover:bg-[#f8faf6]"
+                className="group flex w-full flex-col gap-1 rounded-lg p-1 transition-colors hover:bg-[#f8faf6]"
               >
-                {editingIndex === idx ? (
-                  <div className="flex w-full flex-wrap items-center gap-2">
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <input
-                        type="text"
-                        value={editForm.name}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, name: e.target.value })
-                        }
-                        placeholder="Nama makanan"
-                        className="rounded border border-[#167653] bg-white px-2 py-1 text-xs font-semibold text-[#203d32] outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={editForm.detail}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, detail: e.target.value })
-                        }
-                        placeholder="Porsi / Keterangan"
-                        className="rounded border border-[#e1e7df] bg-white px-2 py-0.5 text-[10px] text-[#728078] outline-none"
-                      />
+                <div className="flex w-full items-center gap-[13px]">
+                  {editingIndex === idx ? (
+                    <div className="flex w-full flex-wrap items-center gap-2">
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, name: e.target.value })
+                          }
+                          placeholder="Nama makanan"
+                          className="rounded border border-[#167653] bg-white px-2 py-1 text-xs font-semibold text-[#203d32] outline-none"
+                        />
+                        <input
+                          type="text"
+                          value={editForm.detail}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, detail: e.target.value })
+                          }
+                          placeholder="Porsi / Keterangan"
+                          className="rounded border border-[#e1e7df] bg-white px-2 py-0.5 text-[10px] text-[#728078] outline-none"
+                        />
+                      </div>
+                      <div className="w-20">
+                        <input
+                          type="number"
+                          value={editForm.calories}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              calories: e.target.value,
+                            })
+                          }
+                          placeholder="Kkal"
+                          className="w-full rounded border border-[#e1e7df] bg-white px-2 py-1 text-center text-xs text-[#203d32] outline-none focus:border-[#167653]"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEdit(idx)}
+                          title="Simpan perubahan"
+                          className="rounded-md bg-[#167653] p-1.5 text-white hover:bg-[#125f43] transition-colors"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          title="Batal edit"
+                          className="rounded-md border border-[#e1e7df] bg-white p-1.5 text-[#728078] hover:bg-[#f0f3ec] transition-colors"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="w-20">
-                      <input
-                        type="number"
-                        value={editForm.calories}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, calories: e.target.value })
-                        }
-                        placeholder="Kkal"
-                        className="w-full rounded border border-[#e1e7df] bg-white px-2 py-1 text-center text-xs text-[#203d32] outline-none focus:border-[#167653]"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleSaveEdit(idx)}
-                        title="Simpan perubahan"
-                        className="rounded-md bg-[#167653] p-1.5 text-white hover:bg-[#125f43] transition-colors"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCancelEdit}
-                        title="Batal edit"
-                        className="rounded-md border border-[#e1e7df] bg-white p-1.5 text-[#728078] hover:bg-[#f0f3ec] transition-colors"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex min-w-0 flex-1 flex-col gap-px">
+                  ) : (
+                    <>
+                      <div className="flex min-w-0 flex-1 flex-col gap-px">
+                        <span
+                          className={`text-xs leading-[18px] text-[#203d32] ${mediumClass}`}
+                        >
+                          {item.name}
+                        </span>
+                        <span
+                          className={`text-[10px] leading-[15px] text-[#728078] ${textClass}`}
+                        >
+                          {item.detail}
+                        </span>
+                      </div>
                       <span
-                        className={`text-xs leading-[18px] text-[#203d32] ${mediumClass}`}
+                        className={`text-xs leading-[18px] text-[#203d32] ${semiboldClass}`}
                       >
-                        {item.name}
+                        {item.calories} kkal
                       </span>
-                      <span
-                        className={`text-[10px] leading-[15px] text-[#728078] ${textClass}`}
-                      >
-                        {item.detail}
-                      </span>
-                    </div>
-                    <span
-                      className={`text-xs leading-[18px] text-[#203d32] ${semiboldClass}`}
-                    >
-                      {item.calories} kkal
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleStartEdit(idx, item)}
-                        aria-label={`Edit ${item.name}`}
-                        title="Edit porsi atau kalori"
-                        className="rounded-md p-1.5 text-[#728078] transition-colors hover:bg-[#eaf3e9] hover:text-[#167653]"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteItem(idx)}
-                        aria-label={`Hapus ${item.name}`}
-                        title="Hapus makanan ini"
-                        className="rounded-md p-1.5 text-[#728078] opacity-60 group-hover:opacity-100 transition-all hover:bg-red-50 hover:text-red-500"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(idx, item)}
+                          aria-label={`Edit ${item.name}`}
+                          title="Edit porsi atau kalori"
+                          className="rounded-md p-1.5 text-[#728078] transition-colors hover:bg-[#eaf3e9] hover:text-[#167653]"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteItem(idx)}
+                          aria-label={`Hapus ${item.name}`}
+                          title="Hapus makanan ini"
+                          className="rounded-md p-1.5 text-[#728078] opacity-60 group-hover:opacity-100 transition-all hover:bg-red-50 hover:text-red-500"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {editingIndex === idx && editError && (
+                  <p className="text-[11px] font-medium text-red-600">
+                    {editError}
+                  </p>
                 )}
               </div>
             ))
@@ -593,7 +742,6 @@ function AddFoodPanel({
   const [barcode, setBarcode] = useState("8991234567890");
   const [notice, setNotice] = useState("");
 
-  // Quick Add State
   const [qaName, setQaName] = useState("");
   const [qaPortion, setQaPortion] = useState("");
   const [qaCalories, setQaCalories] = useState("");
@@ -602,12 +750,10 @@ function AddFoodPanel({
   const [qaFat, setQaFat] = useState("");
   const [qaError, setQaError] = useState("");
 
-  // Filter daftar makanan katalog berdasarkan kata kunci
   const filteredCatalog = catalogFoods.filter((item) =>
     item.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
   );
 
-  // Kalkulasi pratinjau makronutrien per porsi secara dinamis
   const parsedPortion = Math.max(0, parseFloat(portion.replace(",", ".")) || 0);
   const previewGram = Math.round(parsedPortion * 100);
   const previewCal = Math.round(selectedCatalog.calPer100g * parsedPortion);
@@ -1016,7 +1162,6 @@ function AddFoodPanel({
         )}
       </section>
 
-      {/* Bagian Cara Cepat Lainnya */}
       <section className="flex w-full flex-col items-start gap-[18px] rounded-[18px] border border-solid border-[#e1e7df] bg-white p-5 shadow-xs">
         <header>
           <h2 className={`text-lg leading-[27px] text-[#203d32] ${boldClass}`}>
@@ -1151,8 +1296,8 @@ function AddFoodPanel({
 export const FoodJournalWorkspaceSection = (): ReactElement => {
   const [recommendationMeal, setRecommendationMeal] = useState("Makan siang");
   const [savingLoading, setSavingLoading] = useState(false);
+  const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
 
-  // Toast Notification Elegan (FIT-36)
   const [toast, setToast] = useState<{
     show: boolean;
     title: string;
@@ -1176,14 +1321,25 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
     }, 3500);
   };
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  const [selectedDate] = useState<string>(() => {
-    return localStorage.getItem("fitbite_journal_date") || todayStr;
+  const getLocalISODate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = getLocalISODate(new Date());
+  const yesterdayObj = new Date();
+  yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+  const yesterdayStr = getLocalISODate(yesterdayObj);
+
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    return localStorage.getItem("fitbite_journal_active_date") || todayStr;
   });
 
-  const dateObj = new Date(selectedDate);
+  const dateObj = new Date(`${selectedDate}T00:00:00`);
   const formattedDateLong = isNaN(dateObj.getTime())
-    ? "Rabu, 11 November 2026"
+    ? "Kamis, 12 November 2026"
     : dateObj.toLocaleDateString("id-ID", {
         weekday: "long",
         day: "numeric",
@@ -1192,19 +1348,39 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
       });
 
   const formattedDateShort = isNaN(dateObj.getTime())
-    ? "11 Nov 2026"
+    ? "12 Nov 2026"
     : dateObj.toLocaleDateString("id-ID", {
         day: "numeric",
         month: "short",
         year: "numeric",
       });
 
-  const [mealsList, setMealsList] = useState<Meal[]>(() => {
+  const shiftDateByDays = (deltaDays: number) => {
+    const current = new Date(`${selectedDate}T00:00:00`);
+    current.setDate(current.getDate() + deltaDays);
+    const nextDateStr = getLocalISODate(current);
+    handleSelectDate(nextDateStr);
+  };
+
+  const handleSelectDate = (newDateStr: string) => {
+    setSelectedDate(newDateStr);
+    setIsDateMenuOpen(false);
+    showToast(
+      "Tanggal Jurnal Diubah",
+      `Menampilkan catatan makanan untuk tanggal ${newDateStr}.`,
+      "success"
+    );
+  };
+
+  const loadMealsForDate = (targetDate: string): Meal[] => {
+    const baseMeals = getDefaultMealsForDate(targetDate, todayStr);
     try {
-      const savedStr = localStorage.getItem("fitbite_journal_slots_v2");
-      if (!savedStr) return defaultMeals;
+      const savedStr = localStorage.getItem(
+        `fitbite_journal_slots_${targetDate}`
+      );
+      if (!savedStr) return baseMeals;
       const savedSlots = JSON.parse(savedStr);
-      return defaultMeals.map((dm) => {
+      return baseMeals.map((dm) => {
         if (savedSlots[dm.name]) {
           const items: MealItem[] = savedSlots[dm.name].items || dm.items;
           return recalculateMealSlot(dm, items);
@@ -1212,9 +1388,13 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
         return recalculateMealSlot(dm, dm.items);
       });
     } catch {
-      return defaultMeals;
+      return baseMeals;
     }
-  });
+  };
+
+  const [mealsList, setMealsList] = useState<Meal[]>(() =>
+    loadMealsForDate(selectedDate)
+  );
 
   const [dailySummary, setDailySummary] = useState({
     totalCalories: "1.350 kkal",
@@ -1224,7 +1404,6 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
     sisaEnergi: "608 kkal",
   });
 
-  // Fungsi helper akurat menghitung ringkasan nutrisi bagian atas dari semua slot makan
   const updateSummaryFromMeals = (meals: Meal[]) => {
     let totalCal = 0;
     let totalProt = 0;
@@ -1254,16 +1433,17 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
     });
   };
 
-  // Sinkronkan ringkasan di awal dan ambil data dari PostgreSQL jika ada
   useEffect(() => {
-    updateSummaryFromMeals(mealsList);
+    localStorage.setItem("fitbite_journal_active_date", selectedDate);
+    const initialForDate = loadMealsForDate(selectedDate);
+    setMealsList(initialForDate);
+    updateSummaryFromMeals(initialForDate);
 
     axios
       .get(`http://127.0.0.1:8000/api/food-logs/1?tanggal=${selectedDate}`)
       .then((res) => {
         const dbLogs = res.data?.data;
         if (Array.isArray(dbLogs) && dbLogs.length > 0) {
-          // Kelompokkan catatan dari tabel food_log ke 4 slot makan
           const grouped: Record<string, MealItem[]> = {
             Sarapan: [],
             "Makan siang": [],
@@ -1272,7 +1452,9 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
           };
 
           dbLogs.forEach((row: any) => {
-            const slotKey = grouped[row.slot_makan] ? row.slot_makan : "Makan siang";
+            const slotKey = grouped[row.slot_makan]
+              ? row.slot_makan
+              : "Makan siang";
             grouped[slotKey].push({
               id_food_log: row.id_food_log,
               name: row.nama_makanan,
@@ -1286,9 +1468,10 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
             });
           });
 
-          const syncedMeals = defaultMeals.map((dm) => {
+          const baseForDate = getDefaultMealsForDate(selectedDate, todayStr);
+          const syncedMeals = baseForDate.map((dm) => {
             if (grouped[dm.name] && grouped[dm.name].length > 0) {
-              return recalculateMealSlot(dm, grouped[dm.name]);
+              return recalculateMealSlot(dm, [...dm.items, ...grouped[dm.name]]);
             }
             return dm;
           });
@@ -1298,17 +1481,20 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
         }
       })
       .catch(() => {
-        // Jika belum ada log hari ini di DB, gunakan state lokal
+        // Fallback state per tanggal lokal
       });
   }, [selectedDate]);
 
-  const saveSlotsToLocal = (meals: Meal[]) => {
+  const saveSlotsToLocal = (targetDate: string, meals: Meal[]) => {
     try {
       const mapObj: Record<string, Meal> = {};
       meals.forEach((m) => {
         mapObj[m.name] = m;
       });
-      localStorage.setItem("fitbite_journal_slots_v2", JSON.stringify(mapObj));
+      localStorage.setItem(
+        `fitbite_journal_slots_${targetDate}`,
+        JSON.stringify(mapObj)
+      );
     } catch (e) {
       console.error(e);
     }
@@ -1320,7 +1506,7 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
     );
     setMealsList(newMeals);
     updateSummaryFromMeals(newMeals);
-    saveSlotsToLocal(newMeals);
+    saveSlotsToLocal(selectedDate, newMeals);
   };
 
   const handleDeleteFromServer = (id_food_log?: number) => {
@@ -1330,7 +1516,6 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
       .catch((err) => console.warn("Gagal hapus log dari DB:", err));
   };
 
-  // FIT-35 & FIT-36: Kirim POST ke /api/food-logs, update state slot makan & ringkasan kalori atas, lalu tampilkan Toast
   const handleSubmitFoodLog = async (payload: {
     slotName: string;
     method: string;
@@ -1367,7 +1552,10 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
         name: savedRow?.nama_makanan || payload.name,
         detail:
           payload.customDetail ||
-          `${Math.round(savedRow?.estimasi_gram || payload.portionMultiplier * payload.baseGram)} g`,
+          `${Math.round(
+            savedRow?.estimasi_gram ||
+              payload.portionMultiplier * payload.baseGram
+          )} g`,
         calories: String(
           Math.round(
             savedRow?.kalori ?? payload.calPer100g * payload.portionMultiplier
@@ -1398,7 +1586,7 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
 
       setMealsList(newMeals);
       updateSummaryFromMeals(newMeals);
-      saveSlotsToLocal(newMeals);
+      saveSlotsToLocal(selectedDate, newMeals);
 
       showToast(
         "Berhasil Dicatat ke Jurnal",
@@ -1422,7 +1610,6 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
 
   return (
     <main className="relative flex h-screen min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-[#f8faf6]">
-      {/* Floating Toast Notification Elegan (FIT-36) */}
       <aside
         aria-live="polite"
         className={`fixed top-6 right-8 z-50 flex items-start gap-3.5 rounded-[14px] border px-4 py-3.5 shadow-[0_8px_24px_rgba(22,118,83,0.14)] transition-all duration-300 ease-out ${
@@ -1506,7 +1693,7 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
       </header>
 
       <div className="flex w-full flex-col gap-6 px-9 pb-7 pt-[30px]">
-        <section className="flex w-full items-center gap-6">
+        <section className="flex w-full items-center justify-between gap-6">
           <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
             <h1
               className={`text-3xl leading-[37.5px] tracking-[-0.24px] text-[#203d32] ${textClass}`}
@@ -1519,16 +1706,92 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
               {formattedDateLong} • Catatan hingga 18.30 WIB
             </p>
           </div>
-          <button
-            type="button"
-            className={`flex min-h-11 items-center gap-2 rounded-[10px] border border-solid border-[#e1e7df] bg-white px-[18px] py-[11px] text-sm text-[#167653] transition-colors hover:bg-[#f0f3ec] ${semiboldClass}`}
-          >
-            <Calendar className="h-[17px] w-[17px]" />
-            {formattedDateShort}
-          </button>
+
+          <div className="relative flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => shiftDateByDays(-1)}
+              title="Hari sebelumnya (Kemarin)"
+              className="flex h-11 w-9 items-center justify-center rounded-[10px] border border-[#e1e7df] bg-white text-[#203d32] hover:bg-[#eaf3e9] hover:text-[#167653] transition-colors cursor-pointer"
+            >
+              ‹
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsDateMenuOpen((prev) => !prev)}
+              className={`flex min-h-11 items-center gap-2 rounded-[10px] border border-solid border-[#167653]/40 bg-white px-[16px] py-[11px] text-sm text-[#167653] shadow-2xs transition-colors hover:bg-[#eaf3e9] cursor-pointer ${semiboldClass}`}
+            >
+              <Calendar className="h-[17px] w-[17px]" />
+              <span>{formattedDateShort}</span>
+              <ChevronDown className="h-4 w-4 text-[#728078]" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => shiftDateByDays(1)}
+              title="Hari berikutnya"
+              className="flex h-11 w-9 items-center justify-center rounded-[10px] border border-[#e1e7df] bg-white text-[#203d32] hover:bg-[#eaf3e9] hover:text-[#167653] transition-colors cursor-pointer"
+            >
+              ›
+            </button>
+
+            {isDateMenuOpen && (
+              <div className="absolute right-0 top-[52px] z-40 flex w-[260px] flex-col gap-2 rounded-[14px] border border-[#e1e7df] bg-white p-3.5 shadow-lg">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#728078]">
+                  Pilih Tanggal Jurnal
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectDate(todayStr)}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors cursor-pointer ${
+                    selectedDate === todayStr
+                      ? "bg-[#167653] font-bold text-white"
+                      : "bg-[#f8faf6] text-[#203d32] hover:bg-[#eaf3e9]"
+                  }`}
+                >
+                  <span>Hari Ini</span>
+                  <span className="text-[11px] opacity-85">{todayStr}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectDate(yesterdayStr)}
+                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors cursor-pointer ${
+                    selectedDate === yesterdayStr
+                      ? "bg-[#167653] font-bold text-white"
+                      : "bg-[#f8faf6] text-[#203d32] hover:bg-[#eaf3e9]"
+                  }`}
+                >
+                  <span>Kemarin (1.200 kkal)</span>
+                  <span className="text-[11px] opacity-85">{yesterdayStr}</span>
+                </button>
+
+                <div className="my-1 h-px w-full bg-[#e1e7df]" />
+
+                <label className="flex flex-col gap-1 text-[11px] text-[#728078]">
+                  <span>Atau ketik tanggal (YYYY-MM-DD):</span>
+                  <input
+                    type="text"
+                    defaultValue={selectedDate}
+                    placeholder="2026-11-11"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const val = (e.target as HTMLInputElement).value.trim();
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                          handleSelectDate(val);
+                        }
+                      }
+                    }}
+                    className="rounded-lg border border-[#e1e7df] bg-[#f8faf6] px-2.5 py-1.5 text-xs font-medium text-[#203d32] outline-none focus:border-[#167653]"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
         </section>
 
-        {/* Banner Ringkasan Kalori Masuk & Makronutrien (FIT-36) */}
         <section
           className="flex w-full items-start rounded-[18px] bg-[#124b39] p-[22px] shadow-sm"
           aria-label="Ringkasan nutrisi"
@@ -1563,6 +1826,9 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
                 meal={meal}
                 onUpdateMeal={handleUpdateMealSlot}
                 onDeleteFromServer={handleDeleteFromServer}
+                onValidationError={(msg) =>
+                  showToast("Validasi Gagal", msg, "error")
+                }
               />
             ))}
             <p
