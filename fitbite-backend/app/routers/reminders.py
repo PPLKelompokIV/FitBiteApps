@@ -4,7 +4,8 @@ from app.database import get_db
 from app.models.reminder import SmartReminder
 from app.schemas.reminder import ReminderBulkSaveRequest
 
-router = APIRouter(prefix="/api/reminders", tags=["Smart Reminder (FIT-49 / FIT-51)"])
+# Router konfigurasi Smart Reminder (FIT-49 / FIT-51 / FIT-52)
+router = APIRouter(prefix="/api/reminders", tags=["Smart Reminder (FIT-49 / FIT-51 / FIT-52)"])
 
 
 # ==========================================
@@ -31,7 +32,8 @@ def get_user_reminders(id_user: int, db: Session = Depends(get_db)):
 
 # ==========================================
 # 2. CREATE (C) & UPDATE (U): Simpan / Perbarui Jadwal
-# Mendukung method POST dan PUT sekaligus
+# Subtask FIT-51: Validasi waktu & penyimpanan tabel smart_reminder
+# Subtask FIT-52: Pengembalian status sukses untuk notifikasi dan sinkronisasi scheduler
 # ==========================================
 @router.post("/save", status_code=status.HTTP_200_OK)
 @router.put("/save", status_code=status.HTTP_200_OK)
@@ -64,6 +66,7 @@ def save_user_reminders(payload: ReminderBulkSaveRequest, db: Session = Depends(
 
     db.commit()
 
+    # Payload respons sukses untuk memicu Toast sukses dan pembaruan jadwal pengingat (FIT-52)
     return {
         "status": "success",
         "message": "Pengaturan jadwal pengingat berhasil disimpan.",
