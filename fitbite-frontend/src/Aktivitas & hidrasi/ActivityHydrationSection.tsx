@@ -1,4 +1,5 @@
-import React, { useMemo, useState, type ReactElement } from "react";
+import { WaterGlass } from "./WaterGlass";
+import React, { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   ChevronRight,
   Bell,
@@ -13,6 +14,8 @@ import {
   Dumbbell,
   Info,
   Trash2,
+  Pencil,
+  X,
 } from "lucide-react";
 
 type Activity = {
@@ -22,8 +25,10 @@ type Activity = {
 };
 
 type Drink = {
+  id?: number;
   time: string;
   amount: number;
+  note?: string;
 };
 
 const activityOptions: Activity[] = [
@@ -76,13 +81,175 @@ const suggestions = [
 ];
 
 export const ActivityAndHydrationSection = (): ReactElement => {
+  const API_BASE = "http://localhost:5000/api/water-logs";
+
   const [selectedActivity, setSelectedActivity] = useState("Jalan kaki");
   const [duration, setDuration] = useState("20");
   const [_startTime, setStartTime] = useState("19.00");
   const [customAmount, setCustomAmount] = useState("200");
-  const [hydration, setHydration] = useState(1750);
   const [saved, setSaved] = useState(false);
-  const [history, setHistory] = useState<Drink[]>(initialDrinks);
+
+  // Inisialisasi history dari localStorage atau initialDrinks
+  const [history, setHistory] = useState<Drink[]>(() => {
+    try {
+      const savedDrinks = localStorage.getItem("fitbite_water_drinks");
+      if (savedDrinks) {
+        const parsed = JSON.parse(savedDrinks);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return initialDrinks;
+  });
+
+  // State Modal Edit
+  const [editingDrink, setEditingDrink] = useState<{ index: number; drink: Drink } | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ time: "", amount: 250 });
+
+  // Sinkronisasi total hidrasi selalu akurat dari akumulasi riwayat minum
+  const hydration = useMemo(
+    () => history.reduce((sum, drink) => sum + Number(drink.amount || 0), 0),
+    [history]
+  );
+
+  const updateHistoryAndStorage = (newHistory: Drink[]) => {
+    setHistory(newHistory);
+    try {
+      localStorage.setItem("fitbite_water_drinks", JSON.stringify(newHistory));
+    } catch {
+      // ignore
+    }
+  };
+
+  // Fetch dari API saat pertama kali load (graceful fallback)
+  useEffect(() => {
+    let isMounted = true;
+    fetch(`${API_BASE}/1`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (isMounted && json && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped: Drink[] = json.data.map((item: any) => ({
+            id: item.id_water_log,
+            time: item.waktu,
+            amount: item.jumlah_ml,
+            note: item.catatan,
+          }));
+          updateHistoryAndStorage(mapped);
+        }
+      })
+      .catch(() => {
+        // Backend offline: tetap gunakan data lokal
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleAddDrink = async (amount: number, timeStr?: string) => {
+    const now = new Date();
+    const defaultTime = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")} WIB`;
+    const time = timeStr || defaultTime;
+    const tempId = Date.now();
+    const newDrink: Drink = { id: tempId, time, amount };
+
+    // Update optimis instan
+    const updated = [...history, newDrink];
+    updateHistoryAndStorage(updated);
+    setSaved(false);
+
+    // Kirim ke backend
+    try {
+      const res = await fetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_user: 1,
+          waktu: time,
+          jumlah_ml: amount,
+          catatan: "Air Putih",
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json?.data?.id_water_log) {
+          setHistory((curr) =>
+            curr.map((item) =>
+              item.id === tempId ? { ...item, id: json.data.id_water_log } : item
+            )
+          );
+        }
+      }
+    } catch {
+      // Backend offline: data tetap tersimpan di lokal
+    }
+  };
+
+  const addCustomHydration = () => {
+    const amount = Number(customAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    handleAddDrink(amount);
+  };
+
+  const openEditModal = (drink: Drink, index: number) => {
+    setEditingDrink({ index, drink });
+    setEditForm({ time: drink.time, amount: drink.amount });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingDrink) return;
+    const { index, drink } = editingDrink;
+    const updatedDrink: Drink = {
+      ...drink,
+      time: editForm.time,
+      amount: Number(editForm.amount),
+    };
+
+    const updatedHistory = history.map((item, i) =>
+      i === index ? updatedDrink : item
+    );
+    updateHistoryAndStorage(updatedHistory);
+    setIsEditModalOpen(false);
+    setEditingDrink(null);
+
+    if (drink.id) {
+      try {
+        await fetch(`${API_BASE}/${drink.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            waktu: editForm.time,
+            jumlah_ml: Number(editForm.amount),
+          }),
+        });
+      } catch {
+        // Backend offline
+      }
+    }
+  };
+
+  const handleDeleteDrink = async (index: number) => {
+    const target = history[index];
+    if (!target) return;
+    const updated = history.filter((_, i) => i !== index);
+    updateHistoryAndStorage(updated);
+
+    if (target.id) {
+      try {
+        await fetch(`${API_BASE}/${target.id}`, { method: "DELETE" });
+      } catch {
+        // Backend offline
+      }
+    }
+  };
+
+  const undoLastDrink = () => {
+    if (history.length === 0) return;
+    handleDeleteDrink(history.length - 1);
+  };
 
   const selected = useMemo(
     () =>
@@ -98,35 +265,6 @@ export const ActivityAndHydrationSection = (): ReactElement => {
       Number(duration || 0)) /
       200
   );
-
-  const addHydration = (amount: number) => {
-    setHydration((current) => Math.min(current + amount, 2640));
-    setSaved(false);
-  };
-
-  const addCustomHydration = () => {
-    const amount = Number(customAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
-    addHydration(amount);
-    setHistory((current) => [
-      ...current,
-      { time: "19.00 WIB", amount },
-    ]);
-  };
-
-  const undoLastDrink = () => {
-    const last = history[history.length - 1];
-    if (!last) return;
-    setHydration((current) => Math.max(0, current - last.amount));
-    setHistory((current) => current.slice(0, -1));
-  };
-
-  const removeDrinkAtIndex = (index: number) => {
-    const target = history[index];
-    if (!target) return;
-    setHydration((current) => Math.max(0, current - target.amount));
-    setHistory((current) => current.filter((_, i) => i !== index));
-  };
 
   const progress = Math.round((hydration / 2640) * 100);
   const remainingHydration = Math.max(0, 2640 - hydration);
@@ -368,15 +506,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
               <h2 className="text-lg font-bold text-[#124b39]">Isi ulang energimu</h2>
               <p className="mt-1 text-xs text-[#728078]">Hidrasi hari ini</p>
               <div className="mt-[18px] flex items-center gap-[23px]">
-                <div className="relative h-40 w-[82px] overflow-hidden rounded-[22px] border-2 border-[#c5dde3] bg-[#ecf5f7]">
-                  <div
-                    className="absolute bottom-0 left-0 w-full bg-[#a8ccd7] transition-all duration-300"
-                    style={{ height: `${Math.max(20, Math.min(160, (progress / 100) * 160))}px` }}
-                  />
-                  <div className="relative p-2 text-[#4b8dab]">
-                    <Droplets className="h-[25px] w-[25px]" />
-                  </div>
-                </div>
+                <WaterGlass progress={progress} />
                 <div>
                   <p className="text-[29px] font-bold text-[#124b39]">
                     {hydration} <span className="text-xs font-normal text-[#728078]">ml</span>
@@ -403,14 +533,14 @@ export const ActivityAndHydrationSection = (): ReactElement => {
               <div className="mt-4 grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
-                  onClick={() => addHydration(250)}
+                  onClick={() => handleAddDrink(250)}
                   className="min-h-11 rounded-[10px] border border-[#e1e7df] text-sm font-semibold text-[#167653] hover:bg-[#f6f7f2] transition-colors"
                 >
                   +250 ml
                 </button>
                 <button
                   type="button"
-                  onClick={() => addHydration(500)}
+                  onClick={() => handleAddDrink(500)}
                   className="min-h-11 rounded-[10px] bg-[#167653] text-sm font-semibold text-white hover:bg-[#125c41] transition-colors"
                 >
                   +500 ml
@@ -464,22 +594,35 @@ export const ActivityAndHydrationSection = (): ReactElement => {
             <section className="rounded-[18px] border border-[#e1e7df] bg-white p-[22px] shadow-sm">
               <h2 className="text-lg font-bold text-[#124b39]">Riwayat minum</h2>
               <p className="mt-1 text-xs text-[#728078]">
-                {history.length} catatan • total {hydration} ml
+                {history.length} catatan • total {hydration.toLocaleString("id-ID")} ml
               </p>
               <div className="mt-[18px] space-y-3">
                 {history.map((drink, index) => (
-                  <div key={`${drink.time}-${index}`} className="flex items-center gap-3 text-xs text-[#203d32]">
+                  <div
+                    key={`${drink.time}-${index}`}
+                    className="group flex items-center gap-3 rounded-xl p-2 text-xs text-[#203d32] transition-colors hover:bg-[#f8faf6]"
+                  >
                     <Droplets className="h-[18px] w-[18px] text-[#4b8dab]" />
                     <span className="flex-1 font-medium">{drink.time}</span>
                     <span className="text-[13px] font-semibold">{drink.amount} ml</span>
-                    <button
-                      type="button"
-                      aria-label={`Hapus catatan ${drink.time}`}
-                      onClick={() => removeDrinkAtIndex(index)}
-                      className="text-[#728078] hover:text-red-600 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5 opacity-80 transition-opacity group-hover:opacity-100">
+                      <button
+                        type="button"
+                        aria-label={`Edit catatan ${drink.time}`}
+                        onClick={() => openEditModal(drink, index)}
+                        className="rounded-lg p-1 text-[#728078] transition-colors hover:bg-[#eaf3e9] hover:text-[#167653]"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Hapus catatan ${drink.time}`}
+                        onClick={() => handleDeleteDrink(index)}
+                        className="rounded-lg p-1 text-[#728078] transition-colors hover:bg-[#fee2e2] hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -503,6 +646,103 @@ export const ActivityAndHydrationSection = (): ReactElement => {
           </p>
         </aside>
       </section>
+
+      {/* Modal Edit Jadwal / Catatan Minum */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#e1e7df] pb-3">
+              <h3 className="text-base font-bold text-[#124b39]">Edit Catatan Minum</h3>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="rounded-lg p-1.5 text-[#728078] hover:bg-[#f2f5ee] hover:text-[#203d32] transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveEdit();
+              }}
+              className="mt-4 space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-[#203d32]">
+                  Waktu Minum
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.time}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, time: e.target.value })
+                  }
+                  placeholder="Contoh: 08.00 WIB"
+                  className="mt-1 w-full rounded-xl border border-[#d8e0d5] bg-[#f9faf7] px-3.5 py-2 text-sm text-[#203d32] focus:border-[#167653] focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#203d32]">
+                  Jumlah Air (ml)
+                </label>
+                <input
+                  type="number"
+                  min="10"
+                  max="3000"
+                  step="10"
+                  required
+                  value={editForm.amount}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      amount: Number(e.target.value),
+                    })
+                  }
+                  className="mt-1 w-full rounded-xl border border-[#d8e0d5] bg-[#f9faf7] px-3.5 py-2 text-sm text-[#203d32] focus:border-[#167653] focus:bg-white focus:outline-none"
+                />
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {[150, 200, 250, 350, 500].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() =>
+                        setEditForm({ ...editForm, amount: preset })
+                      }
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                        editForm.amount === preset
+                          ? "bg-[#167653] text-white"
+                          : "border border-[#d8e0d5] bg-white text-[#527063] hover:bg-[#f0f6ee]"
+                      }`}
+                    >
+                      {preset} ml
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 border-t border-[#e1e7df] pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="rounded-xl border border-[#d8e0d5] bg-white px-4 py-2 text-xs font-semibold text-[#527063] transition hover:bg-[#f6f8f4]"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[#167653] px-5 py-2 text-xs font-semibold text-white transition hover:bg-[#125c41]"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Footer Hak Cipta */}
       <footer className="flex w-full items-start justify-between px-9 pb-6 pt-2 text-[10px] text-[#728078]">

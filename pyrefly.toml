@@ -1,0 +1,20 @@
+python-interpreter-path = ".venv/Scripts/python.exe"
+site-packages-path = ".venv/Lib/site-packages"
+search-path = [
+    "fitbite-backend",
+    ".venv/Lib/site-packages"
+]
+ignore-missing-imports = [
+    "fastapi",
+    "fastapi.*",
+    "sqlalchemy",
+    "sqlalchemy.*",
+    "pydantic",
+    "pydantic.*",
+    "psycopg2",
+    "psycopg2.*"
+]
+
+[errors]
+missing-import = "ignore"
+
