@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from "react";
+import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 import {
-  BodyCheckSidebar,
   BodyCheckHeader,
   BodyCheckBanner,
   BodyCheckFormSection,
@@ -21,51 +21,18 @@ export const BodyCheckPagi = (): ReactElement => {
   // UI State
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
-  // State untuk pratinjau dari backend
-  const [overviewData, setOverviewData] = useState<any>(null);
 
-  const handleSave = async () => {
-    try {
-      const response = await fetch("http://127.0.0.1:8000/api/body-check", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          weight: parseFloat(weight.replace(',', '.')), 
-          sleepDuration: parseFloat(sleepDuration.replace(',', '.')),
-          sleepQuality: sleepQuality,
-          energyLevel: energyLevel,
-          plannedIntensity: plannedIntensity
-        }),
-      });
-
-      if (response.ok) {
-        // 1. Tangkap pratinjau kalkulasi harian dari backend
-        const responseData = await response.json();
-        if (responseData.overview) {
-          setOverviewData(responseData.overview);
-        }
-
-        // 2. Tampilkan notifikasi sukses dan perbarui status Body Check
-        setIsSaved(true);
-        setToastMessage("Body Check tersimpan!");
-        setTimeout(() => {
-          setToastMessage(null);
-        }, 3000);
-      } else {
-        console.error("Backend menolak data");
-      }
-    } catch (error) {
-      console.error("Gagal menghubungi backend:", error);
-    }
+  const handleSave = () => {
+    setIsSaved(true);
+    setToastMessage("Body Check tersimpan!");
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
   };
 
   return (
     <div className="flex h-screen items-stretch overflow-hidden bg-[#f6f7f2] font-sans text-[#1f2d2a]">
-      {/* Sidebar Navigasi */}
-      <BodyCheckSidebar />
+      <HealthAppSidebarSection />
 
       {/* Main Container */}
       <div className="relative flex h-screen min-h-0 flex-1 flex-col justify-between overflow-y-auto bg-[#f6f7f2]">
@@ -98,8 +65,8 @@ export const BodyCheckPagi = (): ReactElement => {
                   toastMessage={toastMessage}
                 />
 
-                {/* Right Overview & Insights (dikirimkan data dari Python) */}
-                <BodyCheckOverviewSection overviewData={overviewData} />
+                {/* Right Overview & Insights */}
+                <BodyCheckOverviewSection />
               </div>
             </div>
           </main>

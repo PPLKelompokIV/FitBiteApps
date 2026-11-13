@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ChevronRight,
   Bell,
@@ -193,6 +193,51 @@ export const ProfileAndReminderSettingsSection = () => {
     message: "",
     type: "success",
   });
+
+  // 1. Cek izin notifikasi browser secara otomatis saat halaman dibuka
+  useEffect(() => {
+    if ("Notification" in window) {
+      setBrowserPermission(Notification.permission === "granted");
+    }
+  }, []);
+
+  // 2. Ambil data konfigurasi jadwal & status aktif dari database PostgreSQL via FastAPI
+  useEffect(() => {
+    const fetchSavedReminders = async () => {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/reminders/1");
+        const resData = await response.json();
+
+        const dataList = Array.isArray(resData) ? resData : (resData.data || []);
+
+        if (response.ok && Array.isArray(dataList) && dataList.length > 0) {
+          // Sinkronkan waktu/jam
+          setRemindersList((prevList) =>
+            prevList.map((item) => {
+              const matched = dataList.find(
+                (d: { jenis_pengingat: string }) => d.jenis_pengingat === item.key
+              );
+              return matched ? { ...item, time: matched.waktu_jadwal } : item;
+            })
+          );
+
+          // Sinkronkan toggle aktif/nonaktif
+          setEnabledReminders(
+            defaultReminders.map((item, idx) => {
+              const matched = dataList.find(
+                (d: { jenis_pengingat: string }) => d.jenis_pengingat === item.key
+              );
+              return matched !== undefined ? Boolean(matched.status_aktif) : true;
+            })
+          );
+        }
+      } catch (err) {
+        console.error("Gagal memuat jadwal dari database:", err);
+      }
+    };
+
+    fetchSavedReminders();
+  }, []);
 
   const toggleReminder = (index: number) => {
     setEnabledReminders((current) =>
@@ -618,7 +663,7 @@ export const ProfileAndReminderSettingsSection = () => {
                           </p>
                         </div>
 
-                        {/* Input Waktu/Interval Inline Langsung di Kolom (Tanpa Prompt Browser) */}
+                        {/* Input Waktu/Interval Inline Langsung di Kolom */}
                         <div className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#e1e7df] bg-white px-2.5 py-1 text-xs font-medium text-[#203d32] focus-within:border-[#167653] focus-within:ring-1 focus-within:ring-[#167653] transition-colors shadow-2xs">
                           <input
                             type="text"

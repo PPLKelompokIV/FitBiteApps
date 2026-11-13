@@ -127,3 +127,25 @@ def test_tc05_tambah_makanan_valid(driver):
 
     wait(driver).until(EC.text_to_be_present_in_element(tid("tabel-makanan"), nama_uji))
     assert nama_uji in nama_di_tabel(driver)
+
+
+def test_tc06_nama_kosong_ditolak(driver):
+    """TC-PBI05-003 (Negative): Submit form master makanan dengan nama makanan dibiarkan kosong."""
+    isi_form_makanan(driver, nama="", kategori="Serealia", kkal="150", protein="10", karbo="20", lemak="5")
+
+    pesan = wait(driver).until(EC.visibility_of_element_located(tid("error-nama"))).text
+    assert pesan == "Nama makanan wajib diisi"
+
+
+def test_tc07_duplikasi_nama_ditolak(driver):
+    """TC-PBI05-004 (Constraint): Menambahkan makanan master dengan nama yang sudah terdaftar ditolak."""
+    isi_form_makanan(driver, nama="Nasi merah matang", kategori="Serealia", kkal="110", protein="2.6", karbo="23", lemak="0.9")
+
+    toast = wait(driver).until(EC.visibility_of_element_located(tid("toast-notifikasi")))
+    assert toast.get_attribute("data-status") == "error"
+    assert "sudah ada di katalog" in toast.text
+
+    pesan_error = driver.find_element(*tid("error-nama")).text
+    assert "sudah ada di katalog" in pesan_error
+
+

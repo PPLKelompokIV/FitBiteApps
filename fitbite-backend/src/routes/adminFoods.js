@@ -88,6 +88,14 @@ router.post('/', (req, res) => {
 
   const { numBasis, numKkal, numProtein, numKarbo, numLemak } = validation.parsed;
 
+  // Cek duplikasi nama makanan (Unique Constraint)
+  if (foods.some((f) => f.nama.trim().toLowerCase() === nama.trim().toLowerCase())) {
+    return res.status(409).json({
+      message: `Makanan dengan nama "${nama}" sudah ada di katalog.`,
+      errors: { nama: 'Makanan dengan nama tersebut sudah ada di katalog' },
+    });
+  }
+
   const newFood = {
     id: foods.length > 0 ? Math.max(...foods.map((f) => f.id)) + 1 : 1,
     nama: nama.trim(),
