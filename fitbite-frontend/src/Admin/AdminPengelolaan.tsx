@@ -68,7 +68,7 @@ const VERIFIKASI_BADGE: Record<Verifikasi, string> = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'fitbite_foods';
-const API_URL = 'http://localhost:5000/api/admin/foods';
+const API_URL = 'http://localhost:8000/api/admin/foods';
 
 const fmt = (n: number | undefined | null): string =>
   typeof n === 'number' && !isNaN(n)
