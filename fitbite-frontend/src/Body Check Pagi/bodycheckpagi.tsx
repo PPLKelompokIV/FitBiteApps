@@ -67,15 +67,24 @@ export const BodyCheckPagi = (): ReactElement => {
       }
 
       const resData = await response.json();
+      const now = new Date();
+      const timeFormatted = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}`;
+
       if (resData.success && resData.overview) {
         setOverview(resData.overview);
         localStorage.setItem("fitbite_target_cairan_ml", resData.overview.water_ml.toString());
         localStorage.setItem("fitbite_berat_badan_kg", parsedWeight.toString());
+        localStorage.setItem("fitbite_sleep_duration", sleepDuration);
+        localStorage.setItem("fitbite_sleep_quality", sleepQuality);
+        localStorage.setItem("fitbite_energy_level", energyLevel.toString());
+        localStorage.setItem("fitbite_bodycheck_time", timeFormatted);
         setIsSaved(true);
         setToastMessage(`Body Check tersimpan! Target cairan dasar: ${resData.overview.water_ml.toLocaleString("id-ID")} ml (${resData.overview.water_formula})`);
       }
     } catch (err) {
       console.warn("Backend offline atau gagal terhubung, menggunakan kalkulasi otomatis:", err);
+      const now = new Date();
+      const timeFormatted = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}`;
       const calculatedWater = Math.round(35 * parsedWeight);
       const calculatedFormula = `35 ml × ${parsedWeight} kg`;
       setOverview({
@@ -90,6 +99,10 @@ export const BodyCheckPagi = (): ReactElement => {
       });
       localStorage.setItem("fitbite_target_cairan_ml", calculatedWater.toString());
       localStorage.setItem("fitbite_berat_badan_kg", parsedWeight.toString());
+      localStorage.setItem("fitbite_sleep_duration", sleepDuration);
+      localStorage.setItem("fitbite_sleep_quality", sleepQuality);
+      localStorage.setItem("fitbite_energy_level", energyLevel.toString());
+      localStorage.setItem("fitbite_bodycheck_time", timeFormatted);
       setIsSaved(true);
       setToastMessage(`Body Check tersimpan! Target cairan dasar: ${calculatedWater.toLocaleString("id-ID")} ml (${calculatedFormula})`);
     }

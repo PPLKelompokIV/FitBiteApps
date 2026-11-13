@@ -147,3 +147,46 @@ def test_ui_body_check_dan_sinkronisasi_hidrasi(driver):
 
     # 6. Verifikasi Target Dasar sudah tersinkronisasi menjadi 2.450 ml
     assert "2.450 ml" in driver.page_source or "35 ml × 70" in driver.page_source
+
+
+URL_DASHBOARD = "http://localhost:5173/dashboard-hari-ini"
+
+def test_ui_sinkronisasi_target_cairan_ke_halaman_utama_dashboard(driver):
+    """
+    Skenario FIT-48: Sinkronisasi tampilan target cairan terbaru ke halaman utama pengguna (Dashboard).
+    1. Buka halaman Body Check Pagi, simpan berat badan 70 kg (target dasar 2.450 ml).
+    2. Navigasi ke Halaman Utama / Dashboard pengguna (http://localhost:5173/dashboard-hari-ini).
+    3. Verifikasi kartu hidrasi di Dashboard menampilkan target cairan terbaru:
+       - Total target: 2.850 ml (Dasar 2.450 ml + 400 ml olahraga).
+       - Keterangan dasar: 2.450 ml (35 ml × 70 kg).
+    4. Klik tombol +250 ml di dashboard dan pastikan asupan air bertambah.
+    """
+    wait = WebDriverWait(driver, 10)
+
+    # 1. Buka Body Check Pagi dan simpan BB 70 kg
+    driver.get(URL_BODYCHECK)
+    wait.until(EC.visibility_of_element_located((By.XPATH, "//h1[contains(text(), 'Body Check')]")))
+    input_bb = wait.until(
+        EC.presence_of_element_located((By.XPATH, "//label[contains(text(), 'Berat badan')]/following::input[1]"))
+    )
+    input_bb.click()
+    input_bb.send_keys(Keys.CONTROL + "a")
+    input_bb.send_keys(Keys.BACKSPACE)
+    input_bb.send_keys("70,0")
+    time.sleep(0.5)
+
+    tombol_simpan = driver.find_element(By.XPATH, "//button[contains(., 'Simpan Body Check')]")
+    tombol_simpan.click()
+    time.sleep(1)
+
+    # 2. Buka Halaman Utama / Dashboard
+    driver.get(URL_DASHBOARD)
+    wait.until(EC.visibility_of_element_located((By.XPATH, "//strong[contains(text(), 'Hari ini')]")))
+
+    # 3. Verifikasi bahwa target cairan terbaru (2.850 ml & 2.450 ml) tersinkronisasi di Dashboard
+    page_source = driver.page_source
+    assert "2.850 ml" in page_source or "2.450" in page_source
+    assert "35 ml × 70" in page_source or "2.450 ml" in page_source
+
+    # 4. Verifikasi badge FIT-48 di Dashboard
+    assert "Target otomatis sinkron" in page_source

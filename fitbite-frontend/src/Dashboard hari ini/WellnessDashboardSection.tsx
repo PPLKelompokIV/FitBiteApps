@@ -143,6 +143,7 @@ const ActivityRow = ({
 export const WellnessDashboardSection = (): ReactElement => {
   const [water, setWater] = useState(1750);
   const baseWater = Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240;
+  const userWeight = localStorage.getItem("fitbite_berat_badan_kg") || "64";
   const totalWaterTarget = baseWater + 400;
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
   const [mealList, setMealList] = useState<Array<{ name: string; calories: number; time: string }>>([]);
@@ -261,7 +262,7 @@ export const WellnessDashboardSection = (): ReactElement => {
           </div>
           <div className="h-[30px] w-px bg-[#ccdccc]" />
           {[
-            ["Berat", "64,0 kg"],
+            ["Berat", `${Number(userWeight).toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`],
             ["Tidur", "7,5 jam • nyenyak"],
             ["Energi", "4/5 • berenergi"],
           ].map(([label, value]) => (
@@ -411,7 +412,7 @@ export const WellnessDashboardSection = (): ReactElement => {
               </div>
             </div>
             <p className="[font-family:'Inter-Regular',Helvetica] text-[11px] leading-[16.5px] text-[#728078]">
-              Dasar {baseWater.toLocaleString("id-ID")} + bonus olahraga 400 ml
+              Dasar {baseWater.toLocaleString("id-ID")} ml (35 ml × {userWeight} kg) + bonus 400 ml
             </p>
             <div className="flex w-full gap-[9px]">
               <ActionButton
