@@ -142,6 +142,8 @@ const ActivityRow = ({
 
 export const WellnessDashboardSection = (): ReactElement => {
   const [water, setWater] = useState(1750);
+  const baseWater = Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240;
+  const totalWaterTarget = baseWater + 400;
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
   const [mealList, setMealList] = useState<Array<{ name: string; calories: number; time: string }>>([]);
   const navigate = useNavigate();
@@ -389,7 +391,7 @@ export const WellnessDashboardSection = (): ReactElement => {
               <div className="relative h-[125px] w-[78px] overflow-hidden rounded-[8px_8px_20px_20px] border-2 border-[#c5dde3] bg-[#ecf5f7]">
                 <div
                   className="absolute bottom-0 left-0 w-full bg-[#a8ccd7]"
-                  style={{ height: `${Math.min(100, (water / 2640) * 100)}%` }}
+                  style={{ height: `${Math.min(100, (water / totalWaterTarget) * 100)}%` }}
                 />
                 <div className="absolute -left-2.5 top-[34px] h-5 w-[100px] rounded-[50px/10px] bg-[#a8ccd7]" />
               </div>
@@ -401,7 +403,7 @@ export const WellnessDashboardSection = (): ReactElement => {
                   </span>
                 </p>
                 <p className="[font-family:'Inter-Regular',Helvetica] text-xs leading-[18px] text-[#728078]">
-                  dari 2.640 ml • %
+                  dari {totalWaterTarget.toLocaleString("id-ID")} ml • %
                 </p>
                 <span className="rounded-[100px] bg-[#ecf5f7] px-2.5 py-1 [font-family:'Inter-SemiBold',Helvetica] text-[11px] font-semibold leading-[16.5px] text-[#4b8dab]">
                   Tersisa ml
@@ -409,11 +411,11 @@ export const WellnessDashboardSection = (): ReactElement => {
               </div>
             </div>
             <p className="[font-family:'Inter-Regular',Helvetica] text-[11px] leading-[16.5px] text-[#728078]">
-              Dasar 2.240 + bonus olahraga 400 ml
+              Dasar {baseWater.toLocaleString("id-ID")} + bonus olahraga 400 ml
             </p>
             <div className="flex w-full gap-[9px]">
               <ActionButton
-                onClick={() => setWater((value) => Math.min(2640, value + 250))}
+                onClick={() => setWater((value) => Math.min(totalWaterTarget, value + 250))}
               >
                 +250 ml
               </ActionButton>
@@ -421,7 +423,7 @@ export const WellnessDashboardSection = (): ReactElement => {
                 <ActionButton
                   primary
                   onClick={() =>
-                    setWater((value) => Math.min(2640, value + 500))
+                    setWater((value) => Math.min(totalWaterTarget, value + 500))
                   }
                 >
                   +500 ml
