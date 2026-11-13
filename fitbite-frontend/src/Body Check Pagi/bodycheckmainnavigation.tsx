@@ -222,21 +222,22 @@ export const BodyCheckBanner = ({ isSaved }: BodyCheckBannerProps): ReactElement
         </h1>
         <p className="mt-1 text-xs text-[#7a8c82]">
           Senin, 19 Oktober 2026 • 06.45 WIB •{" "}
-          <span className={isSaved ? "text-[#1a6e4d] font-medium" : ""}>
-            {isSaved ? "Tersimpan" : "Sebelum disimpan"}
+          <span className={isSaved ? "text-[#1a6e4d] font-bold" : ""}>
+            {isSaved ? "Tersimpan" : "Belum disimpan"}
           </span>
         </p>
       </div>
 
-      {/* Information Notice Banner */}
+      {/* Information Notice Banner (Berubah teks jika sudah di-save) */}
       <section
         aria-label="Pemberitahuan Body Check"
         className="mt-5 flex items-center gap-3 rounded-2xl bg-[#eaf4ec] px-4 py-3 text-xs font-medium leading-relaxed text-[#22553f] sm:text-[13px]"
       >
         <SunMedium className="h-4 w-4 shrink-0 text-[#1a6e4d]" />
         <span>
-          Satu check-in setiap hari. Luangkan satu menit sebelum memulai aktivitas;
-          target akan ditetapkan setelah kamu menyimpan.
+          {isSaved 
+            ? "Body Check untuk hari ini sudah direkam. Terus pantau aktivitas dan hidrasimu ya!" 
+            : "Satu check-in setiap hari. Luangkan satu menit sebelum memulai aktivitas; target akan ditetapkan setelah kamu menyimpan."}
         </span>
       </section>
     </div>
@@ -260,7 +261,7 @@ interface BodyCheckFormSectionProps {
   setPlannedIntensity: (v: PlannedIntensity) => void;
   isSaved: boolean;
   onSave: () => void;
-  toastMessage: string | null;
+  toastMessage?: string | null;
 }
 
 export const BodyCheckFormSection = ({
@@ -450,10 +451,12 @@ export const BodyCheckFormSection = ({
         <button
           type="button"
           onClick={onSave}
-          className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#13573e] px-6 py-3 text-xs font-semibold text-white shadow-xs transition-all hover:bg-[#0f4632] active:scale-95 whitespace-nowrap sm:text-sm"
+          className={`flex cursor-pointer items-center gap-2 rounded-xl px-6 py-3 text-xs font-semibold text-white shadow-xs transition-all hover:bg-[#0f4632] active:scale-95 whitespace-nowrap sm:text-sm ${
+            isSaved ? "bg-[#0f4632]" : "bg-[#13573e]"
+          }`}
         >
           <Check className="h-4 w-4 stroke-[2.5]" />
-          <span>Simpan Body Check</span>
+          <span>{isSaved ? "Tersimpan" : "Simpan Body Check"}</span>
         </button>
       </div>
 
@@ -471,7 +474,16 @@ export const BodyCheckFormSection = ({
 // 6. RIGHT OVERVIEW & METRICS CARDS
 // ==========================================
 
-export const BodyCheckOverviewSection = (): ReactElement => {
+export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any }): ReactElement => {
+  // Jika overviewData kosong, kita gunakan default value bawaan UI sebagai fallback
+  const calories = overviewData ? overviewData.calories : "1.700";
+  const protein = overviewData ? overviewData.protein : "100";
+  const carbs = overviewData ? overviewData.carbs : "190";
+  const fat = overviewData ? overviewData.fat : "60";
+  const bmr = overviewData ? overviewData.bmr : "1.339";
+  const tdee = overviewData ? overviewData.tdee : "2.000";
+  const water = overviewData ? overviewData.water_ml : "2.240";
+
   return (
     <div className="space-y-4 lg:col-span-4">
       {/* 1. Dark Green Summary Card */}
@@ -492,7 +504,7 @@ export const BodyCheckOverviewSection = (): ReactElement => {
         {/* Value */}
         <div className="mt-2 flex items-baseline">
           <span className="text-4xl font-extrabold tracking-tight text-white">
-            1.700
+            {calories}
           </span>
           <span className="ml-1.5 text-sm font-medium text-[#9ae4c0]">
             kkal
@@ -506,15 +518,15 @@ export const BodyCheckOverviewSection = (): ReactElement => {
         <div className="mt-5 grid grid-cols-3 gap-2 pt-2">
           <div>
             <span className="text-xs text-[#8cbda8]">Protein</span>
-            <p className="mt-0.5 text-sm font-bold text-white">100 g</p>
+            <p className="mt-0.5 text-sm font-bold text-white">{protein} g</p>
           </div>
           <div>
             <span className="text-xs text-[#8cbda8]">Karbo</span>
-            <p className="mt-0.5 text-sm font-bold text-white">190 g</p>
+            <p className="mt-0.5 text-sm font-bold text-white">{carbs} g</p>
           </div>
           <div>
             <span className="text-xs text-[#8cbda8]">Lemak</span>
-            <p className="mt-0.5 text-sm font-bold text-white">60 g</p>
+            <p className="mt-0.5 text-sm font-bold text-white">{fat} g</p>
           </div>
         </div>
       </div>
@@ -533,7 +545,7 @@ export const BodyCheckOverviewSection = (): ReactElement => {
               <p className="text-[11px] text-[#809187]">Mifflin–St Jeor</p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#183d30] sm:text-sm">
-              1.339 kkal
+              {bmr} kkal
             </span>
           </div>
 
@@ -548,7 +560,7 @@ export const BodyCheckOverviewSection = (): ReactElement => {
               </p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#183d30] sm:text-sm">
-              2.000 kkal
+              {tdee} kkal
             </span>
           </div>
 
@@ -558,10 +570,10 @@ export const BodyCheckOverviewSection = (): ReactElement => {
               <h3 className="text-xs font-bold text-[#183d30]">
                 Air dasar
               </h3>
-              <p className="text-[11px] text-[#809187]">35 ml × 64 kg</p>
+              <p className="text-[11px] text-[#809187]">35 ml × berat badan</p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#183d30] sm:text-sm">
-              2.240 ml
+              {water} ml
             </span>
           </div>
         </div>
@@ -602,4 +614,3 @@ export const BodyCheckFooter = (): ReactElement => {
     </footer>
   );
 };
-
