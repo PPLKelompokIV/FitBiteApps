@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from "react";
+import { useState, useEffect, type ReactElement } from "react";
 import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 import {
   BodyCheckHeader,
@@ -8,26 +8,95 @@ import {
   BodyCheckFooter,
   type SleepQuality,
   type PlannedIntensity,
+  type BodyCheckOverviewData,
 } from "./bodycheckmainnavigation";
 
 export const BodyCheckPagi = (): ReactElement => {
   // Form State
-  const [weight, setWeight] = useState("64,0");
+  const [weight, setWeight] = useState(() => localStorage.getItem("fitbite_berat_badan_kg")?.replace(".", ",") || "64,0");
   const [sleepDuration, setSleepDuration] = useState("7,5");
   const [sleepQuality, setSleepQuality] = useState<SleepQuality>("Nyenyak");
   const [energyLevel, setEnergyLevel] = useState<number>(4);
   const [plannedIntensity, setPlannedIntensity] = useState<PlannedIntensity>("Tinggi");
   
-  // UI State
+  // UI & Overview State
+  const [overview, setOverview] = useState<BodyCheckOverviewData | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const handleSave = () => {
-    setIsSaved(true);
-    setToastMessage("Body Check tersimpan!");
+  // Ambil data tersimpan jika ada di localStorage
+  useEffect(() => {
+    const savedTarget = localStorage.getItem("fitbite_target_cairan_ml");
+    const savedWeight = localStorage.getItem("fitbite_berat_badan_kg");
+    if (savedTarget && savedWeight) {
+      const wNum = parseFloat(savedWeight);
+      const targetNum = parseInt(savedTarget, 10);
+      setOverview({
+        calories: 1700,
+        protein: 100,
+        carbs: 190,
+        fat: 60,
+        bmr: 1319,
+        tdee: 2000,
+        water_ml: targetNum,
+        water_formula: `35 ml × ${wNum} kg`,
+      });
+      setIsSaved(true);
+    }
+  }, []);
+
+  const handleSave = async () => {
+    const parsedWeight = parseFloat(weight.replace(",", ".")) || 64.0;
+    const parsedSleep = parseFloat(sleepDuration.replace(",", ".")) || 7.5;
+
+    try {
+      const response = await fetch("http://localhost:8000/api/body-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weight: parsedWeight,
+          sleepDuration: parsedSleep,
+          sleepQuality: sleepQuality,
+          energyLevel: energyLevel,
+          plannedIntensity: plannedIntensity,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+
+      const resData = await response.json();
+      if (resData.success && resData.overview) {
+        setOverview(resData.overview);
+        localStorage.setItem("fitbite_target_cairan_ml", resData.overview.water_ml.toString());
+        localStorage.setItem("fitbite_berat_badan_kg", parsedWeight.toString());
+        setIsSaved(true);
+        setToastMessage(`Body Check tersimpan! Target cairan dasar: ${resData.overview.water_ml.toLocaleString("id-ID")} ml (${resData.overview.water_formula})`);
+      }
+    } catch (err) {
+      console.warn("Backend offline atau gagal terhubung, menggunakan kalkulasi otomatis:", err);
+      const calculatedWater = Math.round(35 * parsedWeight);
+      const calculatedFormula = `35 ml × ${parsedWeight} kg`;
+      setOverview({
+        calories: 1700,
+        protein: 100,
+        carbs: 190,
+        fat: 60,
+        bmr: 1319,
+        tdee: 2000,
+        water_ml: calculatedWater,
+        water_formula: calculatedFormula,
+      });
+      localStorage.setItem("fitbite_target_cairan_ml", calculatedWater.toString());
+      localStorage.setItem("fitbite_berat_badan_kg", parsedWeight.toString());
+      setIsSaved(true);
+      setToastMessage(`Body Check tersimpan! Target cairan dasar: ${calculatedWater.toLocaleString("id-ID")} ml (${calculatedFormula})`);
+    }
+
     setTimeout(() => {
       setToastMessage(null);
-    }, 3000);
+    }, 4000);
   };
 
   return (
@@ -65,8 +134,8 @@ export const BodyCheckPagi = (): ReactElement => {
                   toastMessage={toastMessage}
                 />
 
-                {/* Right Overview & Insights */}
-                <BodyCheckOverviewSection />
+                {/* Right Overview & Insights (Terkoneksi dinamis FIT-47) */}
+                <BodyCheckOverviewSection overview={overview} weight={weight} />
               </div>
             </div>
           </main>

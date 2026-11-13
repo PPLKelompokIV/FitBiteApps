@@ -178,7 +178,8 @@ export const DashboardHariIni = () => {
     0,
     calorieTargets.calorieTarget + caloriesBurned - caloriesConsumed,
   );
-  const waterTarget = 2640;
+  const baseWater = Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240;
+  const waterTarget = baseWater + 400;
   const waterPercent = Math.min(100, (water / waterTarget) * 100);
   const remainingWater = Math.max(0, waterTarget - water);
   const handleSaveMeal = (newMeal) => {
@@ -432,7 +433,7 @@ export const DashboardHariIni = () => {
                 </div>
               </div>
               <p className="text-[11px] leading-[17px] text-[#728078]">
-                Dasar 2.240 + bonus olahraga 400 ml
+                Dasar {baseWater.toLocaleString("id-ID")} + bonus olahraga 400 ml
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button

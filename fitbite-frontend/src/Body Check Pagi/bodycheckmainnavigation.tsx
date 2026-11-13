@@ -335,7 +335,28 @@ export const BodyCheckFormSection = ({
 // 5. RIGHT OVERVIEW & METRICS CARDS
 // ==========================================
 
-export const BodyCheckOverviewSection = (): ReactElement => {
+export interface BodyCheckOverviewData {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  bmr: number;
+  tdee: number;
+  water_ml: number;
+  water_formula?: string;
+}
+
+export const BodyCheckOverviewSection = ({
+  overview,
+  weight,
+}: {
+  overview?: BodyCheckOverviewData | null;
+  weight?: string;
+}): ReactElement => {
+  const numericWeight = parseFloat((weight || "64").replace(",", ".")) || 64;
+  const currentWater = overview?.water_ml ?? Math.round(35 * numericWeight);
+  const currentFormula = overview?.water_formula ?? `35 ml × ${numericWeight} kg`;
+
   return (
     <div className="space-y-4 lg:col-span-4">
       {/* 1. Dark Green Summary Card */}
@@ -356,7 +377,7 @@ export const BodyCheckOverviewSection = (): ReactElement => {
         {/* Value */}
         <div className="mt-2 flex items-baseline">
           <span className="text-4xl font-extrabold tracking-tight text-white">
-            1.700
+            {(overview?.calories ?? 1700).toLocaleString("id-ID")}
           </span>
           <span className="ml-1.5 text-sm font-medium text-[#9ae4c0]">
             kkal
@@ -370,15 +391,21 @@ export const BodyCheckOverviewSection = (): ReactElement => {
         <div className="mt-5 grid grid-cols-3 gap-2 pt-2">
           <div>
             <span className="text-xs text-[#8cbda8]">Protein</span>
-            <p className="mt-0.5 text-sm font-bold text-white">100 g</p>
+            <p className="mt-0.5 text-sm font-bold text-white">
+              {overview?.protein ?? 100} g
+            </p>
           </div>
           <div>
             <span className="text-xs text-[#8cbda8]">Karbo</span>
-            <p className="mt-0.5 text-sm font-bold text-white">190 g</p>
+            <p className="mt-0.5 text-sm font-bold text-white">
+              {overview?.carbs ?? 190} g
+            </p>
           </div>
           <div>
             <span className="text-xs text-[#8cbda8]">Lemak</span>
-            <p className="mt-0.5 text-sm font-bold text-white">60 g</p>
+            <p className="mt-0.5 text-sm font-bold text-white">
+              {overview?.fat ?? 60} g
+            </p>
           </div>
         </div>
       </div>
@@ -397,7 +424,7 @@ export const BodyCheckOverviewSection = (): ReactElement => {
               <p className="text-[11px] text-[#809187]">Mifflin–St Jeor</p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#183d30] sm:text-sm">
-              1.339 kkal
+              {(overview?.bmr ?? 1319).toLocaleString("id-ID")} kkal
             </span>
           </div>
 
@@ -412,20 +439,20 @@ export const BodyCheckOverviewSection = (): ReactElement => {
               </p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#183d30] sm:text-sm">
-              2.000 kkal
+              {(overview?.tdee ?? 2000).toLocaleString("id-ID")} kkal
             </span>
           </div>
 
-          {/* Metric 3: Air dasar */}
+          {/* Metric 3: Air dasar (FIT-47 Otomatis 35 ml x berat badan) */}
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-xs font-bold text-[#183d30]">
                 Air dasar
               </h3>
-              <p className="text-[11px] text-[#809187]">35 ml × 64 kg</p>
+              <p className="text-[11px] text-[#809187]">{currentFormula}</p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#183d30] sm:text-sm">
-              2.240 ml
+              {currentWater.toLocaleString("id-ID")} ml
             </span>
           </div>
         </div>

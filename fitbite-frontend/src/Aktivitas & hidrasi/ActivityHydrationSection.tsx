@@ -1,4 +1,3 @@
-import { WaterGlass } from "./WaterGlass";
 import React, { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   ChevronRight,
@@ -266,8 +265,12 @@ export const ActivityAndHydrationSection = (): ReactElement => {
       200
   );
 
-  const progress = Math.round((hydration / 2640) * 100);
-  const remainingHydration = Math.max(0, 2640 - hydration);
+  // Sinkronisasi target cairan dasar dari Body Check (FIT-47)
+  const baseWaterTarget = Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240;
+  const userWeight = localStorage.getItem("fitbite_berat_badan_kg") || "64";
+  const totalWaterTarget = baseWaterTarget + 400; // + bonus olahraga intens (400 ml)
+  const progress = Math.round((hydration / totalWaterTarget) * 100);
+  const remainingHydration = Math.max(0, totalWaterTarget - hydration);
 
   return (
     <main className="relative flex h-screen min-h-0 min-w-0 flex-1 flex-col items-start overflow-y-auto bg-[#f7f9f5] text-[#203d32]">
@@ -506,16 +509,25 @@ export const ActivityAndHydrationSection = (): ReactElement => {
               <h2 className="text-lg font-bold text-[#124b39]">Isi ulang energimu</h2>
               <p className="mt-1 text-xs text-[#728078]">Hidrasi hari ini</p>
               <div className="mt-[18px] flex items-center gap-[23px]">
-                <WaterGlass progress={progress} />
+                <div className="relative h-40 w-[82px] overflow-hidden rounded-[22px] border-2 border-[#c5dde3] bg-[#ecf5f7]">
+                  <div
+                    className="absolute bottom-0 left-0 w-full bg-[#a8ccd7] transition-all duration-300"
+                    style={{ height: `${Math.max(0, Math.min(100, progress))}%` }}
+                  />
+                  <div className="relative p-2 text-[#4b8dab]">
+                    <Droplets className="h-[25px] w-[25px]" />
+                  </div>
+                </div>
                 <div>
                   <p className="text-[29px] font-bold text-[#124b39]">
-                    {hydration} <span className="text-xs font-normal text-[#728078]">ml</span>
+                    {hydration.toLocaleString("id-ID")}{" "}
+                    <span className="text-xs font-normal text-[#728078]">ml</span>
                   </p>
-                  <p className="text-xs text-[#728078]">dari 2.640 ml</p>
+                  <p className="text-xs text-[#728078]">dari {totalWaterTarget.toLocaleString("id-ID")} ml</p>
                   <span className="mt-2 inline-block rounded-full bg-[#ecf5f7] px-2.5 py-1 text-[11px] font-semibold text-[#4b8dab]">
                     {progress}% tercapai
                   </span>
-                  <p className="mt-1 text-[11px] text-[#728078]">Tersisa {remainingHydration} ml</p>
+                  <p className="mt-1 text-[11px] text-[#728078]">Tersisa {remainingHydration.toLocaleString("id-ID")} ml</p>
                 </div>
               </div>
               <div className="mt-5">
@@ -573,9 +585,9 @@ export const ActivityAndHydrationSection = (): ReactElement => {
                 <div className="flex justify-between">
                   <span>
                     <strong className="block font-semibold">Target dasar</strong>
-                    <small className="text-[11px] text-[#728078]">35 ml × 64 kg</small>
+                    <small className="text-[11px] text-[#728078]">35 ml × {userWeight} kg</small>
                   </span>
-                  <strong className="font-bold">2.240 ml</strong>
+                  <strong className="font-bold">{baseWaterTarget.toLocaleString("id-ID")} ml</strong>
                 </div>
                 <div className="flex justify-between">
                   <span>
