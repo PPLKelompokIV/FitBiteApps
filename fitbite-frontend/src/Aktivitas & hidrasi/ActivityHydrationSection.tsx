@@ -81,7 +81,7 @@ const suggestions = [
 ];
 
 export const ActivityAndHydrationSection = (): ReactElement => {
-  const API_BASE = "http://localhost:5000/api/water-logs";
+  const API_BASE = "http://localhost:8000/api/water-logs";
 
   const [selectedActivity, setSelectedActivity] = useState("Jalan kaki");
   const [duration, setDuration] = useState("20");

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.models import reminder, food_log, water_log
-from app.routers import reminders, food_logs, water_logs
+from app.routers import reminders, food_logs, water_logs, admin_foods, body_check
 
 # Otomatis membuat tabel di PostgreSQL jika belum ada (dengan proteksi jika DB belum online)
 try:
@@ -23,3 +23,6 @@ app.add_middleware(
 
 app.include_router(reminders.router)
 app.include_router(food_logs.router)
+app.include_router(water_logs.router)
+app.include_router(admin_foods.router)
+app.include_router(body_check.router)
