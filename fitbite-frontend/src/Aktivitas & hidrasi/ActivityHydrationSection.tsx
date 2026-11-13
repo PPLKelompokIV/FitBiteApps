@@ -1,4 +1,3 @@
-import { WaterGlass } from "./WaterGlass";
 import React, { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   ChevronRight,
@@ -506,16 +505,25 @@ export const ActivityAndHydrationSection = (): ReactElement => {
               <h2 className="text-lg font-bold text-[#124b39]">Isi ulang energimu</h2>
               <p className="mt-1 text-xs text-[#728078]">Hidrasi hari ini</p>
               <div className="mt-[18px] flex items-center gap-[23px]">
-                <WaterGlass progress={progress} />
+                <div className="relative h-40 w-[82px] overflow-hidden rounded-[22px] border-2 border-[#c5dde3] bg-[#ecf5f7]">
+                  <div
+                    className="absolute bottom-0 left-0 w-full bg-[#a8ccd7] transition-all duration-300"
+                    style={{ height: `${Math.max(0, Math.min(100, progress))}%` }}
+                  />
+                  <div className="relative p-2 text-[#4b8dab]">
+                    <Droplets className="h-[25px] w-[25px]" />
+                  </div>
+                </div>
                 <div>
                   <p className="text-[29px] font-bold text-[#124b39]">
-                    {hydration} <span className="text-xs font-normal text-[#728078]">ml</span>
+                    {hydration.toLocaleString("id-ID")}{" "}
+                    <span className="text-xs font-normal text-[#728078]">ml</span>
                   </p>
                   <p className="text-xs text-[#728078]">dari 2.640 ml</p>
                   <span className="mt-2 inline-block rounded-full bg-[#ecf5f7] px-2.5 py-1 text-[11px] font-semibold text-[#4b8dab]">
                     {progress}% tercapai
                   </span>
-                  <p className="mt-1 text-[11px] text-[#728078]">Tersisa {remainingHydration} ml</p>
+                  <p className="mt-1 text-[11px] text-[#728078]">Tersisa {remainingHydration.toLocaleString("id-ID")} ml</p>
                 </div>
               </div>
               <div className="mt-5">
