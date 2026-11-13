@@ -1,10 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import reminders, food_logs
+from app.models import reminder, food_log, water_log
+from app.routers import reminders, food_logs, water_logs
 
-# Otomatis membuat tabel smart_reminder dan food_log di PostgreSQL
-Base.metadata.create_all(bind=engine)
+# Otomatis membuat tabel di PostgreSQL jika belum ada (dengan proteksi jika DB belum online)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Warning: Database connection failed during startup: {e}")
 
 app = FastAPI(title="FitBite API", version="1.0")
 
