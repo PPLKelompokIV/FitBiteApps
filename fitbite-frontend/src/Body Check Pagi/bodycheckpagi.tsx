@@ -11,12 +11,14 @@ import {
 } from "./bodycheckmainnavigation";
 
 export const BodyCheckPagi = (): ReactElement => {
-  // Form State initialized to match reference frame exactly
+  // Form State
   const [weight, setWeight] = useState("64,0");
   const [sleepDuration, setSleepDuration] = useState("7,5");
   const [sleepQuality, setSleepQuality] = useState<SleepQuality>("Nyenyak");
   const [energyLevel, setEnergyLevel] = useState<number>(4);
   const [plannedIntensity, setPlannedIntensity] = useState<PlannedIntensity>("Tinggi");
+  
+  // UI State
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
