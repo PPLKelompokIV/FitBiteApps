@@ -1,7 +1,20 @@
-import { HeaderSection } from "./HeaderSection";
-import { HealthProfileSetupSection } from "./HealthProfileSetupSection";
+import React from 'react';
 
-export const ProfilKesehatan = (): JSX.Element => {
+const HeaderSection = () => (
+  <header className="flex w-full items-center px-6 py-4">
+    <h1 className="text-lg font-semibold text-[#1f2a1f]">Profil Kesehatan</h1>
+  </header>
+);
+
+const HealthProfileSetupSection = () => (
+  <section className="flex w-full flex-col items-start px-6 py-4">
+    <h2 className="text-base font-medium text-[#1f2a1f]">
+      Pengaturan profil kesehatan
+    </h2>
+  </section>
+);
+
+export const ProfilKesehatan = () => {
   return (
     <div className="flex min-h-[1100px] flex-col items-start relative bg-[#f6f7f2]">
       <HeaderSection />

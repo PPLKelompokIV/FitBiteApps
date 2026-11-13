@@ -1,6 +1,7 @@
+import type { ReactElement } from "react";
 import vector from "./vector.svg";
 
-export const HeaderSection = (): JSX.Element => {
+export const HeaderSection = (): ReactElement => {
   return (
     <header className="flex h-[86px] items-center justify-between px-[52px] py-0 relative self-stretch w-full bg-white border-b [border-bottom-style:solid] border-[#e1e7df]">
       <a
