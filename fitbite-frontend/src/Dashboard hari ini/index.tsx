@@ -535,7 +535,7 @@ export const DashboardHariIni = () => {
                   Dasar {baseWater.toLocaleString("id-ID")} ml (35 ml × {userWeight} kg) + bonus 400 ml
                 </p>
                 <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#edf7f0] px-2 py-0.5 text-[10px] font-medium text-[#167653]">
-                  <Sparkles size={11} /> Target otomatis sinkron (FIT-48)
+                  <Sparkles size={11} /> Target otomatis
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2">
