@@ -2,7 +2,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Menggunakan koneksi lokal langsung (aman tanpa file .env)
+# Ganti default ke SQLite agar bisa langsung jalan di laptop Anda tanpa PostgreSQL
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+psycopg2://postgres:Aqumiabi12!@localhost:5432/fitbite_db"
