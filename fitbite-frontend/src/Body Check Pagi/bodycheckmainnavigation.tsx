@@ -1,25 +1,12 @@
 import type { ReactElement } from "react";
-import { Link, useLocation } from "react-router-dom";
 import {
-  LayoutGrid,
-  Sun,
   SunMedium,
-  Utensils,
-  Activity,
-  CalendarCheck,
-  TrendingUp,
-  SlidersHorizontal,
-  Sprout,
-  User,
-  ArrowUpRight,
   ChevronRight,
   Bell,
   Sparkles,
   Check,
   Heart,
-  type LucideIcon,
 } from "lucide-react";
-import identitasFitbite from "../assets/Identitas FitBite (1).png";
 
 // ==========================================
 // 1. TYPES DEFINITIONS
@@ -38,130 +25,7 @@ export interface BodyCheckFormData {
 }
 
 // ==========================================
-// 2. SIDEBAR NAVIGATION
-// ==========================================
-
-interface NavigationItem {
-  label: string;
-  icon: LucideIcon;
-  to: string;
-}
-
-const navigationItems: NavigationItem[] = [
-  { label: "Hari ini", icon: LayoutGrid, to: "#hari-ini" },
-  { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
-  { label: "Jurnal makanan", icon: Utensils, to: "/foto-ai" },
-  { label: "Aktivitas & hidrasi", icon: Activity, to: "#aktivitas" },
-  { label: "Jurnal & evaluasi", icon: CalendarCheck, to: "#jurnal" },
-  { label: "Progres", icon: TrendingUp, to: "#progres" },
-  { label: "Profil & pengingat", icon: SlidersHorizontal, to: "/profil-pengingat" },
-];
-
-export const BodyCheckSidebar = (): ReactElement => {
-  const location = useLocation();
-
-  return (
-    <aside
-      className="sticky top-0 flex h-screen w-[216px] shrink-0 flex-col items-start justify-between self-stretch border-r border-[#e1e7df] bg-white px-[18px] py-[28px] overflow-y-auto"
-      aria-label="Navigasi FitBite"
-    >
-      <div className="flex w-full flex-col items-start gap-[30px]">
-        {/* Logo */}
-        <header className="inline-flex items-center gap-2.5">
-          <img
-            className="h-7 w-auto max-w-[120px] object-contain px-1"
-            alt="Identitas FitBite"
-            src={identitasFitbite}
-          />
-        </header>
-
-        {/* Navigation Items */}
-        <nav
-          className="flex w-full flex-col items-start gap-[6px]"
-          aria-label="Ruang sehatmu"
-        >
-          <h2 className="mb-1 px-2.5 text-[10px] font-bold uppercase leading-[15px] tracking-wider text-[#728078]">
-            RUANG SEHATMU
-          </h2>
-          {navigationItems.map((item) => {
-            const isActive =
-              item.to === "/bodycheckpagi"
-                ? location.pathname === "/bodycheckpagi"
-                : location.pathname === item.to;
-            const IconComponent = item.icon;
-            const linkClassName = `flex w-full items-center gap-3 rounded-[10px] px-[12px] py-2.5 text-left transition-colors ${
-              isActive
-                ? "bg-[#eaf3e9] font-bold text-[#167653]"
-                : "bg-transparent font-medium text-[#728078] hover:bg-[#f4f7f3]"
-            }`;
-
-            return (
-              <Link
-                key={item.label}
-                to={item.to}
-                aria-current={isActive ? "page" : undefined}
-                className={linkClassName}
-              >
-                <IconComponent
-                  className={`h-[18px] w-[18px] shrink-0 ${
-                    isActive ? "text-[#167653]" : "text-[#728078]"
-                  }`}
-                  strokeWidth={isActive ? 2.2 : 1.8}
-                />
-                <span className="flex-1 text-xs leading-[18px]">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Motivational Card */}
-        <section
-          className="flex w-full flex-col items-start gap-2 rounded-2xl bg-[#eaf3e9] p-4"
-          aria-label="Pesan motivasi"
-        >
-          <Sprout className="h-6 w-6 text-[#167653]" strokeWidth={1.8} />
-          <h2 className="mt-0.5 text-[13px] font-bold leading-[18.5px] text-[#124b39]">
-            Konsisten, bukan sempurna.
-          </h2>
-          <p className="text-[11px] font-normal leading-[16px] text-[#728078]">
-            Satu pilihan baik hari ini adalah langkah maju untuk dirimu.
-          </p>
-        </section>
-      </div>
-
-      {/* User profile footer */}
-      <footer className="flex w-full flex-col items-start gap-3.5 pt-6">
-        <div className="h-px w-full bg-[#e1e7df]" aria-hidden="true" />
-        <div className="flex w-full items-center gap-3">
-          <div
-            className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#eaf3e9] text-[#167653]"
-            aria-hidden="true"
-          >
-            <User className="h-[18px] w-[18px]" strokeWidth={2} />
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col items-start">
-            <div className="w-full truncate text-[13px] font-semibold leading-[18px] text-[#203d32]">
-              Nadia Putri
-            </div>
-            <div className="text-[11px] font-normal leading-[16px] text-[#728078]">
-              Anggota FitBite
-            </div>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-[11px] font-normal leading-[16.5px] text-[#728078] transition-colors hover:text-[#203d32]"
-        >
-          <span>Keluar dari akun</span>
-          <ArrowUpRight className="h-3 w-3" />
-        </button>
-      </footer>
-    </aside>
-  );
-};
-
-// ==========================================
-// 3. TOP BREADCRUMB & HEADER
+// 2. TOP BREADCRUMB & HEADER
 // ==========================================
 
 export const BodyCheckHeader = (): ReactElement => {
@@ -202,7 +66,7 @@ export const BodyCheckHeader = (): ReactElement => {
 };
 
 // ==========================================
-// 4. TITLE & NOTICE BANNER
+// 3. TITLE & NOTICE BANNER
 // ==========================================
 
 interface BodyCheckBannerProps {
@@ -217,8 +81,8 @@ export const BodyCheckBanner = ({ isSaved }: BodyCheckBannerProps): ReactElement
         <span className="text-[11px] font-bold uppercase tracking-wider text-[#1a6e4d]">
           BODY CHECK PAGI
         </span>
-        <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-[#143d30] sm:text-[28px]">
-          Selamat pagi, Nadia <span className="text-xl sm:text-2xl">☀️</span>
+        <h1 className="mt-1 flex items-center gap-2 text-[32px] font-normal leading-[40px] tracking-[-0.3px] text-[#203d32]">
+          Selamat pagi, Nadia <span className="text-[32px] leading-[40px]">☀️</span>
         </h1>
         <p className="mt-1 text-xs text-[#7a8c82]">
           Senin, 19 Oktober 2026 • 06.45 WIB •{" "}
@@ -245,7 +109,7 @@ export const BodyCheckBanner = ({ isSaved }: BodyCheckBannerProps): ReactElement
 };
 
 // ==========================================
-// 5. MAIN FORM SECTION
+// 4. MAIN FORM SECTION
 // ==========================================
 
 interface BodyCheckFormSectionProps {
@@ -471,7 +335,7 @@ export const BodyCheckFormSection = ({
 };
 
 // ==========================================
-// 6. RIGHT OVERVIEW & METRICS CARDS
+// 5. RIGHT OVERVIEW & METRICS CARDS
 // ==========================================
 
 export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any }): ReactElement => {
@@ -601,7 +465,7 @@ export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any 
 };
 
 // ==========================================
-// 7. FOOTER
+// 6. FOOTER
 // ==========================================
 
 export const BodyCheckFooter = (): ReactElement => {

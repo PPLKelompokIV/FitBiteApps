@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional, Tuple
-from fastapi import APIRouter, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request, status  # type: ignore
+from fastapi.responses import JSONResponse  # type: ignore
 
 router = APIRouter(prefix="/api/admin/foods", tags=["Pengelolaan Katalog Makanan Admin"])
 
@@ -109,6 +109,17 @@ async def create_food(request: Request):
         )
 
     nama = str(body.get("nama", "")).strip()
+
+    # Cek keunikan nama makanan (Unique Constraint)
+    if any(f["nama"].strip().lower() == nama.lower() for f in foods):
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "message": f'Makanan dengan nama "{nama}" sudah ada di katalog.',
+                "errors": {"nama": "Makanan dengan nama tersebut sudah ada di katalog"},
+            },
+        )
+
     kategori = str(body.get("kategori", "")).strip()
     sumber = str(body.get("sumber", "")).strip() if body.get("sumber") else SUMBER_DEFAULT
     verifikasi = "Terverifikasi" if body.get("verifikasi") == "Terverifikasi" else "Perlu tinjau"

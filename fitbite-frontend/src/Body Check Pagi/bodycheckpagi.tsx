@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from "react";
+import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 import {
-  BodyCheckSidebar,
   BodyCheckHeader,
   BodyCheckBanner,
   BodyCheckFormSection,
