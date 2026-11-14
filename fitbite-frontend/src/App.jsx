@@ -10,6 +10,7 @@ import AdminPengelolaan from './Admin/AdminPengelolaan';
 import ActivitiesPage from './Admin/ActivitiesPage';
 import ProfilPengingat from './Profil & Pengingat/Profil&Pengingat';
 import JurnalMakanan from './JurnalMakanan';
+import HealthProfileSetup from './Profil pengaturan awal/HealthProfileSetup';
 
 function App() {
   return (
@@ -27,6 +28,9 @@ function App() {
       <Route path="/admin/aktivitas" element={<ActivitiesPage />} />
       <Route path="/profil-pengingat" element={<ProfilPengingat />} />
       <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
+      
+      {/* Route Baru untuk Profil Kesehatan */}
+      <Route path="/profil-kesehatan" element={<HealthProfileSetup />} />
     </Routes>
   );
 }

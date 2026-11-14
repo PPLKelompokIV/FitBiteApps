@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactElement } from "react";
-import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 import {
+  BodyCheckSidebar,
   BodyCheckHeader,
   BodyCheckBanner,
   BodyCheckFormSection,
@@ -114,23 +114,17 @@ export const BodyCheckPagi = (): ReactElement => {
 
   return (
     <div className="flex h-screen items-stretch overflow-hidden bg-[#f6f7f2] font-sans text-[#1f2d2a]">
-      <HealthAppSidebarSection />
+      <BodyCheckSidebar />
 
-      {/* Main Container */}
       <div className="relative flex h-screen min-h-0 flex-1 flex-col justify-between overflow-y-auto bg-[#f6f7f2]">
         <div className="w-full">
-          {/* Top Header / Breadcrumb Bar */}
           <BodyCheckHeader />
 
-          {/* Main Body Content */}
           <main className="flex w-full flex-col items-start gap-6 px-9 pb-7 pt-[28px]">
             <div className="w-full">
-              {/* Title & Banner Info */}
               <BodyCheckBanner isSaved={isSaved} />
 
-              {/* Two-Column Grid */}
               <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
-                {/* Form Input Section */}
                 <BodyCheckFormSection
                   weight={weight}
                   setWeight={setWeight}
@@ -147,14 +141,12 @@ export const BodyCheckPagi = (): ReactElement => {
                   toastMessage={toastMessage}
                 />
 
-                {/* Right Overview & Insights (Terkoneksi dinamis FIT-47) */}
                 <BodyCheckOverviewSection overview={overview} weight={weight} />
               </div>
             </div>
           </main>
         </div>
 
-        {/* Page Footer */}
         <div className="px-9">
           <BodyCheckFooter />
         </div>
