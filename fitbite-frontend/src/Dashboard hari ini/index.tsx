@@ -26,10 +26,7 @@ import {
 
 import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 import { MealLogModal } from "./MealLogModal";
-import {
-  calculateCalorieTargets,
-  sampleCalorieProfile,
-} from "../calorieTargets";
+import { loadCalorieTarget } from "../calorieTargets";
 
 const initialMeals = [
   {
@@ -94,8 +91,6 @@ const nutrients = [
   { name: "Lemak", value: "43 / 60 g", percent: 72, color: "#cbab6d" },
 ];
 
-const calorieTargets = calculateCalorieTargets(sampleCalorieProfile);
-
 const Card = ({ children, className = "" }) => (
   <section
     className={`min-w-0 rounded-[18px] border border-[#e1e7df] bg-white p-5 shadow-[0_1px_3px_rgba(31,54,42,0.04)] sm:p-6 ${className}`}
@@ -151,6 +146,10 @@ export const DashboardHariIni = () => {
   const navigate = useNavigate();
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
   const [mealList, setMealList] = useState([]);
+  const [calorieTarget, setCalorieTarget] = useState(null);
+  const [calorieTargetError, setCalorieTargetError] = useState("");
+  const [calorieTargetLoading, setCalorieTargetLoading] = useState(true);
+  const [calorieTargetRetry, setCalorieTargetRetry] = useState(0);
 
   // Sinkronisasi Target Cairan & Berat Badan Terkini (FIT-48)
   const [baseWater, setBaseWater] = useState(() => Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240);
@@ -182,6 +181,33 @@ export const DashboardHariIni = () => {
     }
     return 1750;
   });
+
+  useEffect(() => {
+    let active = true;
+    setCalorieTargetLoading(true);
+    setCalorieTargetError("");
+
+    loadCalorieTarget()
+      .then((target) => {
+        if (active) setCalorieTarget(target);
+      })
+      .catch((error) => {
+        if (active) {
+          setCalorieTargetError(
+            error instanceof Error
+              ? error.message
+              : "Tidak dapat memuat sasaran kalori dari backend.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setCalorieTargetLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [calorieTargetRetry]);
 
   const waterTarget = baseWater + 400; // Target dasar + 400 ml bonus olahraga
   const waterPercent = Math.min(100, (water / waterTarget) * 100);
@@ -274,10 +300,14 @@ export const DashboardHariIni = () => {
     (total, activity) => total + activity.calories,
     0,
   );
-  const remainingCalories = Math.max(
-    0,
-    calorieTargets.calorieTarget + caloriesBurned - caloriesConsumed,
-  );
+  const remainingCalories = calorieTarget
+    ? Math.max(
+        0,
+        calorieTarget.sasaran_kalori_kcal_per_hari +
+          caloriesBurned -
+          caloriesConsumed,
+      )
+    : null;
   const handleSaveMeal = (newMeal) => {
     setMealList((previous) => [...previous, newMeal]);
   };
@@ -338,7 +368,7 @@ export const DashboardHariIni = () => {
               <button
                 type="button"
                 onClick={() => setIsMealModalOpen(true)}
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] bg-[#167653] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#126244]"
+                clasSsName="inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] bg-[#167653] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#126244]"
               >
                 <Plus size={17} />
                 Catat makanan
@@ -388,8 +418,58 @@ export const DashboardHariIni = () => {
             <Card className="flex flex-col gap-5">
               <SectionTitle
                 title="Keseimbangan energi"
-                subtitle="Target harianmu, dengan ruang untuk bergerak."
+                subtitle="BMR, TDEE, dan sasaran kalori dari profil backend."
               />
+
+              {calorieTarget ? (
+                <div
+                  aria-label="Ringkasan kebutuhan kalori dari backend"
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+                >
+                  {[
+                    ["BMR", calorieTarget.bmr_kcal_per_hari],
+                    ["TDEE", calorieTarget.tdee_kcal_per_hari],
+                    [
+                      "Sasaran kalori",
+                      calorieTarget.sasaran_kalori_kcal_per_hari,
+                    ],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="rounded-[10px] bg-[#f0f3ec] px-3 py-2.5"
+                    >
+                      <p className="text-[10px] text-[#728078]">{label}</p>
+                      <p className="mt-1 text-sm font-bold text-[#203d32]">
+                        {Number(value).toLocaleString("id-ID")} kkal/hari
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  role={calorieTargetError ? "alert" : "status"}
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-xs ${
+                    calorieTargetError
+                      ? "bg-[#fcf0ed] text-[#9b493f]"
+                      : "bg-[#f0f3ec] text-[#728078]"
+                  }`}
+                >
+                  <span>
+                    {calorieTargetLoading
+                      ? "Memuat sasaran kalori dari backend..."
+                      : calorieTargetError}
+                  </span>
+                  {calorieTargetError && (
+                    <button
+                      type="button"
+                      onClick={() => setCalorieTargetRetry((attempt) => attempt + 1)}
+                      className="font-semibold underline underline-offset-2"
+                    >
+                      Coba lagi
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 items-center gap-5 md:grid-cols-[190px_minmax(0,1fr)] lg:grid-cols-[210px_minmax(0,1fr)]">
                 {/* Circular energy graphic */}
@@ -418,7 +498,7 @@ export const DashboardHariIni = () => {
                   <div className="absolute flex flex-col items-center">
                     <Flame size={20} className="mb-1 text-[#167653]" />
                     <strong className="text-[40px] font-semibold leading-[1.1] text-[#203d32]">
-                      {remainingCalories.toLocaleString("id-ID")}
+                      {remainingCalories?.toLocaleString("id-ID") ?? "—"}
                     </strong>
                     <span className="mt-1 text-xs text-[#728078]">
                       kkal tersisa
@@ -436,7 +516,9 @@ export const DashboardHariIni = () => {
                       },
                       {
                         label: "Target",
-                        value: calorieTargets.calorieTarget.toLocaleString("id-ID"),
+                        value: calorieTarget
+                          ? calorieTarget.sasaran_kalori_kcal_per_hari.toLocaleString("id-ID")
+                          : "—",
                         icon: CircleUserRound,
                       },
                       {
@@ -463,10 +545,9 @@ export const DashboardHariIni = () => {
                       Sisa = Target + Terbakar − Masuk
                     </p>
                     <p className="mt-1 text-[11px] text-[#728078]">
-                      {calorieTargets.calorieTarget.toLocaleString("id-ID")} +{" "}
-                      {caloriesBurned.toLocaleString("id-ID")} −{" "}
-                      {caloriesConsumed.toLocaleString("id-ID")} ={" "}
-                      {remainingCalories.toLocaleString("id-ID")} kkal
+                      {calorieTarget
+                        ? `${calorieTarget.sasaran_kalori_kcal_per_hari.toLocaleString("id-ID")} + ${caloriesBurned.toLocaleString("id-ID")} − ${caloriesConsumed.toLocaleString("id-ID")} = ${remainingCalories?.toLocaleString("id-ID")} kkal`
+                        : "Sisa kalori ditampilkan setelah data backend tersedia."}
                     </p>
                   </div>
                 </div>
