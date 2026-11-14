@@ -30,6 +30,22 @@ type Drink = {
   note?: string;
 };
 
+type SavedActivity = {
+  id: number;
+  name: string;
+  met: string;
+  durationMinutes: number;
+  calories: number;
+  startTime: string;
+};
+
+const getLocalDateKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const activityOptions: Activity[] = [
   { name: "Jalan kaki", met: "3,5 MET", icon: Footprints },
   { name: "Lari", met: "7,0 MOV", icon: Footprints }, // Atau gunakan icon lari jika ada
@@ -84,7 +100,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
 
   const [selectedActivity, setSelectedActivity] = useState("Jalan kaki");
   const [duration, setDuration] = useState("20");
-  const [_startTime, setStartTime] = useState("19.00");
+  const [startTime, setStartTime] = useState("19.00");
   const [customAmount, setCustomAmount] = useState("200");
   const [saved, setSaved] = useState(false);
 
@@ -264,6 +280,36 @@ export const ActivityAndHydrationSection = (): ReactElement => {
       Number(duration || 0)) /
       200
   );
+
+  const saveActivity = () => {
+    const durationMinutes = Number(duration);
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) return;
+
+    const dateKey = getLocalDateKey(new Date());
+    const storageKey = `fitbite_activity_logs_${dateKey}`;
+    const activity: SavedActivity = {
+      id: Date.now(),
+      name: selected.name,
+      met: selected.met,
+      durationMinutes,
+      calories: estimatedCalories,
+      startTime,
+    };
+
+    try {
+      const savedLogs = localStorage.getItem(storageKey);
+      const parsedLogs: unknown = savedLogs ? JSON.parse(savedLogs) : [];
+      if (!Array.isArray(parsedLogs)) {
+        throw new Error("Format riwayat aktivitas tidak valid.");
+      }
+
+      localStorage.setItem(storageKey, JSON.stringify([...parsedLogs, activity]));
+      setSaved(true);
+    } catch (error) {
+      console.error("Gagal menyimpan aktivitas.", error);
+      setSaved(false);
+    }
+  };
 
   // Sinkronisasi target cairan dasar dari Body Check (FIT-47)
   const baseWaterTarget = Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240;
@@ -459,7 +505,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
               </p>
               <button
                 type="button"
-                onClick={() => setSaved(true)}
+                onClick={saveActivity}
                 className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#167653] px-[18px] py-[11px] text-sm font-semibold text-white hover:bg-[#125c41] transition-colors shadow-sm"
               >
                 {saved ? "Aktivitas tersimpan" : "Simpan aktivitas"}

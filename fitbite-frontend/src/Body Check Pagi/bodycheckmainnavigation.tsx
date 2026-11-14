@@ -63,7 +63,7 @@ const navigationItems: NavigationItem[] = [
   { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
   { label: "Jurnal makanan", icon: Utensils, to: "/foto-ai" },
   { label: "Aktivitas & hidrasi", icon: Activity, to: "#aktivitas" },
-  { label: "Jurnal & evaluasi", icon: CalendarCheck, to: "#jurnal" },
+  { label: "Jurnal & evaluasi", icon: CalendarCheck, to: "/jurnal-evaluasi" },
   { label: "Progres", icon: TrendingUp, to: "/progres" },
   { label: "Profil & pengingat", icon: SlidersHorizontal, to: "/profil-pengingat" },
 ];

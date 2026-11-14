@@ -12,6 +12,7 @@ import ProfilPengingat from './Profil & Pengingat/Profil&Pengingat';
 import JurnalMakanan from './JurnalMakanan';
 import HealthProfileSetup from './Profil pengaturan awal/HealthProfileSetup';
 import ProgresPage from './Progress';
+import JurnalEvaluasiPage from './Jurnal & Evaluasi';
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
       <Route path="/admin/aktivitas" element={<ActivitiesPage />} />
       <Route path="/profil-pengingat" element={<ProfilPengingat />} />
       <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
+      <Route path="/jurnal-evaluasi" element={<JurnalEvaluasiPage />} />
       <Route path="/progres" element={<ProgresPage />} />
 
       {/* Route Baru untuk Profil Kesehatan */}

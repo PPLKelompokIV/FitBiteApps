@@ -9,6 +9,7 @@ from app.routers import (
     admin_foods,
     body_check,
     notifications,
+    daily_logs,
 )
 
 # Otomatis membuat tabel di PostgreSQL jika belum ada (dengan proteksi jika DB belum online)
@@ -33,3 +34,4 @@ app.include_router(water_logs.router)
 app.include_router(admin_foods.router)
 app.include_router(body_check.router)
 app.include_router(notifications.router)
+app.include_router(daily_logs.router)
