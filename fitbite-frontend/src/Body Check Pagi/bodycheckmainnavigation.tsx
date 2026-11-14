@@ -64,7 +64,7 @@ const navigationItems: NavigationItem[] = [
   { label: "Jurnal makanan", icon: Utensils, to: "/foto-ai" },
   { label: "Aktivitas & hidrasi", icon: Activity, to: "#aktivitas" },
   { label: "Jurnal & evaluasi", icon: CalendarCheck, to: "#jurnal" },
-  { label: "Progres", icon: TrendingUp, to: "#progres" },
+  { label: "Progres", icon: TrendingUp, to: "/progres" },
   { label: "Profil & pengingat", icon: SlidersHorizontal, to: "/profil-pengingat" },
 ];
 
