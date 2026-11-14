@@ -1,5 +1,7 @@
 python-interpreter-path = ".venv/Scripts/python.exe"
-site-packages-path = ".venv/Lib/site-packages"
+site-package-path = [
+    ".venv/Lib/site-packages"
+]
 search-path = [
     "fitbite-backend",
     ".venv/Lib/site-packages"
@@ -12,9 +14,12 @@ ignore-missing-imports = [
     "pydantic",
     "pydantic.*",
     "psycopg2",
-    "psycopg2.*"
+    "psycopg2.*",
+    "selenium",
+    "selenium.*",
+    "pytest",
+    "pytest.*"
 ]
 
 [errors]
 missing-import = "ignore"
-
