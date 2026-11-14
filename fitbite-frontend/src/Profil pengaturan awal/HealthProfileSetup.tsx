@@ -37,13 +37,16 @@ const HealthProfileSetup = () => {
       {/* HEADER (Full Width) */}
       <header className="w-full bg-white flex items-center justify-between px-10 py-5 border-b border-gray-200 z-10 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="bg-[#18553E] text-white p-1.5 rounded-md">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          {/* Logo FitBite (Disamakan dengan gambar) */}
+          <div className="bg-[#1C734B] text-white w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0">
+            <svg className="w-[22px] h-[22px] -ml-0.5 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+              <path d="M2 22l7-7"></path>
             </svg>
           </div>
-          <span className="font-bold text-2xl text-[#18553E] tracking-tight">FitBite</span>
+          <span className="font-extrabold text-[26px] text-[#11422E] tracking-tight ml-1">FitBite</span>
         </div>
+        
         <div className="flex items-center gap-4 text-sm text-gray-500">
           <span className="bg-gray-100 px-3 py-1 rounded-md text-xs font-medium text-gray-600">Data contoh • 5 Okt 2026</span>
           <span className="text-gray-700">Nadia Putri</span>

@@ -1,6 +1,6 @@
-import { useState, type ReactElement } from "react";
-import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
+import { useState, useEffect, type ReactElement } from "react";
 import {
+  BodyCheckSidebar,
   BodyCheckHeader,
   BodyCheckBanner,
   BodyCheckFormSection,
@@ -8,53 +8,108 @@ import {
   BodyCheckFooter,
   type SleepQuality,
   type PlannedIntensity,
+  type BodyCheckOverviewData,
 } from "./bodycheckmainnavigation";
 
 export const BodyCheckPagi = (): ReactElement => {
-  const [weight, setWeight] = useState("64,0");
+  // Form State
+  const [weight, setWeight] = useState(() => localStorage.getItem("fitbite_berat_badan_kg")?.replace(".", ",") || "64,0");
   const [sleepDuration, setSleepDuration] = useState("7,5");
   const [sleepQuality, setSleepQuality] = useState<SleepQuality>("Nyenyak");
   const [energyLevel, setEnergyLevel] = useState<number>(4);
   const [plannedIntensity, setPlannedIntensity] = useState<PlannedIntensity>("Tinggi");
   
+  // UI & Overview State
+  const [overview, setOverview] = useState<BodyCheckOverviewData | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [overviewData, setOverviewData] = useState<any>(null);
+
+  // Ambil data tersimpan jika ada di localStorage
+  useEffect(() => {
+    const savedTarget = localStorage.getItem("fitbite_target_cairan_ml");
+    const savedWeight = localStorage.getItem("fitbite_berat_badan_kg");
+    if (savedTarget && savedWeight) {
+      const wNum = parseFloat(savedWeight);
+      const targetNum = parseInt(savedTarget, 10);
+      setOverview({
+        calories: 1700,
+        protein: 100,
+        carbs: 190,
+        fat: 60,
+        bmr: 1319,
+        tdee: 2000,
+        water_ml: targetNum,
+        water_formula: `35 ml × ${wNum} kg`,
+      });
+      setIsSaved(true);
+    }
+  }, []);
 
   const handleSave = async () => {
+    const parsedWeight = parseFloat(weight.replace(",", ".")) || 64.0;
+    const parsedSleep = parseFloat(sleepDuration.replace(",", ".")) || 7.5;
+
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/body-check", {
+      const response = await fetch("http://localhost:8000/api/body-check", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          weight: parseFloat(weight.replace(',', '.')), 
-          sleepDuration: parseFloat(sleepDuration.replace(',', '.')),
+          weight: parsedWeight,
+          sleepDuration: parsedSleep,
           sleepQuality: sleepQuality,
           energyLevel: energyLevel,
-          plannedIntensity: plannedIntensity
+          plannedIntensity: plannedIntensity,
         }),
       });
 
-      if (response.ok) {
-        const responseData = await response.json();
-        
-        if (responseData.overview) {
-          setOverviewData(responseData.overview);
-        }
-
-        setIsSaved(true);
-        setToastMessage("Body Check tersimpan!");
-        setTimeout(() => {
-          setToastMessage(null);
-        }, 3000);
-      } else {
-        console.error("Backend menolak data");
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
       }
-    } catch (error) {
-      console.error("Gagal menghubungi backend:", error);
+
+      const resData = await response.json();
+      const now = new Date();
+      const timeFormatted = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}`;
+
+      if (resData.success && resData.overview) {
+        setOverview(resData.overview);
+        localStorage.setItem("fitbite_target_cairan_ml", resData.overview.water_ml.toString());
+        localStorage.setItem("fitbite_berat_badan_kg", parsedWeight.toString());
+        localStorage.setItem("fitbite_sleep_duration", sleepDuration);
+        localStorage.setItem("fitbite_sleep_quality", sleepQuality);
+        localStorage.setItem("fitbite_energy_level", energyLevel.toString());
+        localStorage.setItem("fitbite_bodycheck_time", timeFormatted);
+        setIsSaved(true);
+        setToastMessage(`Body Check tersimpan! Target cairan dasar: ${resData.overview.water_ml.toLocaleString("id-ID")} ml (${resData.overview.water_formula})`);
+      }
+    } catch (err) {
+      console.warn("Backend offline atau gagal terhubung, menggunakan kalkulasi otomatis:", err);
+      const now = new Date();
+      const timeFormatted = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}`;
+      const calculatedWater = Math.round(35 * parsedWeight);
+      const calculatedFormula = `35 ml × ${parsedWeight} kg`;
+      setOverview({
+        calories: 1700,
+        protein: 100,
+        carbs: 190,
+        fat: 60,
+        bmr: 1319,
+        tdee: 2000,
+        water_ml: calculatedWater,
+        water_formula: calculatedFormula,
+      });
+      localStorage.setItem("fitbite_target_cairan_ml", calculatedWater.toString());
+      localStorage.setItem("fitbite_berat_badan_kg", parsedWeight.toString());
+      localStorage.setItem("fitbite_sleep_duration", sleepDuration);
+      localStorage.setItem("fitbite_sleep_quality", sleepQuality);
+      localStorage.setItem("fitbite_energy_level", energyLevel.toString());
+      localStorage.setItem("fitbite_bodycheck_time", timeFormatted);
+      setIsSaved(true);
+      setToastMessage(`Body Check tersimpan! Target cairan dasar: ${calculatedWater.toLocaleString("id-ID")} ml (${calculatedFormula})`);
     }
+
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 4000);
   };
 
   return (
@@ -86,7 +141,7 @@ export const BodyCheckPagi = (): ReactElement => {
                   toastMessage={toastMessage}
                 />
 
-                <BodyCheckOverviewSection overviewData={overviewData} />
+                <BodyCheckOverviewSection overview={overview} weight={weight} />
               </div>
             </div>
           </main>
