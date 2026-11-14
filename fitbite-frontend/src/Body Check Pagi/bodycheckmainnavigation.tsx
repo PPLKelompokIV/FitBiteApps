@@ -55,16 +55,16 @@ export interface BodyCheckFormData {
 interface NavigationItem {
   label: string;
   icon: LucideIcon;
-  to: string;
+  to?: string;
 }
 
 const navigationItems: NavigationItem[] = [
-  { label: "Hari ini", icon: LayoutGrid, to: "#hari-ini" },
+  { label: "Hari ini", icon: LayoutGrid, to: "/dashboard-hari-ini" },
   { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
-  { label: "Jurnal makanan", icon: Utensils, to: "/foto-ai" },
-  { label: "Aktivitas & hidrasi", icon: Activity, to: "#aktivitas" },
-  { label: "Jurnal & evaluasi", icon: CalendarCheck, to: "#jurnal" },
-  { label: "Progres", icon: TrendingUp, to: "#progres" },
+  { label: "Jurnal makanan", icon: Utensils, to: "/jurnal-makanan" },
+  { label: "Aktivitas & hidrasi", icon: Activity, to: "/aktivitas-hidrasi" },
+  { label: "Jurnal & evaluasi", icon: CalendarCheck, to: "/jurnal-evaluasi" },
+  { label: "Progres", icon: TrendingUp },
   { label: "Profil & pengingat", icon: SlidersHorizontal, to: "/profil-pengingat" },
 ];
 
@@ -106,13 +106,8 @@ export const BodyCheckSidebar = (): ReactElement => {
                 : "bg-transparent font-medium text-[#728078] hover:bg-[#f4f7f3]"
             }`;
 
-            return (
-              <Link
-                key={item.label}
-                to={item.to}
-                aria-current={isActive ? "page" : undefined}
-                className={linkClassName}
-              >
+            const content = (
+              <>
                 <IconComponent
                   className={`h-[18px] w-[18px] shrink-0 ${
                     isActive ? "text-[#167653]" : "text-[#728078]"
@@ -120,7 +115,29 @@ export const BodyCheckSidebar = (): ReactElement => {
                   strokeWidth={isActive ? 2.2 : 1.8}
                 />
                 <span className="flex-1 text-xs leading-[18px]">{item.label}</span>
+              </>
+            );
+
+            return item.to ? (
+              <Link
+                key={item.label}
+                to={item.to}
+                aria-current={isActive ? "page" : undefined}
+                className={linkClassName}
+              >
+                {content}
               </Link>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Fitur belum tersedia"
+                className={`${linkClassName} cursor-not-allowed opacity-60`}
+              >
+                {content}
+              </button>
             );
           })}
         </nav>
