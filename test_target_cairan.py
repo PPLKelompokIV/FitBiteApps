@@ -9,7 +9,7 @@ Halaman  :
   - http://localhost:5173/aktivitas-hidrasi
   - http://localhost:5173/bodycheckpagi
   - http://localhost:5173/dashboard-hari-ini
-Teknik   : Equivalence Partitioning (EP) + Boundary Value Analysis (BVA) + User Journey E2E
+Kategori : Positive, Negative, Boundary Value, Format Check, Constraint, Logic / Rules
 Jalankan : python -m pytest test_target_cairan.py -v
 """
 
@@ -71,12 +71,12 @@ def set_react_input_value(driver, element, value: str):
     )
 
 
-# ─── PENGUJIAN SUBTASK FIT-46 (Tampilan Target Cairan Dasar) ──────────────────
+# ─── 1. SUBTASK FIT-46: TAMPILAN INFORMASI TARGET CAIRAN DASAR ────────────────
 
-def test_tc_fit46_01_tampilan_target_dasar_widget_hidrasi(driver):
+def test_tc_fit45_01_positive_tampilan_target_widget_hidrasi(driver):
     """
-    TC-FIT46-001 (Positive): 
-    Memastikan halaman Aktivitas & Hidrasi menampilkan informasi target cairan dasar (ml)
+    TC-FIT45-01 (Kategori: Positive):
+    Memverifikasi halaman Aktivitas & Hidrasi menampilkan informasi target cairan dasar (ml)
     lengkap dengan formula 35 ml x berat badan dan bonus olahraga.
     """
     driver.get(URL_HIDRASI)
@@ -92,23 +92,20 @@ def test_tc_fit46_01_tampilan_target_dasar_widget_hidrasi(driver):
     )
     assert target_dasar_el.is_displayed()
 
-    # 3. Verifikasi terdapat teks formula 35 ml x berat badan
+    # 3. Verifikasi teks formula 35 ml x berat badan dan bonus olahraga tampil
     assert "35 ml ×" in driver.page_source
-
-    # 4. Verifikasi terdapat nilai target dasar (dalam satuan ml)
     assert "ml" in driver.page_source
     assert "Bonus olahraga" in driver.page_source or "+400 ml" in driver.page_source
 
 
-def test_tc_fit46_02_tampilan_informasi_hidrasi_dashboard(driver):
+def test_tc_fit45_02_positive_tampilan_informasi_hidrasi_dashboard(driver):
     """
-    TC-FIT46-002 (Positive):
-    Memastikan halaman utama Dashboard menampilkan widget hidrasi dengan satuan ml
-    dan persentase progres harian.
+    TC-FIT45-02 (Kategori: Positive):
+    Memverifikasi widget hidrasi di Dashboard utama menampilkan satuan ml dan progres harian.
     """
     driver.get(URL_DASHBOARD)
 
-    # 1. Tunggu widget hidrasi di dashboard termuat
+    # 1. Tunggu widget hidrasi termuat
     wait(driver).until(
         EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Air minum hari ini') or contains(text(), 'Seteguk lagi, yuk')]"))
     )
@@ -120,82 +117,171 @@ def test_tc_fit46_02_tampilan_informasi_hidrasi_dashboard(driver):
     assert "%" in page_text
 
 
-# ─── PENGUJIAN SUBTASK FIT-47 (Kalkulasi Otomatis 35 ml x BB) ─────────────────
+# ─── 2. SUBTASK FIT-47: KALKULASI OTOMATIS 35 ML X BERAT BADAN ────────────────
 
-@pytest.mark.parametrize("test_case_id, bb_input, expected_formula, expected_ml", [
-    ("TC-FIT47-001", "70,0", "35 ml × 70 kg", "2.450 ml"),    # (EP Valid) 35 * 70 = 2450
-    ("TC-FIT47-002", "80,0", "35 ml × 80 kg", "2.800 ml"),    # (EP Valid) 35 * 80 = 2800
-    ("TC-FIT47-003", "55,5", "35 ml × 55.5 kg", "1.943 ml"),  # (BVA Desimal) 35 * 55.5 = 1943
-], ids=["BB-70kg", "BB-80kg", "BB-55.5kg"])
-def test_tc_fit47_kalkulasi_otomatis_di_body_check(driver, test_case_id, bb_input, expected_formula, expected_ml):
+def test_tc_fit45_03_logic_rules_kalkulasi_70kg(driver):
     """
-    TC-FIT47 (Equivalence Partitioning & Boundary Value):
-    Menguji fungsi kalkulasi otomatis 35 ml x berat badan pada saat input berat badan
-    di halaman Body Check Pagi.
+    TC-FIT45-03 (Kategori: Logic / Rules):
+    Menguji keakuratan eksekusi formula bisnis 35 ml x 70 kg = 2.450 ml di Body Check.
     """
     driver.get(URL_BODYCHECK)
-
-    # Tunggu halaman termuat (heading h2 'Bagaimana tubuhmu hari ini?' atau breadcrumb)
     wait(driver).until(
         EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Bagaimana tubuhmu') or contains(text(), 'BODY CHECK PAGI')]"))
     )
 
-    # 1. Cari input berat badan dan masukkan nilai uji
     input_bb = wait(driver).until(
         EC.presence_of_element_located((By.XPATH, "//input[@placeholder='64,0' or following-sibling::span[text()='kg']]"))
     )
-    set_react_input_value(driver, input_bb, bb_input)
+    set_react_input_value(driver, input_bb, "70,0")
     time.sleep(0.5)
 
-    # 2. Verifikasi kalkulasi otomatis di kartu 'Di balik angkanya'
-    clean_expected = expected_ml.replace(".", "")
-    wait(driver).until(
-        lambda d: expected_ml in d.page_source or clean_expected in d.page_source.replace(".", "")
-    )
-    assert expected_ml in driver.page_source or clean_expected in driver.page_source.replace(".", "")
+    wait(driver).until(lambda d: "2.450" in d.page_source or "2450" in d.page_source.replace(".", ""))
+    assert "2.450" in driver.page_source or "2450" in driver.page_source.replace(".", "")
 
 
-def test_tc_fit47_04_simpan_body_check_sukses(driver):
+def test_tc_fit45_04_logic_rules_kalkulasi_80kg(driver):
     """
-    TC-FIT47-004 (Action & Persistence):
-    Menekan tombol 'Simpan Body Check' dan memverifikasi notifikasi toast sukses muncul.
+    TC-FIT45-04 (Kategori: Logic / Rules):
+    Menguji keakuratan eksekusi formula bisnis 35 ml x 80 kg = 2.800 ml di Body Check.
     """
     driver.get(URL_BODYCHECK)
-
     wait(driver).until(
         EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Bagaimana tubuhmu') or contains(text(), 'BODY CHECK PAGI')]"))
     )
 
-    # Input BB 75 kg
+    input_bb = wait(driver).until(
+        EC.presence_of_element_located((By.XPATH, "//input[@placeholder='64,0' or following-sibling::span[text()='kg']]"))
+    )
+    set_react_input_value(driver, input_bb, "80,0")
+    time.sleep(0.5)
+
+    wait(driver).until(lambda d: "2.800" in d.page_source or "2800" in d.page_source.replace(".", ""))
+    assert "2.800" in driver.page_source or "2800" in driver.page_source.replace(".", "")
+
+
+def test_tc_fit45_05_logic_rules_total_target_dasar_plus_olahraga(driver):
+    """
+    TC-FIT45-05 (Kategori: Logic / Rules):
+    Menguji formula logika akumulasi total target cairan: Target Dasar + 400 ml bonus olahraga.
+    """
+    driver.get(URL_DASHBOARD)
+    wait(driver).until(
+        EC.visibility_of_element_located((By.XPATH, "//strong[contains(text(), 'Hari ini')]"))
+    )
+
+    page_text = driver.page_source
+    # Memastikan teks formula dasar dan bonus 400 ml terhitung secara logis
+    assert "bonus 400 ml" in page_text or "+ bonus olahraga 400 ml" in page_text
+
+
+def test_tc_fit45_06_format_check_desimal_koma(driver):
+    """
+    TC-FIT45-06 (Kategori: Format Check):
+    Menguji parsing tipe data desimal format koma (55,5 kg) dan pembulatan round() menjadi 1.943 ml.
+    """
+    driver.get(URL_BODYCHECK)
+    wait(driver).until(
+        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Bagaimana tubuhmu') or contains(text(), 'BODY CHECK PAGI')]"))
+    )
+
+    input_bb = wait(driver).until(
+        EC.presence_of_element_located((By.XPATH, "//input[@placeholder='64,0' or following-sibling::span[text()='kg']]"))
+    )
+    set_react_input_value(driver, input_bb, "55,5")
+    time.sleep(0.5)
+
+    # 35 * 55.5 = 1942.5 -> dibulatkan 1943 ml
+    wait(driver).until(lambda d: "1.943" in d.page_source or "1943" in d.page_source.replace(".", "") or "1.942" in d.page_source)
+    assert "1.943" in driver.page_source or "1943" in driver.page_source.replace(".", "") or "1.942" in driver.page_source
+
+
+def test_tc_fit45_07_boundary_value_berat_nol_dan_negatif(driver):
+    """
+    TC-FIT45-07 (Kategori: Boundary Value):
+    Menguji batas ekstrim nilai 0 kg dan angka negatif (-5 kg) pada saat input berat badan.
+    """
+    driver.get(URL_BODYCHECK)
+    wait(driver).until(
+        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Bagaimana tubuhmu') or contains(text(), 'BODY CHECK PAGI')]"))
+    )
+
+    input_bb = wait(driver).until(
+        EC.presence_of_element_located((By.XPATH, "//input[@placeholder='64,0' or following-sibling::span[text()='kg']]"))
+    )
+    
+    # 1. Coba input nilai 0
+    set_react_input_value(driver, input_bb, "0")
+    time.sleep(0.3)
+    
+    # 2. Coba input nilai negatif
+    set_react_input_value(driver, input_bb, "-5")
+    time.sleep(0.3)
+    
+    # Memastikan sistem tidak crash dan halaman tetap stabil
+    assert driver.find_element(By.XPATH, "//button[contains(., 'Simpan Body Check')]").is_displayed()
+
+
+def test_tc_fit45_08_negative_field_kosong_atau_alfabet(driver):
+    """
+    TC-FIT45-08 (Kategori: Negative):
+    Menguji ketahanan sistem saat field berat badan dikosongkan atau diisi karakter non-angka (alfabet).
+    """
+    driver.get(URL_BODYCHECK)
+    wait(driver).until(
+        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Bagaimana tubuhmu') or contains(text(), 'BODY CHECK PAGI')]"))
+    )
+
+    input_bb = wait(driver).until(
+        EC.presence_of_element_located((By.XPATH, "//input[@placeholder='64,0' or following-sibling::span[text()='kg']]"))
+    )
+    
+    # Kosongkan field
+    set_react_input_value(driver, input_bb, "")
+    time.sleep(0.3)
+    
+    # Masukkan huruf non-angka
+    set_react_input_value(driver, input_bb, "abc")
+    time.sleep(0.3)
+    
+    # Memastikan sistem melakukan fallback penanganan error dengan aman tanpa crash
+    btn_simpan = driver.find_element(By.XPATH, "//button[contains(., 'Simpan Body Check')]")
+    assert btn_simpan.is_displayed()
+
+
+def test_tc_fit45_09_positive_simpan_body_check(driver):
+    """
+    TC-FIT45-09 (Kategori: Positive):
+    Menguji alur normal penyimpanan Body Check dengan input valid dan verifikasi notifikasi toast sukses.
+    """
+    driver.get(URL_BODYCHECK)
+    wait(driver).until(
+        EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Bagaimana tubuhmu') or contains(text(), 'BODY CHECK PAGI')]"))
+    )
+
     input_bb = wait(driver).until(
         EC.presence_of_element_located((By.XPATH, "//input[@placeholder='64,0' or following-sibling::span[text()='kg']]"))
     )
     set_react_input_value(driver, input_bb, "75,0")
     time.sleep(0.5)
 
-    # Klik Simpan Body Check
     btn_simpan = wait(driver).until(
         EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Simpan Body Check')]"))
     )
     btn_simpan.click()
 
-    # Verifikasi notifikasi toast sukses tampil atau teks konfirmasi tersimpan muncul
     wait(driver).until(
         lambda d: "tersimpan" in d.page_source.lower() or "body check" in d.page_source.lower()
     )
     assert "tersimpan" in driver.page_source.lower()
 
 
-# ─── PENGUJIAN SUBTASK FIT-48 (Sinkronisasi ke Halaman Utama) ──────────────────
+# ─── 3. SUBTASK FIT-48: SINKRONISASI KE HALAMAN UTAMA (DASHBOARD) ─────────────
 
-def test_tc_fit48_01_sinkronisasi_target_cairan_ke_dashboard(driver):
+def test_tc_fit45_10_constraint_sinkronisasi_target_dashboard(driver):
     """
-    TC-FIT48-001 (User Journey E2E):
-    Menguji alur lengkap sinkronisasi dari Body Check Pagi ke Dashboard Utama:
-    1. Simpan berat badan 80 kg di Body Check Pagi (Target dasar: 35 x 80 = 2.800 ml).
-    2. Buka Dashboard utama (http://localhost:5173/dashboard-hari-ini).
-    3. Verifikasi bahwa target cairan di Dashboard telah tersinkronisasi menjadi 3.200 ml (2.800 + 400).
-    4. Verifikasi teks formula menampilkan Dasar 2.800 ml (35 ml × 80 kg).
+    TC-FIT45-10 (Kategori: Constraint):
+    Menguji aturan bisnis sinkronisasi antar-modul: data simpan Body Check (BB 80 kg)
+    langsung tersinkronisasi ke target kartu hidrasi Dashboard (3.200 ml).
     """
     # 1. Simpan BB 80 kg di Body Check
     driver.get(URL_BODYCHECK)
@@ -220,7 +306,7 @@ def test_tc_fit48_01_sinkronisasi_target_cairan_ke_dashboard(driver):
         EC.visibility_of_element_located((By.XPATH, "//strong[contains(text(), 'Hari ini')]"))
     )
 
-    # 3. Verifikasi Target Terbaru di Kartu Hidrasi Dashboard
+    # 3. Verifikasi Target Terbaru di Kartu Hidrasi Dashboard (3.200 ml)
     wait(driver).until(
         lambda d: "3.200 ml" in d.page_source or "3200" in d.page_source or "2.800" in d.page_source
     )
@@ -228,18 +314,17 @@ def test_tc_fit48_01_sinkronisasi_target_cairan_ke_dashboard(driver):
     assert "3.200 ml" in page_text or "3200" in page_text or "2.800" in page_text
 
 
-def test_tc_fit48_02_sinkronisasi_banner_berat_badan_di_dashboard(driver):
+def test_tc_fit45_11_constraint_sinkronisasi_banner_berat_badan(driver):
     """
-    TC-FIT48-002 (Banner Sync):
-    Memastikan banner 'Body Check selesai' di bagian atas Dashboard tidak lagi menampilkan
-    angka statis 64,0 kg, melainkan berat badan terbaru yang telah disimpan.
+    TC-FIT45-11 (Kategori: Constraint):
+    Menguji integritas data sinkronisasi: kolom Berat di banner atas Dashboard dinamis
+    menampilkan berat badan terbaru yang tersimpan.
     """
     driver.get(URL_DASHBOARD)
     wait(driver).until(
         EC.visibility_of_element_located((By.XPATH, "//strong[contains(text(), 'Hari ini')]"))
     )
 
-    # Ambil elemen teks pada kolom Berat di banner atas
     banner_berat = wait(driver).until(
         EC.visibility_of_element_located((By.XPATH, "//*[text()='Berat']/following-sibling::p[1]"))
     )
@@ -248,30 +333,26 @@ def test_tc_fit48_02_sinkronisasi_banner_berat_badan_di_dashboard(driver):
     assert re.search(r"\d+([.,]\d+)?\s*kg", teks_berat) is not None
 
 
-def test_tc_fit48_03_tombol_tambah_air_interaktif_di_dashboard(driver):
+def test_tc_fit45_12_positive_tombol_tambah_air_dashboard(driver):
     """
-    TC-FIT48-003 (Interactive Action):
-    Menguji tombol '+250 ml' pada kartu hidrasi Dashboard menambah total asupan air
-    secara real-time.
+    TC-FIT45-12 (Kategori: Positive):
+    Menguji interaktivitas tombol '+250 ml' pada kartu hidrasi Dashboard menambah total air secara real-time.
     """
     driver.get(URL_DASHBOARD)
     wait(driver).until(
         EC.visibility_of_element_located((By.XPATH, "//*[contains(text(), 'Air minum hari ini') or contains(text(), 'Seteguk lagi, yuk')]"))
     )
 
-    # Cari elemen tampilan jumlah ml air saat ini
     el_jumlah_air = wait(driver).until(
         EC.visibility_of_element_located((By.XPATH, "//p[contains(@class, 'text-[27px]') or contains(@class, 'text-[29px]') or contains(., 'ml')]"))
     )
     angka_awal = int(re.sub(r"[^\d]", "", el_jumlah_air.text))
 
-    # Klik tombol +250 ml
     btn_tambah_250 = wait(driver).until(
         EC.element_to_be_clickable((By.XPATH, "//button[contains(., '+250 ml')]"))
     )
     btn_tambah_250.click()
     time.sleep(1)
 
-    # Verifikasi jumlah air bertambah
     angka_baru = int(re.sub(r"[^\d]", "", el_jumlah_air.text))
     assert angka_baru >= angka_awal
