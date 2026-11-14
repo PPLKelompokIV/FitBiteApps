@@ -5,13 +5,17 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # Menggunakan koneksi lokal langsung (aman tanpa file .env)
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg2://postgres:Aqumiabi12!@localhost:5432/fitbite_db"
+    "postgresql+psycopg2://postgres:Faiz050105@localhost:5432/fitbite_db"
 )
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"connect_timeout": 2} if "postgresql" in SQLALCHEMY_DATABASE_URL else {}
-)
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+elif "postgresql" in SQLALCHEMY_DATABASE_URL:
+    connect_args = {"connect_timeout": 2}
+else:
+    connect_args = {}
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 
 SessionLocal = sessionmaker(
     autocommit=False,
