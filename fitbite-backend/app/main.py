@@ -8,44 +8,37 @@ import re
 from typing import Literal, Optional
 import uuid
 
-from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import requests
-from sqlalchemy import Boolean, Column, Date, DateTime, Float, Integer, String, Text, create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import Session
 
-load_dotenv()
-
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fitbite.db")
-os.environ.setdefault("DATABASE_URL", DATABASE_URL)
-
-from app.database import Base as RouterBase, engine as router_engine
+from app.database import Base, SessionLocal, engine, get_db
+from app.models.daily_evaluation import DailyEvaluation
+from app.models.notification import Notification as NotificationRecord
 from app.routers import (
     admin_foods,
     activity_logs,
     body_check,
+    calorie_targets,
     evaluations,
     food_logs,
     notifications,
     reminders,
     water_logs,
 )
+from app.services.calorie_calculator import (
+    FAKTOR_AKTIVITAS,
+    TingkatAktivitas,
+    hitungMifflinBMR,
+    hitungTDEEDinamis,
+)
+from app.services.calorie_target_schema import ensure_calorie_target_schema
 
 ROUTER_API_KEY = os.getenv("ROUTER_API_KEY", "")
 ROUTER_BASE_URL = os.getenv("ROUTER_BASE_URL", "http://localhost:20128/v1")
 ROUTER_VISION_MODEL = os.getenv("ROUTER_VISION_MODEL", "ag/gemini-3.8-flash-high")
-
-# =====================================================================
-# KONFIGURASI DATABASE & TABEL DAILY_EVALUATION (FIT-59 & FIT-60)
-# =====================================================================
-
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
 WIB = datetime.timezone(datetime.timedelta(hours=7))
 _auto_triggered_dates: set[str] = set()
@@ -54,74 +47,6 @@ _last_scheduler_log = "Scheduler menunggu evaluasi pukul 20.00 WIB."
 
 def get_wib_now() -> datetime.datetime:
     return datetime.datetime.now(WIB)
-
-
-def now_wib_naive() -> datetime.datetime:
-    return get_wib_now().replace(tzinfo=None)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-class DailyEvaluation(Base):
-    __tablename__ = "daily_evaluation"
-
-    id_evaluation = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    id_user = Column(Integer, nullable=False, index=True, default=1)
-    tanggal_evaluasi = Column(Date, nullable=False, index=True)
-
-    # Skor kepatuhan (0 - 100) dan status energi ('tercapai' | 'kurang' | 'berlebih')
-    skor_kepatuhan = Column(Integer, nullable=False, default=0)
-    status_energi = Column(String(30), nullable=False, default="tercapai")
-    persentase_energi = Column(Integer, nullable=False, default=0)
-
-    # Target vs Aktual (sesuai kolom tabel Evaluasi Malam di UI)
-    target_energi_dasar = Column(Float, nullable=False, default=1700.0)
-    kalori_olahraga = Column(Float, nullable=False, default=0.0)
-    target_energi = Column(Float, nullable=False, default=1700.0)
-    aktual_energi = Column(Float, nullable=False, default=0.0)
-
-    target_protein = Column(Float, nullable=False, default=100.0)
-    aktual_protein = Column(Float, nullable=False, default=0.0)
-
-    target_karbo = Column(Float, nullable=False, default=190.0)
-    aktual_karbo = Column(Float, nullable=False, default=0.0)
-
-    target_lemak = Column(Float, nullable=False, default=60.0)
-    aktual_lemak = Column(Float, nullable=False, default=0.0)
-
-    target_air_dasar = Column(Float, nullable=False, default=2240.0)
-    bonus_air_olahraga = Column(Float, nullable=False, default=0.0)
-    target_air = Column(Float, nullable=False, default=2240.0)
-    aktual_air = Column(Float, nullable=False, default=0.0)
-
-    # Ringkasan kelengkapan log & saran korektif (disimpan sebagai JSON string)
-    jumlah_log_makan = Column(Integer, nullable=False, default=0)
-    jumlah_log_aktivitas = Column(Integer, nullable=False, default=0)
-    durasi_olahraga = Column(Integer, nullable=False, default=0)
-    jumlah_log_air = Column(Integer, nullable=False, default=0)
-
-    saran_korektif = Column(Text, nullable=False, default="[]")
-    tipe_pemicu = Column(String(30), nullable=False, default="manual")  # 'otomatis_20_00' | 'manual'
-    waktu_evaluasi = Column(DateTime, nullable=False, default=now_wib_naive)
-
-
-class NotificationRecord(Base):
-    __tablename__ = "notification"
-
-    id_notification = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    id_user = Column(Integer, nullable=False, index=True, default=1)
-    kategori = Column(String(50), nullable=False, default="evaluasi_malam")
-    judul = Column(String(150), nullable=False)
-    pesan = Column(Text, nullable=False)
-    waktu_kirim = Column(String(80), nullable=False)
-    tautan_tujuan = Column(String(120), nullable=False, default="/jurnal-evaluasi")
-    sudah_dibaca = Column(Boolean, nullable=False, default=False)
 
 
 # =====================================================================
@@ -149,7 +74,7 @@ async def evening_evaluation_scheduler_loop():
                     evaluasiMalam(
                         db=db,
                         id_user=1,
-                        target_date=now_wib.date(),
+                        target_date=now_wib.date()
                         tipe_pemicu="otomatis_20_00",
                         kirim_notifikasi=True,
                     )
@@ -169,7 +94,7 @@ async def evening_evaluation_scheduler_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    RouterBase.metadata.create_all(bind=router_engine)
+    ensure_calorie_target_schema(engine)
     scheduler_task = asyncio.create_task(evening_evaluation_scheduler_loop())
     yield
     scheduler_task.cancel()
@@ -181,6 +106,7 @@ for router_module in (
     admin_foods,
     activity_logs,
     body_check,
+    calorie_targets,
     evaluations,
     food_logs,
     notifications,
@@ -228,9 +154,8 @@ def hitung_bmr(
     tinggi_cm: float,
     berat_kg: float,
 ) -> float:
-    """Hitung BMR dalam kkal/hari dengan rumus Mifflin-St Jeor."""
-    konstanta = 5 if jenis_kelamin == "laki-laki" else -161
-    return round((10 * berat_kg) + (6.25 * tinggi_cm) - (5 * usia) + konstanta, 1)
+    """Kompatibilitas untuk pemanggil kalkulator BMR lama."""
+    return hitungMifflinBMR(usia, jenis_kelamin, tinggi_cm, berat_kg)
 
 
 @app.post("/bmr", tags=["Health & Calculation"])
@@ -245,25 +170,14 @@ def calculate_bmr(data: BMRRequest):
     }
 
 
-TingkatAktivitas = Literal["sedentari", "ringan", "sedang", "aktif", "sangat_aktif"]
-
-FAKTOR_AKTIVITAS: dict[TingkatAktivitas, float] = {
-    "sedentari": 1.2,
-    "ringan": 1.375,
-    "sedang": 1.55,
-    "aktif": 1.725,
-    "sangat_aktif": 1.9,
-}
-
-
 class TDEERequest(BaseModel):
     bmr_kcal_per_hari: float = Field(gt=0, le=10000)
     tingkat_aktivitas: TingkatAktivitas
 
 
 def hitung_tdee(bmr_kcal_per_hari: float, tingkat_aktivitas: TingkatAktivitas) -> float:
-    """Hitung TDEE dengan mengalikan BMR dan faktor aktivitas."""
-    return round(bmr_kcal_per_hari * FAKTOR_AKTIVITAS[tingkat_aktivitas], 1)
+    """Kompatibilitas untuk pemanggil kalkulator TDEE lama."""
+    return hitungTDEEDinamis(bmr_kcal_per_hari, tingkat_aktivitas)
 
 
 @app.post("/tdee", tags=["Health & Calculation"])
