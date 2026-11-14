@@ -24,12 +24,22 @@ os.environ.setdefault("DATABASE_URL", DATABASE_URL)
 from app.database import Base as RouterBase, engine as router_engine
 from app.routers import (
     admin_foods,
+    activity_logs,
     body_check,
+    calorie_targets,
+    evaluations,
     food_logs,
     notifications,
     reminders,
     water_logs,
 )
+from app.services.calorie_calculator import (
+    FAKTOR_AKTIVITAS,
+    TingkatAktivitas,
+    hitungMifflinBMR,
+    hitungTDEEDinamis,
+)
+from app.services.calorie_target_schema import ensure_calorie_target_schema
 
 ROUTER_API_KEY = os.getenv("ROUTER_API_KEY", "")
 ROUTER_BASE_URL = os.getenv("ROUTER_BASE_URL", "http://localhost:20128/v1")
@@ -168,6 +178,7 @@ async def evening_evaluation_scheduler_loop():
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     RouterBase.metadata.create_all(bind=router_engine)
+    ensure_calorie_target_schema(router_engine)
     scheduler_task = asyncio.create_task(evening_evaluation_scheduler_loop())
     yield
     scheduler_task.cancel()
@@ -179,6 +190,7 @@ for router_module in (
     admin_foods,
     activity_logs,
     body_check,
+    calorie_targets,
     evaluations,
     food_logs,
     notifications,
@@ -226,9 +238,8 @@ def hitung_bmr(
     tinggi_cm: float,
     berat_kg: float,
 ) -> float:
-    """Hitung BMR dalam kkal/hari dengan rumus Mifflin-St Jeor."""
-    konstanta = 5 if jenis_kelamin == "laki-laki" else -161
-    return round((10 * berat_kg) + (6.25 * tinggi_cm) - (5 * usia) + konstanta, 1)
+    """Kompatibilitas untuk pemanggil kalkulator BMR lama."""
+    return hitungMifflinBMR(usia, jenis_kelamin, tinggi_cm, berat_kg)
 
 
 @app.post("/bmr", tags=["Health & Calculation"])
@@ -243,25 +254,14 @@ def calculate_bmr(data: BMRRequest):
     }
 
 
-TingkatAktivitas = Literal["sedentari", "ringan", "sedang", "aktif", "sangat_aktif"]
-
-FAKTOR_AKTIVITAS: dict[TingkatAktivitas, float] = {
-    "sedentari": 1.2,
-    "ringan": 1.375,
-    "sedang": 1.55,
-    "aktif": 1.725,
-    "sangat_aktif": 1.9,
-}
-
-
 class TDEERequest(BaseModel):
     bmr_kcal_per_hari: float = Field(gt=0, le=10000)
     tingkat_aktivitas: TingkatAktivitas
 
 
 def hitung_tdee(bmr_kcal_per_hari: float, tingkat_aktivitas: TingkatAktivitas) -> float:
-    """Hitung TDEE dengan mengalikan BMR dan faktor aktivitas."""
-    return round(bmr_kcal_per_hari * FAKTOR_AKTIVITAS[tingkat_aktivitas], 1)
+    """Kompatibilitas untuk pemanggil kalkulator TDEE lama."""
+    return hitungTDEEDinamis(bmr_kcal_per_hari, tingkat_aktivitas)
 
 
 @app.post("/tdee", tags=["Health & Calculation"])
