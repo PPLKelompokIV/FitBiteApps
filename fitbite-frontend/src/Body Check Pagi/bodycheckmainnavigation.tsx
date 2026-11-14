@@ -1,12 +1,25 @@
 import type { ReactElement } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
+  LayoutGrid,
+  Sun,
   SunMedium,
+  Utensils,
+  Activity,
+  CalendarCheck,
+  TrendingUp,
+  SlidersHorizontal,
+  Sprout,
+  User,
+  ArrowUpRight,
   ChevronRight,
   Bell,
   Sparkles,
   Check,
   Heart,
+  type LucideIcon,
 } from "lucide-react";
+import identitasFitbite from "../assets/Identitas FitBite (1).png";
 
 // ==========================================
 // 1. TYPES DEFINITIONS
@@ -15,6 +28,17 @@ import {
 export type SleepQuality = "Kurang nyenyak" | "Cukup" | "Nyenyak";
 export type PlannedIntensity = "Ringan" | "Sedang" | "Tinggi";
 export type EnergyLevel = 1 | 2 | 3 | 4 | 5;
+
+export interface BodyCheckOverviewData {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  bmr: number;
+  tdee: number;
+  water_ml: number;
+  water_formula: string;
+}
 
 export interface BodyCheckFormData {
   weight: string;
@@ -25,7 +49,130 @@ export interface BodyCheckFormData {
 }
 
 // ==========================================
-// 2. TOP BREADCRUMB & HEADER
+// 2. SIDEBAR NAVIGATION
+// ==========================================
+
+interface NavigationItem {
+  label: string;
+  icon: LucideIcon;
+  to: string;
+}
+
+const navigationItems: NavigationItem[] = [
+  { label: "Hari ini", icon: LayoutGrid, to: "#hari-ini" },
+  { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
+  { label: "Jurnal makanan", icon: Utensils, to: "/foto-ai" },
+  { label: "Aktivitas & hidrasi", icon: Activity, to: "#aktivitas" },
+  { label: "Jurnal & evaluasi", icon: CalendarCheck, to: "#jurnal" },
+  { label: "Progres", icon: TrendingUp, to: "#progres" },
+  { label: "Profil & pengingat", icon: SlidersHorizontal, to: "/profil-pengingat" },
+];
+
+export const BodyCheckSidebar = (): ReactElement => {
+  const location = useLocation();
+
+  return (
+    <aside
+      className="sticky top-0 flex h-screen w-[216px] shrink-0 flex-col items-start justify-between self-stretch border-r border-[#e1e7df] bg-white px-[18px] py-[28px] overflow-y-auto"
+      aria-label="Navigasi FitBite"
+    >
+      <div className="flex w-full flex-col items-start gap-[30px]">
+        {/* Logo */}
+        <header className="inline-flex items-center gap-2.5">
+          <img
+            className="h-7 w-auto max-w-[120px] object-contain px-1"
+            alt="Identitas FitBite"
+            src={identitasFitbite}
+          />
+        </header>
+
+        {/* Navigation Items */}
+        <nav
+          className="flex w-full flex-col items-start gap-[6px]"
+          aria-label="Ruang sehatmu"
+        >
+          <h2 className="mb-1 px-2.5 text-[10px] font-bold uppercase leading-[15px] tracking-wider text-[#728078]">
+            RUANG SEHATMU
+          </h2>
+          {navigationItems.map((item) => {
+            const isActive =
+              item.to === "/bodycheckpagi"
+                ? location.pathname === "/bodycheckpagi"
+                : location.pathname === item.to;
+            const IconComponent = item.icon;
+            const linkClassName = `flex w-full items-center gap-3 rounded-[10px] px-[12px] py-2.5 text-left transition-colors ${
+              isActive
+                ? "bg-[#eaf3e9] font-bold text-[#167653]"
+                : "bg-transparent font-medium text-[#728078] hover:bg-[#f4f7f3]"
+            }`;
+
+            return (
+              <Link
+                key={item.label}
+                to={item.to}
+                aria-current={isActive ? "page" : undefined}
+                className={linkClassName}
+              >
+                <IconComponent
+                  className={`h-[18px] w-[18px] shrink-0 ${
+                    isActive ? "text-[#167653]" : "text-[#728078]"
+                  }`}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                />
+                <span className="flex-1 text-xs leading-[18px]">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Motivational Card */}
+        <section
+          className="flex w-full flex-col items-start gap-2 rounded-2xl bg-[#eaf3e9] p-4"
+          aria-label="Pesan motivasi"
+        >
+          <Sprout className="h-6 w-6 text-[#167653]" strokeWidth={1.8} />
+          <h2 className="mt-0.5 text-[13px] font-bold leading-[18.5px] text-[#124b39]">
+            Konsisten, bukan sempurna.
+          </h2>
+          <p className="text-[11px] font-normal leading-[16px] text-[#728078]">
+            Satu pilihan baik hari ini adalah langkah maju untuk dirimu.
+          </p>
+        </section>
+      </div>
+
+      {/* User profile footer */}
+      <footer className="flex w-full flex-col items-start gap-3.5 pt-6">
+        <div className="h-px w-full bg-[#e1e7df]" aria-hidden="true" />
+        <div className="flex w-full items-center gap-3">
+          <div
+            className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-full bg-[#eaf3e9] text-[#167653]"
+            aria-hidden="true"
+          >
+            <User className="h-[18px] w-[18px]" strokeWidth={2} />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col items-start">
+            <div className="w-full truncate text-[13px] font-semibold leading-[18px] text-[#203d32]">
+              Nadia Putri
+            </div>
+            <div className="text-[11px] font-normal leading-[16px] text-[#728078]">
+              Anggota FitBite
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-[11px] font-normal leading-[16.5px] text-[#728078] transition-colors hover:text-[#203d32]"
+        >
+          <span>Keluar dari akun</span>
+          <ArrowUpRight className="h-3 w-3" />
+        </button>
+      </footer>
+    </aside>
+  );
+};
+
+// ==========================================
+// 3. TOP BREADCRUMB & HEADER
 // ==========================================
 
 export const BodyCheckHeader = (): ReactElement => {
@@ -66,7 +213,7 @@ export const BodyCheckHeader = (): ReactElement => {
 };
 
 // ==========================================
-// 3. TITLE & NOTICE BANNER
+// 4. TITLE & NOTICE BANNER
 // ==========================================
 
 interface BodyCheckBannerProps {
@@ -81,8 +228,8 @@ export const BodyCheckBanner = ({ isSaved }: BodyCheckBannerProps): ReactElement
         <span className="text-[11px] font-bold uppercase tracking-wider text-[#1a6e4d]">
           BODY CHECK PAGI
         </span>
-        <h1 className="mt-1 flex items-center gap-2 text-[32px] font-normal leading-[40px] tracking-[-0.3px] text-[#203d32]">
-          Selamat pagi, Nadia <span className="text-[32px] leading-[40px]">☀️</span>
+        <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-[#143d30] sm:text-[28px]">
+          Selamat pagi, Nadia <span className="text-xl sm:text-2xl">☀️</span>
         </h1>
         <p className="mt-1 text-xs text-[#7a8c82]">
           Senin, 19 Oktober 2026 • 06.45 WIB •{" "}
@@ -92,7 +239,7 @@ export const BodyCheckBanner = ({ isSaved }: BodyCheckBannerProps): ReactElement
         </p>
       </div>
 
-      {/* Information Notice Banner (Berubah teks jika sudah di-save) */}
+      {/* Information Notice Banner */}
       <section
         aria-label="Pemberitahuan Body Check"
         className="mt-5 flex items-center gap-3 rounded-2xl bg-[#eaf4ec] px-4 py-3 text-xs font-medium leading-relaxed text-[#22553f] sm:text-[13px]"
@@ -109,7 +256,7 @@ export const BodyCheckBanner = ({ isSaved }: BodyCheckBannerProps): ReactElement
 };
 
 // ==========================================
-// 4. MAIN FORM SECTION
+// 5. MAIN FORM SECTION
 // ==========================================
 
 interface BodyCheckFormSectionProps {
@@ -156,7 +303,6 @@ export const BodyCheckFormSection = ({
 
         {/* Weight and Sleep Duration inputs */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* Weight Input */}
           <div>
             <label className="mb-2 block text-xs font-bold text-[#183d30]">
               Berat badan saat ini
@@ -178,7 +324,6 @@ export const BodyCheckFormSection = ({
             </p>
           </div>
 
-          {/* Sleep Duration Input */}
           <div>
             <label className="mb-2 block text-xs font-bold text-[#183d30]">
               Durasi tidur semalam
@@ -335,24 +480,29 @@ export const BodyCheckFormSection = ({
 };
 
 // ==========================================
-// 5. RIGHT OVERVIEW & METRICS CARDS
+// 6. RIGHT OVERVIEW & METRICS CARDS
 // ==========================================
 
-export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any }): ReactElement => {
-  // Jika overviewData kosong, kita gunakan default value bawaan UI sebagai fallback
-  const calories = overviewData ? overviewData.calories : "1.700";
-  const protein = overviewData ? overviewData.protein : "100";
-  const carbs = overviewData ? overviewData.carbs : "190";
-  const fat = overviewData ? overviewData.fat : "60";
-  const bmr = overviewData ? overviewData.bmr : "1.339";
-  const tdee = overviewData ? overviewData.tdee : "2.000";
-  const water = overviewData ? overviewData.water_ml : "2.240";
+export const BodyCheckOverviewSection = ({
+  overview,
+  weight,
+}: {
+  overview: BodyCheckOverviewData | null;
+  weight: string;
+}): ReactElement => {
+  const calories = overview ? overview.calories : 1700;
+  const protein = overview ? overview.protein : 100;
+  const carbs = overview ? overview.carbs : 190;
+  const fat = overview ? overview.fat : 60;
+  const bmr = overview ? overview.bmr : 1319;
+  const tdee = overview ? overview.tdee : 2000;
+  const waterMl = overview ? overview.water_ml : 2240;
+  const waterFormula = overview ? overview.water_formula : `35 ml × ${weight} kg`;
 
   return (
     <div className="space-y-4 lg:col-span-4">
       {/* 1. Dark Green Summary Card */}
       <div className="relative overflow-hidden rounded-2xl bg-[#0f3d2f] p-6 text-white shadow-xs">
-        {/* Top: Sparkles & Badge */}
         <div className="flex items-center justify-between">
           <Sparkles className="h-5 w-5 text-[#8ee0b6]" />
           <span className="rounded-full border border-[#2a6652] bg-[#1a513f] px-2.5 py-0.5 text-[11px] font-medium text-[#9ae6bf]">
@@ -360,15 +510,13 @@ export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any 
           </span>
         </div>
 
-        {/* Title */}
         <h2 className="mt-4 text-sm font-semibold text-white/95">
           Titik awal hari ini
         </h2>
 
-        {/* Value */}
         <div className="mt-2 flex items-baseline">
           <span className="text-4xl font-extrabold tracking-tight text-white">
-            {calories}
+            {calories.toLocaleString("id-ID")}
           </span>
           <span className="ml-1.5 text-sm font-medium text-[#9ae4c0]">
             kkal
@@ -378,7 +526,6 @@ export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any 
           Target sebelum tambahan olahraga tercatat
         </p>
 
-        {/* Macros Breakdown */}
         <div className="mt-5 grid grid-cols-3 gap-2 pt-2">
           <div>
             <span className="text-xs text-[#8cbda8]">Protein</span>
@@ -402,18 +549,16 @@ export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any 
         </h2>
 
         <div className="space-y-4">
-          {/* Metric 1: BMR */}
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-xs font-bold text-[#183d30]">BMR</h3>
               <p className="text-[11px] text-[#809187]">Mifflin–St Jeor</p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#183d30] sm:text-sm">
-              {bmr} kkal
+              {bmr.toLocaleString("id-ID")} kkal
             </span>
           </div>
 
-          {/* Metric 2: TDEE dinamis */}
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-xs font-bold text-[#183d30]">
@@ -424,25 +569,23 @@ export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any 
               </p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#183d30] sm:text-sm">
-              {tdee} kkal
+              {tdee.toLocaleString("id-ID")} kkal
             </span>
           </div>
 
-          {/* Metric 3: Air dasar */}
           <div className="flex items-start justify-between">
             <div>
               <h3 className="text-xs font-bold text-[#183d30]">
                 Air dasar
               </h3>
-              <p className="text-[11px] text-[#809187]">35 ml × berat badan</p>
+              <p className="text-[11px] text-[#809187]">{waterFormula}</p>
             </div>
             <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[#183d30] sm:text-sm">
-              {water} ml
+              {waterMl.toLocaleString("id-ID")} ml
             </span>
           </div>
         </div>
 
-        {/* Footnote inside card */}
         <div className="mt-5 pt-1">
           <p className="text-[11px] leading-relaxed text-[#798b81]">
             Tidur dan energi membantu menyesuaikan estimasi TDEE. Defisit
@@ -452,7 +595,6 @@ export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any 
         </div>
       </div>
 
-      {/* 3. Mindset / Disclaimer Card */}
       <div className="flex items-start gap-2.5 rounded-xl bg-[#eaf4ec] p-3.5">
         <Heart className="mt-0.5 h-4 w-4 shrink-0 text-[#1f6a4a]" />
         <p className="text-xs font-medium leading-relaxed text-[#1e583f]">
@@ -465,7 +607,7 @@ export const BodyCheckOverviewSection = ({ overviewData }: { overviewData?: any 
 };
 
 // ==========================================
-// 6. FOOTER
+// 7. FOOTER
 // ==========================================
 
 export const BodyCheckFooter = (): ReactElement => {

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -150,8 +150,108 @@ const FoodIcon = ({ kind }) => {
 export const DashboardHariIni = () => {
   const navigate = useNavigate();
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
-  const [water, setWater] = useState(1750);
   const [mealList, setMealList] = useState([]);
+
+  // Sinkronisasi Target Cairan & Berat Badan Terkini (FIT-48)
+  const [baseWater, setBaseWater] = useState(() => Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240);
+  const [userWeight, setUserWeight] = useState(() => localStorage.getItem("fitbite_berat_badan_kg") || "64");
+  const [sleepInfo, setSleepInfo] = useState(() => {
+    const dur = localStorage.getItem("fitbite_sleep_duration") || "7,5";
+    const qual = localStorage.getItem("fitbite_sleep_quality") || "nyenyak";
+    return `${dur} jam • ${qual.toLowerCase()}`;
+  });
+  const [energyInfo, setEnergyInfo] = useState(() => {
+    const lvl = localStorage.getItem("fitbite_energy_level") || "4";
+    const labels = { "1": "sangat lelah", "2": "lelah", "3": "cukup", "4": "berenergi", "5": "sangat segar" };
+    return `${lvl}/5 • ${labels[lvl] || "berenergi"}`;
+  });
+  const [savedTime, setSavedTime] = useState(() => localStorage.getItem("fitbite_bodycheck_time") || "06.48");
+
+  // Sinkronisasi Asupan Air Minum dari Riwayat Minum Lokal / API
+  const [water, setWater] = useState(() => {
+    try {
+      const savedDrinks = localStorage.getItem("fitbite_water_drinks");
+      if (savedDrinks) {
+        const parsed = JSON.parse(savedDrinks);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.reduce((sum, d) => sum + Number(d.amount || 0), 0);
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return 1750;
+  });
+
+  const waterTarget = baseWater + 400; // Target dasar + 400 ml bonus olahraga
+  const waterPercent = Math.min(100, (water / waterTarget) * 100);
+  const remainingWater = Math.max(0, waterTarget - water);
+
+  // Ambil data terbaru dari backend atau localStorage saat mount
+  useEffect(() => {
+    const savedTarget = localStorage.getItem("fitbite_target_cairan_ml");
+    const savedWeight = localStorage.getItem("fitbite_berat_badan_kg");
+    const savedDur = localStorage.getItem("fitbite_sleep_duration");
+    const savedQual = localStorage.getItem("fitbite_sleep_quality");
+    const savedLvl = localStorage.getItem("fitbite_energy_level");
+    const savedT = localStorage.getItem("fitbite_bodycheck_time");
+
+    if (savedTarget) setBaseWater(Number(savedTarget));
+    if (savedWeight) setUserWeight(savedWeight);
+    if (savedT) setSavedTime(savedT);
+    if (savedDur || savedQual) {
+      setSleepInfo(`${savedDur || "7,5"} jam • ${(savedQual || "nyenyak").toLowerCase()}`);
+    }
+    if (savedLvl) {
+      const labels = { "1": "sangat lelah", "2": "lelah", "3": "cukup", "4": "berenergi", "5": "sangat segar" };
+      setEnergyInfo(`${savedLvl}/5 • ${labels[savedLvl] || "berenergi"}`);
+    }
+
+    // Sinkronisasi riwayat minum dari backend API
+    fetch("http://localhost:8000/api/water-logs/1")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json && typeof json.total_ml === "number" && json.count > 0) {
+          setWater(json.total_ml);
+        }
+      })
+      .catch(() => {
+        // Backend offline: tetap gunakan data lokal
+      });
+  }, []);
+
+  // Menambah asupan air dan menyinkronkannya ke backend & localStorage
+  const handleAddWater = async (amount) => {
+    const newTotal = Math.min(waterTarget, water + amount);
+    setWater(newTotal);
+
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")} WIB`;
+
+    try {
+      const saved = localStorage.getItem("fitbite_water_drinks");
+      const list = saved ? JSON.parse(saved) : [];
+      list.push({ id: Date.now(), time: timeStr, amount: amount, note: "Air Putih (Dashboard)" });
+      localStorage.setItem("fitbite_water_drinks", JSON.stringify(list));
+    } catch {
+      // ignore
+    }
+
+    try {
+      await fetch("http://localhost:8000/api/water-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_user: 1,
+          waktu: timeStr,
+          jumlah_ml: amount,
+          catatan: "Air Putih (Dashboard)",
+        }),
+      });
+    } catch {
+      // Backend offline fallback
+    }
+  };
 
   const displayedMeals = useMemo(
     () => [
@@ -178,9 +278,6 @@ export const DashboardHariIni = () => {
     0,
     calorieTargets.calorieTarget + caloriesBurned - caloriesConsumed,
   );
-  const waterTarget = 2640;
-  const waterPercent = Math.min(100, (water / waterTarget) * 100);
-  const remainingWater = Math.max(0, waterTarget - water);
   const handleSaveMeal = (newMeal) => {
     setMealList((previous) => [...previous, newMeal]);
   };
@@ -260,7 +357,7 @@ export const DashboardHariIni = () => {
                   Body Check selesai
                 </p>
                 <p className="mt-0.5 text-[11px] text-[#728078]">
-                  Tersimpan pukul 06.48
+                  Tersimpan pukul {savedTime}
                 </p>
               </div>
             </div>
@@ -268,15 +365,17 @@ export const DashboardHariIni = () => {
             <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-3">
               <div>
                 <p className="text-[10px] text-[#728078]">Berat</p>
-                <p className="mt-1 text-xs text-[#203d32]">64,0 kg</p>
+                <p className="mt-1 text-xs font-semibold text-[#203d32]">
+                  {Number(userWeight).toLocaleString("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg
+                </p>
               </div>
               <div>
                 <p className="text-[10px] text-[#728078]">Tidur</p>
-                <p className="mt-1 text-xs text-[#203d32]">7,5 jam • nyenyak</p>
+                <p className="mt-1 text-xs text-[#203d32]">{sleepInfo}</p>
               </div>
               <div>
                 <p className="text-[10px] text-[#728078]">Energi</p>
-                <p className="mt-1 text-xs text-[#203d32]">4/5 • berenergi</p>
+                <p className="mt-1 text-xs text-[#203d32]">{energyInfo}</p>
               </div>
             </div>
             <span className="w-fit rounded-full bg-white/70 px-3 py-1.5 text-[10px] font-semibold text-[#167653]">
@@ -424,27 +523,32 @@ export const DashboardHariIni = () => {
                     </span>
                   </p>
                   <p className="mt-1 text-[11px] text-[#728078]">
-                    dari 2.640 ml • {Math.round(waterPercent)}%
+                    dari {waterTarget.toLocaleString("id-ID")} ml • {Math.round(waterPercent)}%
                   </p>
                   <span className="mt-2 inline-flex rounded-full bg-[#ecf5f7] px-2.5 py-1 text-[10px] font-semibold text-[#4b8dab]">
                     Tersisa {remainingWater.toLocaleString("id-ID")} ml
                   </span>
                 </div>
               </div>
-              <p className="text-[11px] leading-[17px] text-[#728078]">
-                Dasar 2.240 + bonus olahraga 400 ml
-              </p>
+              <div className="flex flex-col gap-1">
+                <p className="text-[11px] leading-[17px] text-[#728078]">
+                  Dasar {baseWater.toLocaleString("id-ID")} ml (35 ml × {userWeight} kg) + bonus 400 ml
+                </p>
+                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#edf7f0] px-2 py-0.5 text-[10px] font-medium text-[#167653]">
+                  <Sparkles size={11} /> Target otomatis sinkron (FIT-48)
+                </span>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => setWater((value) => Math.min(waterTarget, value + 250))}
+                  onClick={() => handleAddWater(250)}
                   className="min-h-10 rounded-[9px] border border-[#e1e7df] bg-white px-3 text-xs font-semibold text-[#167653] transition hover:bg-[#f5f8f3]"
                 >
                   +250 ml
                 </button>
                 <button
                   type="button"
-                  onClick={() => setWater((value) => Math.min(waterTarget, value + 500))}
+                  onClick={() => handleAddWater(500)}
                   className="min-h-10 rounded-[9px] bg-[#167653] px-3 text-xs font-semibold text-white transition hover:bg-[#126244]"
                 >
                   +500 ml
