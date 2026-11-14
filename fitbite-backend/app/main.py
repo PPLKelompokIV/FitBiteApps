@@ -18,6 +18,18 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 load_dotenv()
 
+from app.database import Base as RouterBase, engine as router_engine
+from app.routers import (
+    activity_logs,
+    admin_foods,
+    body_check,
+    evaluations,
+    food_logs,
+    notifications,
+    reminders,
+    water_logs,
+)
+
 ROUTER_API_KEY = os.getenv("ROUTER_API_KEY", "")
 ROUTER_BASE_URL = os.getenv("ROUTER_BASE_URL", "http://localhost:20128/v1")
 ROUTER_VISION_MODEL = os.getenv("ROUTER_VISION_MODEL", "ag/gemini-3.8-flash-high")
@@ -148,12 +160,25 @@ async def evening_evaluation_scheduler_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    scheduler_task = asyncio.create_task(evening_evaluation_scheduler_loop())
+    RouterBase.metadata.create_all(bind=router_engine)
+    scheduler_task = asyncio.create_task(evaluations.evening_evaluation_scheduler_loop())
     yield
     scheduler_task.cancel()
 
 
 app = FastAPI(title="FitBite AI & Calculation Service", lifespan=lifespan)
+
+for router_module in (
+    admin_foods,
+    activity_logs,
+    body_check,
+    evaluations,
+    food_logs,
+    notifications,
+    reminders,
+    water_logs,
+):
+    app.include_router(router_module.router)
 
 # Izinkan komunikasi dari Frontend (5173) & Node.js (5000)
 app.add_middleware(
@@ -1100,8 +1125,6 @@ def evaluasiMalam(
     }
 
 
-@app.post("/api/evaluations/evaluasi-malam")
-@app.post("/api/evaluations/trigger")
 def trigger_evaluasi_malam_manual(
     payload: ManualEvaluationRequest,
     db: Session = Depends(get_db),
@@ -1146,7 +1169,6 @@ def trigger_evaluasi_malam_manual(
     }
 
 
-@app.get("/api/evaluations/{id_user}/calendar")
 def get_calendar_evaluations(
     id_user: int,
     year: int = 2026,
@@ -1178,7 +1200,6 @@ def get_calendar_evaluations(
     }
 
 
-@app.get("/api/evaluations/{id_user}/{tanggal}")
 def get_evaluation_by_date(
     id_user: int,
     tanggal: str,
@@ -1211,7 +1232,6 @@ def get_evaluation_by_date(
     }
 
 
-@app.post("/api/evaluations/{id_user}/seed-october")
 def seed_sample_evaluations(id_user: int, db: Session = Depends(get_db)):
     """Mengisi 14 riwayat contoh Oktober 2026 ke tabel daily_evaluation sesuai mock UI."""
     sample_days = [

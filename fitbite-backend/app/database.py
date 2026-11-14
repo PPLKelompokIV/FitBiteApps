@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # Menggunakan koneksi lokal langsung (aman tanpa file .env)
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg2://postgres:Aqumiabi12!@localhost:5432/fitbite_db"
+    "postgresql+psycopg2://postgres:Faiz050105@localhost:5432/fitbite_db"
 )
 
 engine = create_engine(

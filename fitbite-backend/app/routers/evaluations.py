@@ -3,17 +3,29 @@ import json
 from datetime import date, datetime, timezone, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import text
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
+from app.models.activity_log import ActivityLog
 from app.models.daily_evaluation import DailyEvaluation
+from app.models.food_log import FoodLog
+from app.models.notification import Notification
+from app.models.water_log import WaterLog
 
-router = APIRouter(prefix="/api/evaluations", tags=["Daily Evaluation (FIT-57)"])
+router = APIRouter(prefix="/api/evaluations", tags=["Daily Evaluation (FIT-59/FIT-60)"])
 
 WIB = timezone(timedelta(hours=7))
 _auto_triggered_dates: set[str] = set()
+_last_scheduler_run: dict[str, Optional[str]] = {
+    "last_checked_wib": None,
+    "last_auto_run_date": None,
+    "last_auto_run_time": None,
+}
+
+EMPTY_LOG_MESSAGE = (
+    "Data hari ini belum lengkap. Silakan catat konsumsi makanan dan aktivitas Anda untuk evaluasi akurat"
+)
 
 
 def get_wib_now() -> datetime:
@@ -23,102 +35,83 @@ def get_wib_now() -> datetime:
 class ManualEvaluationRequest(BaseModel):
     id_user: int = 1
     tanggal: Optional[str] = None  # Format YYYY-MM-DD (opsional, default hari ini WIB)
-    # Opsional: override nilai aktual untuk keperluan pengujian skenario (tercapai / kurang / berlebih)
-    aktual_energi: Optional[float] = None
-    aktual_protein: Optional[float] = None
-    aktual_karbo: Optional[float] = None
-    aktual_lemak: Optional[float] = None
-    aktual_air: Optional[float] = None
-    kalori_olahraga: Optional[float] = None
+    # Opsional: override target & nilai aktual untuk pengujian skenario TC-PBI13-001 s/d TC-PBI13-005
+    target_energi: Optional[float] = Field(default=None, gt=0)
+    aktual_energi: Optional[float] = Field(default=None, ge=0)
+    aktual_protein: Optional[float] = Field(default=None, ge=0)
+    aktual_karbo: Optional[float] = Field(default=None, ge=0)
+    aktual_lemak: Optional[float] = Field(default=None, ge=0)
+    aktual_air: Optional[float] = Field(default=None, ge=0)
+    kalori_olahraga: Optional[float] = Field(default=None, ge=0)
 
 
 def _ambil_agregasi_log_harian(db: Session, id_user: int, target_date: date) -> dict:
-    """
-    Mengambil total asupan makanan, aktivitas olahraga, dan konsumsi air dari tabel log.
-    Jika tabel log belum terisi untuk tanggal tersebut, gunakan nilai default representatif.
-    """
-    data = {
-        "aktual_energi": None,
-        "aktual_protein": None,
-        "aktual_karbo": None,
-        "aktual_lemak": None,
-        "jumlah_log_makan": 0,
-        "kalori_olahraga": None,
-        "durasi_olahraga": 0,
-        "jumlah_log_aktivitas": 0,
-        "aktual_air": None,
-        "jumlah_log_air": 0,
+    food_logs = (
+        db.query(FoodLog)
+        .filter(FoodLog.id_user == id_user, FoodLog.tanggal == target_date)
+        .all()
+    )
+    activity_logs = (
+        db.query(ActivityLog)
+        .filter(ActivityLog.id_user == id_user, ActivityLog.tanggal == target_date)
+        .all()
+    )
+    water_logs = (
+        db.query(WaterLog)
+        .filter(WaterLog.id_user == id_user, WaterLog.tanggal == target_date)
+        .all()
+    )
+
+    return {
+        "aktual_energi": sum(float(log.kalori or 0) for log in food_logs),
+        "aktual_protein": sum(float(log.protein_g or 0) for log in food_logs),
+        "aktual_karbo": sum(float(log.karbo_g or 0) for log in food_logs),
+        "aktual_lemak": sum(float(log.lemak_g or 0) for log in food_logs),
+        "jumlah_log_makan": len(food_logs),
+        "kalori_olahraga": sum(
+            float(log.kalori_terbakar or 0) for log in activity_logs
+        ),
+        "durasi_olahraga": sum(log.durasi_menit for log in activity_logs),
+        "jumlah_log_aktivitas": len(activity_logs),
+        "bonus_air_olahraga": (
+            400.0
+            if any(log.met >= 6 and log.durasi_menit >= 30 for log in activity_logs)
+            else 0.0
+        ),
+        "aktual_air": sum(log.jumlah_ml for log in water_logs),
+        "jumlah_log_air": len(water_logs),
     }
 
-    # 1. Cek log makanan (food_logs)
-    try:
-        row_food = db.execute(
-            text(
-                """
-                SELECT
-                    COUNT(*) AS cnt,
-                    COALESCE(SUM(kalori), 0) AS total_kalori,
-                    COALESCE(SUM(protein), 0) AS total_protein,
-                    COALESCE(SUM(karbohidrat), 0) AS total_karbo,
-                    COALESCE(SUM(lemak), 0) AS total_lemak
-                FROM food_logs
-                WHERE id_user = :uid AND DATE(tanggal) = :tgl
-                """
-            ),
-            {"uid": id_user, "tgl": target_date},
-        ).fetchone()
-        if row_food and row_food[0] > 0:
-            data["jumlah_log_makan"] = int(row_food[0])
-            data["aktual_energi"] = float(row_food[1])
-            data["aktual_protein"] = float(row_food[2])
-            data["aktual_karbo"] = float(row_food[3])
-            data["aktual_lemak"] = float(row_food[4])
-    except Exception:
-        db.rollback()
 
-    # 2. Cek log aktivitas olahraga (activity_logs)
-    try:
-        row_act = db.execute(
-            text(
-                """
-                SELECT
-                    COUNT(*) AS cnt,
-                    COALESCE(SUM(kalori_terbakar), 0) AS total_kalori,
-                    COALESCE(SUM(durasi_menit), 0) AS total_durasi
-                FROM activity_logs
-                WHERE id_user = :uid AND DATE(tanggal) = :tgl
-                """
-            ),
-            {"uid": id_user, "tgl": target_date},
-        ).fetchone()
-        if row_act and row_act[0] > 0:
-            data["jumlah_log_aktivitas"] = int(row_act[0])
-            data["kalori_olahraga"] = float(row_act[1])
-            data["durasi_olahraga"] = int(row_act[2])
-    except Exception:
-        db.rollback()
+def _tentukan_badge_dan_judul_energi(
+    status_energi: str,
+    is_log_kosong: bool,
+) -> dict[str, str]:
+    """Menghasilkan badge & pesan utama yang sesuai dengan TC-PBI13-002 s/d TC-PBI13-005."""
+    if is_log_kosong:
+        return {
+            "badge_kalori": "Data Belum Lengkap",
+            "judul_status": EMPTY_LOG_MESSAGE,
+            "pesan_apresiasi": EMPTY_LOG_MESSAGE,
+        }
 
-    # 3. Cek log hidrasi (water_logs)
-    try:
-        row_water = db.execute(
-            text(
-                """
-                SELECT
-                    COUNT(*) AS cnt,
-                    COALESCE(SUM(volume_ml), 0) AS total_ml
-                FROM water_logs
-                WHERE id_user = :uid AND DATE(tanggal) = :tgl
-                """
-            ),
-            {"uid": id_user, "tgl": target_date},
-        ).fetchone()
-        if row_water and row_water[0] > 0:
-            data["jumlah_log_air"] = int(row_water[0])
-            data["aktual_air"] = float(row_water[1])
-    except Exception:
-        db.rollback()
-
-    return data
+    if status_energi == "tercapai":
+        return {
+            "badge_kalori": "Target Kalori Tercapai Optimal",
+            "judul_status": "Target Kalori Tercapai Optimal! Pertahankan konsistensi asupan harianmu.",
+            "pesan_apresiasi": "Kerja bagus! Asupan kalorimu hari ini berada dalam rentang optimal (+/- 10% dari target).",
+        }
+    if status_energi == "kurang":
+        return {
+            "badge_kalori": "Asupan Kurang",
+            "judul_status": "Asupan energi masih di bawah target.",
+            "pesan_apresiasi": "Tingkatkan porsi makan bernutrisi besok untuk menjaga metabolisme.",
+        }
+    return {
+        "badge_kalori": "Surplus Kalori",
+        "judul_status": "Surplus Kalori — Asupan energi melebihi target harian.",
+        "pesan_apresiasi": "Lakukan aktivitas olahraga ringan untuk membakar kelebihan energi besok pagi.",
+    }
 
 
 def _generate_saran_korektif(
@@ -132,25 +125,40 @@ def _generate_saran_korektif(
     aktual_air: float,
     target_air: float,
     kalori_olahraga: float,
+    is_log_kosong: bool = False,
 ) -> list[dict]:
-    """Men-generate catatan pendamping sehat (saran korektif untuk besok)."""
+    """Men-generate catatan pendamping sehat (saran korektif untuk besok) sesuai TC-PBI13-002 s/d TC-PBI13-005."""
+    if is_log_kosong:
+        return [
+            {
+                "nomor": "01",
+                "teks": EMPTY_LOG_MESSAGE,
+            }
+        ]
+
     saran = []
 
-    # Evaluasi Energi
-    if status_energi == "kurang":
+    # 1. Evaluasi Energi (TC-PBI13-002, TC-PBI13-003, TC-PBI13-004)
+    if status_energi == "tercapai":
+        saran.append(
+            "Target Kalori Tercapai Optimal! Apresiasi untuk konsistensimu hari ini, "
+            "pertahankan pola makan seimbang ini untuk esok hari."
+        )
+    elif status_energi == "kurang":
         selisih = round(target_energi - aktual_energi)
         saran.append(
-            f"Asupan energi hari ini masih kurang sekitar {selisih:,} kkal dari target. "
-            "Tambahkan porsi karbohidrat kompleks atau camilan sehat di sela waktu makan besok."
+            f"Status Asupan Kurang (defisit {selisih:,} kkal dari target). "
+            "Tingkatkan porsi makan bernutrisi besok untuk menjaga metabolisme."
         )
     elif status_energi == "berlebih":
         selisih = round(aktual_energi - target_energi)
         saran.append(
-            f"Asupan energi melebihi target sekitar {selisih:,} kkal. "
-            "Besok coba kurangi porsi gorengan atau minuman manis dan perbanyak sayur berserat."
+            f"Status Surplus Kalori (+{selisih:,} kkal di atas target). "
+            "Disarankan melakukan aktivitas olahraga ringan seperti jalan cepat atau jogging 20-30 menit "
+            "untuk membakar kelebihan energi besok pagi."
         )
 
-    # Evaluasi Protein
+    # 2. Evaluasi Protein
     if aktual_protein >= target_protein:
         saran.append(
             "Protein sudah tercukupi. Coba bagi lauk sumber protein lebih merata "
@@ -163,7 +171,7 @@ def _generate_saran_korektif(
             "Sertakan telur, ikan, dada ayam, atau tempe pada setiap jam makan utama besok."
         )
 
-    # Evaluasi Hidrasi
+    # 3. Evaluasi Hidrasi
     if aktual_air >= target_air:
         if kalori_olahraga > 0:
             saran.append(
@@ -182,8 +190,8 @@ def _generate_saran_korektif(
             "Letakkan botol minum di meja kerja dan aktifkan pengingat minum air setiap 2 jam."
         )
 
-    # Evaluasi Karbohidrat jika belum ada 2 saran
-    if len(saran) < 2 and aktual_karbo > target_karbo * 1.1:
+    # Evaluasi Karbohidrat jika belum ada 3 saran
+    if len(saran) < 3 and aktual_karbo > target_karbo * 1.1:
         saran.append(
             "Porsi karbohidrat sedikit di atas sasaran. Ganti sebagian nasi putih dengan "
             "nasi merah atau oat agar kenyang lebih tahan lama."
@@ -198,41 +206,31 @@ def _kirim_notifikasi_evaluasi(
     skor_kepatuhan: int,
     status_energi: str,
     waktu_wib: datetime,
+    tanggal_evaluasi: date,
 ) -> dict:
     """Menyimpan notifikasi laporan evaluasi malam ke tabel notification (FIT-60)."""
     jam_str = waktu_wib.strftime("%H.%M")
     judul = "Evaluasi Malam siap dilihat"
     pesan = (
-        f"Skor kepatuhan hari ini {skor_kepatuhan}/100 (Energi {status_energi}). "
-        f"Lihat ringkasan & catatan pendampingmu • {jam_str} WIB"
+        f"Evaluasi {tanggal_evaluasi.strftime('%d/%m/%Y')} selesai: "
+        f"skor {skor_kepatuhan}/100, energi {status_energi}. "
+        "Lihat ringkasan dan saran pendamping."
     )
-    waktu_kirim = f"Hari ini • {jam_str} WIB"
+    waktu_kirim = f"{tanggal_evaluasi.strftime('%d/%m/%Y')} • {jam_str} WIB"
     tautan = "/jurnal-evaluasi"
 
-    try:
-        db.execute(
-            text(
-                """
-                INSERT INTO notification
-                    (id_user, kategori, judul, pesan, waktu_kirim, tautan_tujuan, sudah_dibaca)
-                VALUES
-                    (:uid, :kategori, :judul, :pesan, :waktu_kirim, :tautan, :dibaca)
-                """
-            ),
-            {
-                "uid": id_user,
-                "kategori": "evaluasi_malam",
-                "judul": judul,
-                "pesan": pesan,
-                "waktu_kirim": waktu_kirim,
-                "tautan": tautan,
-                "dibaca": False,
-            },
+    db.add(
+        Notification(
+            id_user=id_user,
+            kategori="evaluasi_malam",
+            judul=judul,
+            pesan=pesan,
+            waktu_kirim=waktu_kirim,
+            tautan_tujuan=tautan,
+            sudah_dibaca=False,
         )
-        db.commit()
-    except Exception as err:
-        db.rollback()
-        print(f"[INFO] Tabel notification belum tersedia / dilewati: {err}")
+    )
+    db.commit()
 
     return {
         "kategori": "evaluasi_malam",
@@ -245,13 +243,22 @@ def _kirim_notifikasi_evaluasi(
 
 def _format_evaluation_response(record: DailyEvaluation) -> dict:
     """Memformat record database menjadi struktur JSON siap pakai oleh frontend."""
+    is_log_kosong = (
+        record.jumlah_log_makan == 0
+        and record.jumlah_log_air == 0
+        and record.jumlah_log_aktivitas == 0
+        and record.aktual_energi == 0
+        and record.aktual_air == 0
+    )
+
     tone_map = {"tercapai": "good", "kurang": "low", "berlebih": "high"}
-    status_tone = tone_map.get(record.status_energi, "good")
+    status_tone = "neutral" if is_log_kosong else tone_map.get(record.status_energi, "good")
+    info_badge = _tentukan_badge_dan_judul_energi(record.status_energi, is_log_kosong)
 
     diff_protein = round(record.aktual_protein - record.target_protein)
     diff_karbo = round(record.aktual_karbo - record.target_karbo)
     diff_lemak = round(record.aktual_lemak - record.target_lemak)
-    pct_air = round((record.aktual_air / record.target_air) * 100) if record.target_air > 0 else 100
+    pct_air = round((record.aktual_air / record.target_air) * 100) if record.target_air > 0 else 0
 
     saran_list = json.loads(record.saran_korektif) if record.saran_korektif else []
 
@@ -259,8 +266,13 @@ def _format_evaluation_response(record: DailyEvaluation) -> dict:
         "id_evaluation": record.id_evaluation,
         "id_user": record.id_user,
         "tanggal_evaluasi": record.tanggal_evaluasi.isoformat(),
-        "skor_kepatuhan": record.skor_kepatuhan,
+        "is_log_kosong": is_log_kosong,
+        "pesan_state_kosong": EMPTY_LOG_MESSAGE if is_log_kosong else None,
+        "skor_kepatuhan": 0 if is_log_kosong else record.skor_kepatuhan,
         "status_energi": record.status_energi,
+        "badge_evaluasi_kalori": info_badge["badge_kalori"],
+        "judul_status": info_badge["judul_status"],
+        "pesan_apresiasi": info_badge["pesan_apresiasi"],
         "status_tone": status_tone,
         "persentase_energi": record.persentase_energi,
         "tipe_pemicu": record.tipe_pemicu,
@@ -270,7 +282,11 @@ def _format_evaluation_response(record: DailyEvaluation) -> dict:
                 "komponen": "Energi",
                 "target": f"{int(record.target_energi):,}".replace(",", ".") + " kkal",
                 "aktual": f"{int(record.aktual_energi):,}".replace(",", ".") + " kkal",
-                "ringkasan": f"{record.persentase_energi}% · {record.status_energi}",
+                "ringkasan": (
+                    "Belum ada log"
+                    if is_log_kosong
+                    else f"{record.persentase_energi}% · {info_badge['badge_kalori']}"
+                ),
                 "tone": status_tone,
             },
             {
@@ -332,7 +348,7 @@ def evaluasiMalam(
     FIT-59: Fungsi utama evaluasiMalam() untuk:
     1. Menghitung pencapaian harian (Energi, Protein, Karbohidrat, Lemak, Air Minum & Skor Kepatuhan)
     2. Menentukan status energi ('tercapai' 90-110%, 'kurang' <90%, 'berlebih' >110%)
-    3. Men-generate saran korektif untuk esok hari
+    3. Men-generate saran korektif untuk esok hari (sesuai TC-PBI13-002 s/d TC-PBI13-005)
     4. Menyimpan hasil evaluasi ke tabel daily_evaluation
     5. Mengirim notifikasi laporan evaluasi ke tabel notification (FIT-60)
     """
@@ -342,72 +358,107 @@ def evaluasiMalam(
 
     agregasi = _ambil_agregasi_log_harian(db, id_user, eval_date)
 
-    # Target dasar harian
-    target_energi_dasar = 1700.0
+    # Target dasar harian (mendukung override target_energi misal 2000 kkal untuk TC-PBI13-002/003/004)
+    target_energi_dasar = (
+        float(overrides["target_energi"])
+        if overrides.get("target_energi") is not None
+        else 1700.0
+    )
     target_protein = 100.0
     target_karbo = 190.0
     target_lemak = 60.0
     target_air_dasar = 2240.0
 
-    # Nilai aktual & olahraga (prioritas: parameter override -> hasil query DB -> nilai default contoh)
     kalori_olahraga = (
-        overrides["kalori_olahraga"]
+        float(overrides["kalori_olahraga"])
         if overrides.get("kalori_olahraga") is not None
-        else (agregasi["kalori_olahraga"] if agregasi["kalori_olahraga"] is not None else 258.0)
+        else agregasi["kalori_olahraga"]
     )
-    bonus_air_olahraga = 400.0 if kalori_olahraga > 0 else 0.0
+    bonus_air_olahraga = agregasi["bonus_air_olahraga"]
 
-    target_energi = target_energi_dasar + kalori_olahraga
+    target_energi = (
+        float(overrides["target_energi"])
+        if overrides.get("target_energi") is not None
+        else (target_energi_dasar + kalori_olahraga)
+    )
     target_air = target_air_dasar + bonus_air_olahraga
 
     aktual_energi = (
-        overrides["aktual_energi"]
+        float(overrides["aktual_energi"])
         if overrides.get("aktual_energi") is not None
-        else (agregasi["aktual_energi"] if agregasi["aktual_energi"] is not None else 1800.0)
+        else agregasi["aktual_energi"]
     )
     aktual_protein = (
-        overrides["aktual_protein"]
+        float(overrides["aktual_protein"])
         if overrides.get("aktual_protein") is not None
-        else (agregasi["aktual_protein"] if agregasi["aktual_protein"] is not None else 110.0)
+        else agregasi["aktual_protein"]
     )
     aktual_karbo = (
-        overrides["aktual_karbo"]
+        float(overrides["aktual_karbo"])
         if overrides.get("aktual_karbo") is not None
-        else (agregasi["aktual_karbo"] if agregasi["aktual_karbo"] is not None else 210.0)
+        else agregasi["aktual_karbo"]
     )
     aktual_lemak = (
-        overrides["aktual_lemak"]
+        float(overrides["aktual_lemak"])
         if overrides.get("aktual_lemak") is not None
-        else (agregasi["aktual_lemak"] if agregasi["aktual_lemak"] is not None else 58.0)
+        else agregasi["aktual_lemak"]
     )
     aktual_air = (
-        overrides["aktual_air"]
+        float(overrides["aktual_air"])
         if overrides.get("aktual_air") is not None
-        else (agregasi["aktual_air"] if agregasi["aktual_air"] is not None else 2640.0)
+        else agregasi["aktual_air"]
     )
 
-    # 1. Hitung persentase energi & skor kepatuhan (rerata rasio 5 komponen, max 100% per komponen)
-    persentase_energi = round((aktual_energi / target_energi) * 100) if target_energi > 0 else 0
+    jumlah_makan = (
+        1
+        if overrides.get("aktual_energi") is not None and aktual_energi > 0
+        else agregasi["jumlah_log_makan"]
+    )
+    jumlah_aktivitas = agregasi["jumlah_log_aktivitas"]
+    durasi_olahraga = agregasi["durasi_olahraga"]
+    jumlah_air = (
+        1
+        if overrides.get("aktual_air") is not None and aktual_air > 0
+        else agregasi["jumlah_log_air"]
+    )
 
-    rasio_energi = min(aktual_energi / target_energi, 1.0) if target_energi > 0 else 0.0
-    rasio_protein = min(aktual_protein / target_protein, 1.0) if target_protein > 0 else 0.0
-    rasio_karbo = min(aktual_karbo / target_karbo, 1.0) if target_karbo > 0 else 0.0
-    rasio_lemak = min(aktual_lemak / target_lemak, 1.0) if target_lemak > 0 else 0.0
-    rasio_air = min(aktual_air / target_air, 1.0) if target_air > 0 else 0.0
+    is_log_kosong = (
+        jumlah_makan == 0
+        and jumlah_air == 0
+        and jumlah_aktivitas == 0
+        and aktual_energi == 0
+        and aktual_air == 0
+    )
 
-    skor_kepatuhan = round(
-        ((rasio_energi + rasio_protein + rasio_karbo + rasio_lemak + rasio_air) / 5.0) * 100
+    # 1. Hitung persentase energi & skor kepatuhan
+    persentase_energi_exact = (
+        (aktual_energi / target_energi) * 100 if target_energi > 0 else 0
+    )
+    persentase_energi = round(persentase_energi_exact)
+
+    rasio_energi = max(0.0, min(aktual_energi / target_energi, 1.0)) if target_energi > 0 else 0.0
+    rasio_protein = max(0.0, min(aktual_protein / target_protein, 1.0)) if target_protein > 0 else 0.0
+    rasio_karbo = max(0.0, min(aktual_karbo / target_karbo, 1.0)) if target_karbo > 0 else 0.0
+    rasio_lemak = max(0.0, min(aktual_lemak / target_lemak, 1.0)) if target_lemak > 0 else 0.0
+    rasio_air = max(0.0, min(aktual_air / target_air, 1.0)) if target_air > 0 else 0.0
+
+    skor_kepatuhan = (
+        0
+        if is_log_kosong
+        else round(
+            ((rasio_energi + rasio_protein + rasio_karbo + rasio_lemak + rasio_air) / 5.0) * 100
+        )
     )
 
     # 2. Tentukan status energi sesuai aturan UI FitBite (90-110% tercapai, <90% kurang, >110% berlebih)
-    if persentase_energi < 90:
+    if aktual_energi < target_energi * 0.9:
         status_energi = "kurang"
-    elif persentase_energi > 110:
+    elif aktual_energi > target_energi * 1.1:
         status_energi = "berlebih"
     else:
         status_energi = "tercapai"
 
-    # 3. Generate saran korektif
+    # 3. Generate saran korektif sesuai TC-PBI13-002 s/d TC-PBI13-005
     saran_list = _generate_saran_korektif(
         status_energi=status_energi,
         aktual_energi=aktual_energi,
@@ -419,6 +470,7 @@ def evaluasiMalam(
         aktual_air=aktual_air,
         target_air=target_air,
         kalori_olahraga=kalori_olahraga,
+        is_log_kosong=is_log_kosong,
     )
 
     # 4. Simpan atau perbarui (Upsert) ke tabel daily_evaluation
@@ -430,11 +482,6 @@ def evaluasiMalam(
         )
         .first()
     )
-
-    jumlah_makan = agregasi["jumlah_log_makan"] or 4
-    jumlah_aktivitas = agregasi["jumlah_log_aktivitas"] or (2 if kalori_olahraga > 0 else 0)
-    durasi_olahraga = agregasi["durasi_olahraga"] or (50 if kalori_olahraga > 0 else 0)
-    jumlah_air = agregasi["jumlah_log_air"] or 7
 
     if existing:
         existing.skor_kepatuhan = skor_kepatuhan
@@ -505,6 +552,7 @@ def evaluasiMalam(
             skor_kepatuhan=skor_kepatuhan,
             status_energi=status_energi,
             waktu_wib=now_wib,
+            tanggal_evaluasi=eval_date,
         )
 
     return {
@@ -520,6 +568,7 @@ def evaluasiMalam(
 
 @router.post("/evaluasi-malam")
 @router.post("/trigger")
+@router.post("/manual-trigger")
 def trigger_evaluasi_malam_manual(
     payload: ManualEvaluationRequest,
     db: Session = Depends(get_db),
@@ -535,10 +584,11 @@ def trigger_evaluasi_malam_manual(
         except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail="Format tanggal harus YYYY-MM-DD (contoh: 2026-10-18).",
+                detail="Format tanggal harus YYYY-MM-DD (contoh: 2026-11-14).",
             )
 
     overrides = {
+        "target_energi": payload.target_energi,
         "aktual_energi": payload.aktual_energi,
         "aktual_protein": payload.aktual_protein,
         "aktual_karbo": payload.aktual_karbo,
@@ -558,7 +608,41 @@ def trigger_evaluasi_malam_manual(
 
     return {
         "status": "success",
-        "message": "Evaluasi malam berhasil dihitung, disimpan ke daily_evaluation, dan notifikasi laporan dikirim.",
+        "message": (
+            EMPTY_LOG_MESSAGE
+            if hasil["evaluasi"]["is_log_kosong"]
+            else "Evaluasi malam berhasil dihitung, disimpan ke daily_evaluation, dan notifikasi laporan dikirim."
+        ),
+        "data": hasil["evaluasi"],
+        "notifikasi": hasil["notifikasi"],
+    }
+
+
+@router.get("/scheduler/status")
+def get_scheduler_status():
+    return {
+        "status": "running",
+        "timezone": "Asia/Jakarta",
+        "scheduled_time": "20:00",
+        "log_scheduler": dict(_last_scheduler_run),
+    }
+
+
+@router.post("/scheduler/simulate-20-00")
+def simulate_scheduler_20_00(
+    id_user: int = 1,
+    db: Session = Depends(get_db),
+):
+    hasil = evaluasiMalam(
+        db=db,
+        id_user=id_user,
+        target_date=get_wib_now().date(),
+        tipe_pemicu="otomatis_20_00",
+        kirim_notifikasi=True,
+    )
+    return {
+        "status": "success",
+        "message": "Evaluasi otomatis pukul 20:00 WIB berhasil dijalankan.",
         "data": hasil["evaluasi"],
         "notifikasi": hasil["notifikasi"],
     }
@@ -567,11 +651,17 @@ def trigger_evaluasi_malam_manual(
 @router.get("/{id_user}/calendar")
 def get_calendar_evaluations(
     id_user: int,
-    year: int = 2026,
-    month: int = 10,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     """Mengambil status warna kalender bulanan dari tabel daily_evaluation."""
+    now_wib = get_wib_now()
+    year = now_wib.year if year is None else year
+    month = now_wib.month if month is None else month
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=400, detail="Bulan harus berada antara 1 dan 12.")
+
     records = (
         db.query(DailyEvaluation)
         .filter(DailyEvaluation.id_user == id_user)
@@ -618,6 +708,33 @@ def get_evaluation_by_date(
     )
 
     if not record:
+        # Jika belum ada record tersimpan untuk tanggal tersebut, cek apakah log hari itu kosong (TC-PBI13-005)
+        agregasi = _ambil_agregasi_log_harian(db, id_user, target_date)
+        if (
+            agregasi["jumlah_log_makan"] == 0
+            and agregasi["jumlah_log_air"] == 0
+            and agregasi["jumlah_log_aktivitas"] == 0
+        ):
+            return {
+                "status": "empty",
+                "is_log_kosong": True,
+                "message": EMPTY_LOG_MESSAGE,
+                "data": {
+                    "id_user": id_user,
+                    "tanggal_evaluasi": target_date.isoformat(),
+                    "is_log_kosong": True,
+                    "pesan_state_kosong": EMPTY_LOG_MESSAGE,
+                    "badge_evaluasi_kalori": "Data Belum Lengkap",
+                    "judul_status": EMPTY_LOG_MESSAGE,
+                    "skor_kepatuhan": 0,
+                    "status_energi": "kurang",
+                    "status_tone": "neutral",
+                    "persentase_energi": 0,
+                    "ringkasan_tabel": [],
+                    "saran_korektif": [{"nomor": "01", "teks": EMPTY_LOG_MESSAGE}],
+                },
+            }
+
         raise HTTPException(
             status_code=404,
             detail=f"Belum ada laporan evaluasi malam untuk tanggal {tanggal}.",
@@ -626,29 +743,6 @@ def get_evaluation_by_date(
     return {
         "status": "success",
         "data": _format_evaluation_response(record),
-    }
-
-
-@router.post("/{id_user}/seed-october")
-def seed_sample_evaluations(id_user: int, db: Session = Depends(get_db)):
-    """Helper untuk mengisi riwayat contoh bulan Oktober 2026 sesuai mock UI FitBite."""
-    sample_days = [
-        (5, 1820.0), (6, 1850.0), (7, 1450.0), (8, 1810.0), (9, 1890.0),
-        (10, 2320.0), (11, 1800.0), (12, 1420.0), (13, 1840.0), (14, 1870.0),
-        (15, 2290.0), (16, 1830.0), (17, 1810.0), (18, 1800.0),
-    ]
-    for day_num, kcal in sample_days:
-        evaluasiMalam(
-            db=db,
-            id_user=id_user,
-            target_date=date(2026, 10, day_num),
-            tipe_pemicu="otomatis_20_00",
-            overrides={"aktual_energi": kcal},
-            kirim_notifikasi=False,
-        )
-    return {
-        "status": "success",
-        "message": "14 riwayat evaluasi malam Oktober 2026 berhasil dibuat.",
     }
 
 
@@ -668,16 +762,32 @@ async def evening_evaluation_scheduler_loop():
             now_wib = get_wib_now()
             date_key = now_wib.strftime("%Y-%m-%d")
 
-            if now_wib.hour == 20 and now_wib.minute == 0 and date_key not in _auto_triggered_dates:
-                _auto_triggered_dates.add(date_key)
+            _last_scheduler_run["last_checked_wib"] = now_wib.strftime(
+                "%Y-%m-%d %H:%M:%S WIB"
+            )
+            if now_wib.hour >= 20 and date_key not in _auto_triggered_dates:
                 db = SessionLocal()
                 try:
-                    evaluasiMalam(
-                        db=db,
-                        id_user=1,
-                        target_date=now_wib.date(),
-                        tipe_pemicu="otomatis_20_00",
-                        kirim_notifikasi=True,
+                    existing = (
+                        db.query(DailyEvaluation)
+                        .filter(
+                            DailyEvaluation.id_user == 1,
+                            DailyEvaluation.tanggal_evaluasi == now_wib.date(),
+                        )
+                        .first()
+                    )
+                    if not existing or existing.tipe_pemicu != "otomatis_20_00":
+                        evaluasiMalam(
+                            db=db,
+                            id_user=1,
+                            target_date=now_wib.date(),
+                            tipe_pemicu="otomatis_20_00",
+                            kirim_notifikasi=True,
+                        )
+                    _auto_triggered_dates.add(date_key)
+                    _last_scheduler_run["last_auto_run_date"] = date_key
+                    _last_scheduler_run["last_auto_run_time"] = now_wib.strftime(
+                        "%H:%M:%S WIB"
                     )
                     print(f"[SCHEDULER 20.00 WIB] Evaluasi malam otomatis selesai untuk {date_key}")
                 finally:
