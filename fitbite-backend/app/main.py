@@ -18,12 +18,13 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 load_dotenv()
 
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fitbite.db")
+os.environ.setdefault("DATABASE_URL", DATABASE_URL)
+
 from app.database import Base as RouterBase, engine as router_engine
 from app.routers import (
-    activity_logs,
     admin_foods,
     body_check,
-    evaluations,
     food_logs,
     notifications,
     reminders,
@@ -38,7 +39,6 @@ ROUTER_VISION_MODEL = os.getenv("ROUTER_VISION_MODEL", "ag/gemini-3.8-flash-high
 # KONFIGURASI DATABASE & TABEL DAILY_EVALUATION (FIT-59 & FIT-60)
 # =====================================================================
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./fitbite.db")
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
@@ -47,6 +47,7 @@ Base = declarative_base()
 
 WIB = datetime.timezone(datetime.timedelta(hours=7))
 _auto_triggered_dates: set[str] = set()
+_last_scheduler_log = "Scheduler menunggu evaluasi pukul 20.00 WIB."
 
 
 def get_wib_now() -> datetime.datetime:
@@ -132,6 +133,8 @@ async def evening_evaluation_scheduler_loop():
     Tepat pukul 20.00 WIB setiap hari, otomatis menjalankan evaluasiMalam()
     dan mengirim notifikasi laporan evaluasi harian.
     """
+    global _last_scheduler_log
+
     while True:
         try:
             now_wib = get_wib_now()
@@ -148,10 +151,14 @@ async def evening_evaluation_scheduler_loop():
                         tipe_pemicu="otomatis_20_00",
                         kirim_notifikasi=True,
                     )
+                    _last_scheduler_log = (
+                        f"Evaluasi malam otomatis selesai untuk {date_key}."
+                    )
                     print(f"[SCHEDULER 20.00 WIB] Evaluasi malam otomatis selesai untuk {date_key}")
                 finally:
                     db.close()
         except Exception as err:
+            _last_scheduler_log = f"Gagal menjalankan evaluasi otomatis: {err}"
             print(f"[SCHEDULER ERROR] Gagal menjalankan evaluasi otomatis: {err}")
 
         await asyncio.sleep(20)
@@ -161,12 +168,12 @@ async def evening_evaluation_scheduler_loop():
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     RouterBase.metadata.create_all(bind=router_engine)
-    scheduler_task = asyncio.create_task(evaluations.evening_evaluation_scheduler_loop())
+    scheduler_task = asyncio.create_task(evening_evaluation_scheduler_loop())
     yield
     scheduler_task.cancel()
 
 
-app = FastAPI(title="FitBite AI & Calculation Service", lifespan=lifespan)
+app = FastAPI(title="FitBite API", lifespan=lifespan)
 
 for router_module in (
     admin_foods,
@@ -193,8 +200,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(reminders.router)
+app.include_router(food_logs.router)
+app.include_router(water_logs.router)
+app.include_router(admin_foods.router)
+app.include_router(body_check.router)
+app.include_router(notifications.router)
 
-@app.get("/")
+
+@app.get("/", tags=["Service"])
 def read_root():
     return {"message": "Service Python FastAPI FitBite Berjalan!"}
 
@@ -217,7 +231,7 @@ def hitung_bmr(
     return round((10 * berat_kg) + (6.25 * tinggi_cm) - (5 * usia) + konstanta, 1)
 
 
-@app.post("/bmr")
+@app.post("/bmr", tags=["Health & Calculation"])
 def calculate_bmr(data: BMRRequest):
     return {
         "bmr_kcal_per_hari": hitung_bmr(
@@ -250,7 +264,7 @@ def hitung_tdee(bmr_kcal_per_hari: float, tingkat_aktivitas: TingkatAktivitas) -
     return round(bmr_kcal_per_hari * FAKTOR_AKTIVITAS[tingkat_aktivitas], 1)
 
 
-@app.post("/tdee")
+@app.post("/tdee", tags=["Health & Calculation"])
 def calculate_tdee(data: TDEERequest):
     faktor_aktivitas = FAKTOR_AKTIVITAS[data.tingkat_aktivitas]
     return {
@@ -306,7 +320,7 @@ def sesuaikan_target_kalori(
     }
 
 
-@app.post("/calorie-target/adjust")
+@app.post("/calorie-target/adjust", tags=["Health & Calculation"])
 def adjust_calorie_target(data: CalorieTargetAdjustmentRequest):
     return {
         "tdee_kcal_per_hari": data.tdee_kcal_per_hari,
@@ -339,7 +353,7 @@ def parse_ai_json_response(content: str) -> dict:
         raise ValueError("Model AI tidak mengembalikan format JSON yang valid.")
 
 
-@app.post("/api/ai/food-snap")
+@app.post("/api/ai/food-snap", tags=["AI Food Snap"])
 async def analyze_food_snap(file: UploadFile = File(...)):
     """Menerima unggahan foto makanan dan mengembalikan estimasi komponen nutrisi dari 9Router."""
     if not ROUTER_API_KEY:
@@ -542,7 +556,7 @@ class MealLogRequest(BaseModel):
     macros: str | None = None
 
 
-@app.post("/api/meals/log")
+@app.post("/api/meals/log", tags=["Food Log (FIT-33 / FIT-35)"])
 def save_meal_log(payload: MealLogRequest):
     """Menyimpan atau memperbarui log makanan pada slot tertentu untuk tanggal tertentu."""
     date_key = payload.date
@@ -631,7 +645,7 @@ def save_meal_log(payload: MealLogRequest):
     }
 
 
-@app.get("/api/meals/daily")
+@app.get("/api/meals/daily", tags=["Food Log (FIT-33 / FIT-35)"])
 def get_daily_meals(date: str | None = None):
     """Mengambil seluruh log makanan untuk 4 slot makan pada tanggal tertentu."""
     target_date = date or datetime.date.today().isoformat()
@@ -1125,6 +1139,9 @@ def evaluasiMalam(
     }
 
 
+@app.post("/api/evaluations/manual-trigger", tags=["Daily Evaluation (FIT-57)"])
+@app.post("/api/evaluations/evaluasi-malam", tags=["Daily Evaluation (FIT-57)"])
+@app.post("/api/evaluations/trigger", tags=["Daily Evaluation (FIT-57)"])
 def trigger_evaluasi_malam_manual(
     payload: ManualEvaluationRequest,
     db: Session = Depends(get_db),
@@ -1169,6 +1186,46 @@ def trigger_evaluasi_malam_manual(
     }
 
 
+@app.get("/api/evaluations/scheduler/status", tags=["Daily Evaluation (FIT-57)"])
+def get_scheduler_status():
+    now_wib = get_wib_now()
+    return {
+        "status": "active",
+        "jadwal_otomatis": "20:00 WIB (setiap hari)",
+        "waktu_server_wib": now_wib.strftime("%Y-%m-%d %H:%M:%S WIB"),
+        "sudah_jalan_hari_ini": now_wib.strftime("%Y-%m-%d") in _auto_triggered_dates,
+        "log_scheduler": _last_scheduler_log,
+    }
+
+
+@app.post(
+    "/api/evaluations/scheduler/simulate-20-00",
+    tags=["Daily Evaluation (FIT-57)"],
+)
+def simulate_scheduler_20_00(id_user: int = 1, db: Session = Depends(get_db)):
+    global _last_scheduler_log
+
+    target_date = get_wib_now().date()
+    hasil = evaluasiMalam(
+        db=db,
+        id_user=id_user,
+        target_date=target_date,
+        tipe_pemicu="otomatis_20_00",
+        kirim_notifikasi=True,
+    )
+    _auto_triggered_dates.add(target_date.strftime("%Y-%m-%d"))
+    _last_scheduler_log = (
+        f"Simulasi evaluasi malam berhasil untuk {target_date.isoformat()}."
+    )
+    return {
+        "status": "success",
+        "message": "Simulasi pemicu otomatis pukul 20.00 WIB berhasil dijalankan.",
+        "data": hasil["evaluasi"],
+        "notifikasi": hasil["notifikasi"],
+    }
+
+
+@app.get("/api/evaluations/{id_user}/calendar", tags=["Daily Evaluation (FIT-57)"])
 def get_calendar_evaluations(
     id_user: int,
     year: int = 2026,
@@ -1200,6 +1257,7 @@ def get_calendar_evaluations(
     }
 
 
+@app.get("/api/evaluations/{id_user}/{tanggal}", tags=["Daily Evaluation (FIT-57)"])
 def get_evaluation_by_date(
     id_user: int,
     tanggal: str,
@@ -1232,6 +1290,7 @@ def get_evaluation_by_date(
     }
 
 
+@app.post("/api/evaluations/{id_user}/seed-october", tags=["Daily Evaluation (FIT-57)"])
 def seed_sample_evaluations(id_user: int, db: Session = Depends(get_db)):
     """Mengisi 14 riwayat contoh Oktober 2026 ke tabel daily_evaluation sesuai mock UI."""
     sample_days = [

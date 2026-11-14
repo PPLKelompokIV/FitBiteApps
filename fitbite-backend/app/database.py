@@ -8,10 +8,14 @@ SQLALCHEMY_DATABASE_URL = os.getenv(
     "postgresql+psycopg2://postgres:Faiz050105@localhost:5432/fitbite_db"
 )
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"connect_timeout": 2} if "postgresql" in SQLALCHEMY_DATABASE_URL else {}
-)
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+elif "postgresql" in SQLALCHEMY_DATABASE_URL:
+    connect_args = {"connect_timeout": 2}
+else:
+    connect_args = {}
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 
 SessionLocal = sessionmaker(
     autocommit=False,
