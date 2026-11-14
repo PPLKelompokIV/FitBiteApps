@@ -24,7 +24,9 @@ os.environ.setdefault("DATABASE_URL", DATABASE_URL)
 from app.database import Base as RouterBase, engine as router_engine
 from app.routers import (
     admin_foods,
+    activity_logs,
     body_check,
+    evaluations,
     food_logs,
     notifications,
     reminders,

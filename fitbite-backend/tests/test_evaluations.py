@@ -190,16 +190,20 @@ def test_manual_evaluation_uses_zero_for_missing_logs(api):
 
 
 @pytest.mark.parametrize(
-    ("actual_energy", "expected_status"),
+    ("target_energy", "actual_energy", "expected_status"),
     [
-        (1529, "kurang"),
-        (1530, "tercapai"),
-        (1870, "tercapai"),
-        (1871, "berlebih"),
+        (1700, 1529, "kurang"),
+        (1700, 1530, "tercapai"),
+        (1700, 1870, "tercapai"),
+        (1700, 1871, "berlebih"),
+        (2000, 1799, "kurang"),
+        (2000, 1800, "tercapai"),
+        (2000, 2200, "tercapai"),
+        (2000, 2201, "berlebih"),
     ],
 )
 def test_energy_status_uses_exact_90_and_110_percent_thresholds(
-    api, actual_energy, expected_status
+    api, target_energy, actual_energy, expected_status
 ):
     client, _ = api
     response = client.post(
@@ -207,6 +211,7 @@ def test_energy_status_uses_exact_90_and_110_percent_thresholds(
         json={
             "id_user": 1,
             "tanggal": "2026-10-21",
+            "target_energi": target_energy,
             "aktual_energi": actual_energy,
         },
     )

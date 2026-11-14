@@ -30,6 +30,7 @@ function App() {
       <Route path="/profil-pengingat" element={<ProfilPengingat />} />
       <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
       <Route path="/jurnal-evaluasi" element={<JurnalEvaluasi />} />
+      <Route path="/evaluasi-harian" element={<JurnalEvaluasi />} />
       
       {/* Route Baru untuk Profil Kesehatan */}
       <Route path="/profil-kesehatan" element={<HealthProfileSetup />} />
