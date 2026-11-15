@@ -48,8 +48,16 @@ def hitungTDEEDinamis(
     return round(bmr_kcal_per_hari * faktor_aktivitas, 1)
 
 
-def hitungSasaranKalori(tdee_kcal_per_hari: float) -> int:
-    """Hitung sasaran turun berat dengan defisit 15%, dibulatkan ke 10 kkal."""
+def hitungSasaranKalori(
+    tdee_kcal_per_hari: float,
+    jenis_kelamin: Literal["laki-laki", "perempuan"],
+) -> int:
+    """Hitung defisit 15% dengan batas minimum sasaran sesuai jenis kelamin."""
     if not math.isfinite(tdee_kcal_per_hari) or tdee_kcal_per_hari <= 0:
         raise ValueError("TDEE harus lebih besar dari 0 kkal per hari.")
-    return int(math.floor(tdee_kcal_per_hari * 0.85 / 10 + 0.5) * 10)
+    if jenis_kelamin not in ("laki-laki", "perempuan"):
+        raise ValueError("Jenis kelamin harus 'laki-laki' atau 'perempuan'.")
+
+    sasaran_defisit = int(math.floor(tdee_kcal_per_hari * 0.85 / 10 + 0.5) * 10)
+    batas_minimum = 1200 if jenis_kelamin == "perempuan" else 1500
+    return max(sasaran_defisit, batas_minimum)

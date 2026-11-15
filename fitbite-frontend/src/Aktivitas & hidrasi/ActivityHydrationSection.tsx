@@ -39,6 +39,13 @@ type SavedActivity = {
   kalori_terbakar: number;
 };
 
+const sortActivityHistory = (activities: SavedActivity[]) =>
+  [...activities].sort(
+    (first, second) =>
+      first.waktu_mulai.localeCompare(second.waktu_mulai) ||
+      first.id_activity_log - second.id_activity_log
+  );
+
 const activityOptions: Activity[] = [
   { name: "Jalan kaki", met: "3,5 MET", icon: Footprints },
   { name: "Lari", met: "7,0 MOV", icon: Footprints }, // Atau gunakan icon lari jika ada
@@ -66,6 +73,7 @@ const suggestions = [
 export const ActivityAndHydrationSection = (): ReactElement => {
   const API_BASE = "http://127.0.0.1:8000/api/water-logs";
   const ACTIVITY_API_BASE = "http://127.0.0.1:8000/api/activity-logs";
+  const ACTIVITY_CREATE_API_URL = "http://127.0.0.1:8000/api/activities/log";
 
   const [selectedActivity, setSelectedActivity] = useState("Jalan kaki");
   const [duration, setDuration] = useState("20");
@@ -107,6 +115,8 @@ export const ActivityAndHydrationSection = (): ReactElement => {
   const [editingDrink, setEditingDrink] = useState<{ index: number; drink: Drink } | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({ time: "", amount: 250 });
+  const [editingActivity, setEditingActivity] = useState<SavedActivity | null>(null);
+  const [activityEditDuration, setActivityEditDuration] = useState("");
 
   // Sinkronisasi total hidrasi selalu akurat dari akumulasi riwayat minum
   const hydration = useMemo(
@@ -174,7 +184,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
       })
       .then((body) => {
         if (isMounted && Array.isArray(body.data)) {
-          setActivityHistory(body.data);
+          setActivityHistory(sortActivityHistory(body.data));
         }
       })
       .catch((error: unknown) => {
@@ -319,9 +329,11 @@ export const ActivityAndHydrationSection = (): ReactElement => {
   const selectedMet = Number.parseFloat(selected.met.replace(",", "."));
   const numericDuration = Number(duration);
   const weightKg = Number(localStorage.getItem("fitbite_berat_badan_kg")) || 64;
-  const estimatedCalories = Math.round(
-    (selectedMet * 3.5 * weightKg * numericDuration) / 200
-  );
+  const isDurationValid =
+    Number.isInteger(numericDuration) && numericDuration > 0 && numericDuration <= 360;
+  const estimatedCalories = isDurationValid
+    ? Math.round((selectedMet * 3.5 * weightKg * numericDuration) / 200)
+    : null;
 
   const baseWaterTarget = Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240;
   const userWeight = localStorage.getItem("fitbite_berat_badan_kg") || "64";
@@ -363,32 +375,49 @@ export const ActivityAndHydrationSection = (): ReactElement => {
   ];
 
   const handleSaveActivity = async () => {
-    if (!Number.isInteger(numericDuration) || numericDuration <= 0) {
-      setActivityError("Durasi aktivitas harus lebih dari 0 menit.");
+    if (!selectedActivity || !duration.trim()) {
+      setActivityError("Pilih jenis aktivitas dan isi durasi olahraga");
       return;
     }
+    if (!Number.isInteger(numericDuration) || numericDuration <= 0) {
+      setActivityError("Durasi aktivitas harus berupa angka positif lebih dari 0");
+      return;
+    }
+
+    let durationToSave = numericDuration;
+    if (numericDuration > 360) {
+      const confirmed = window.confirm(
+        "Durasi melebihi batas wajar. Maksimal durasi satu sesi adalah 360 menit. Simpan dengan batas 360 menit?"
+      );
+      if (!confirmed) return;
+      durationToSave = 360;
+      setDuration("360");
+    }
+
     setActivityError("");
     setIsSavingActivity(true);
     try {
       const now = new Date();
-      const response = await fetch(ACTIVITY_API_BASE, {
+      const response = await fetch(ACTIVITY_CREATE_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id_user: 1,
           tanggal: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
           nama_aktivitas: selectedActivity,
-          durasi_menit: numericDuration,
+          durasi_menit: durationToSave,
           waktu_mulai: startTime,
           met: selectedMet,
-          kalori_terbakar: estimatedCalories,
+          berat_kg: weightKg,
         }),
       });
       const body = await response.json();
       if (!response.ok) {
         throw new Error(body?.detail || "Gagal menyimpan aktivitas.");
       }
-      setActivityHistory((current) => [...current, body.data]);
+      setActivityHistory((current) =>
+        sortActivityHistory([...current, body.data])
+      );
       setSaved(true);
     } catch (error: unknown) {
       setActivityError(
@@ -401,6 +430,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
   };
 
   const handleDeleteActivity = async (id: number) => {
+    if (!window.confirm("Hapus catatan aktivitas ini?")) return;
     setActivityError("");
     try {
       const response = await fetch(`${ACTIVITY_API_BASE}/${id}`, {
@@ -416,6 +446,59 @@ export const ActivityAndHydrationSection = (): ReactElement => {
     } catch (error: unknown) {
       setActivityError(
         error instanceof Error ? error.message : "Gagal menghapus aktivitas."
+      );
+    }
+  };
+
+  const openEditActivity = (activity: SavedActivity) => {
+    setEditingActivity(activity);
+    setActivityEditDuration(String(activity.durasi_menit));
+    setActivityError("");
+  };
+
+  const handleSaveActivityEdit = async () => {
+    if (!editingActivity) return;
+    const updatedDuration = Number(activityEditDuration);
+    if (
+      !Number.isInteger(updatedDuration) ||
+      updatedDuration <= 0 ||
+      updatedDuration > 360
+    ) {
+      setActivityError("Durasi aktivitas harus berupa angka positif lebih dari 0");
+      return;
+    }
+
+    setActivityError("");
+    try {
+      const response = await fetch(
+        `${ACTIVITY_API_BASE}/${editingActivity.id_activity_log}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            durasi_menit: updatedDuration,
+            berat_kg: weightKg,
+          }),
+        }
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.detail || "Gagal memperbarui aktivitas.");
+      }
+
+      setActivityHistory((current) =>
+        sortActivityHistory(
+          current.map((activity) =>
+            activity.id_activity_log === body.data.id_activity_log
+              ? body.data
+              : activity
+          )
+        )
+      );
+      setEditingActivity(null);
+    } catch (error: unknown) {
+      setActivityError(
+        error instanceof Error ? error.message : "Gagal memperbarui aktivitas."
       );
     }
   };
@@ -524,6 +607,14 @@ export const ActivityAndHydrationSection = (): ReactElement => {
                       <div className="mt-4 flex justify-end text-[11px] text-[#728078] gap-2">
                         <button
                           type="button"
+                          aria-label={`Edit aktivitas ${activity.nama_aktivitas}`}
+                          onClick={() => openEditActivity(activity)}
+                          className="hover:text-[#167653]"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleDeleteActivity(activity.id_activity_log)}
                           className="hover:text-red-600"
                         >
@@ -556,7 +647,11 @@ export const ActivityAndHydrationSection = (): ReactElement => {
                     <button
                       type="button"
                       key={activity.name}
-                      onClick={() => setSelectedActivity(activity.name)}
+                      onClick={() => {
+                        setSelectedActivity(activity.name);
+                        setSaved(false);
+                        setActivityError("");
+                      }}
                       aria-pressed={isSelected}
                       className={`flex items-center gap-2 rounded-[10px] border p-[13px] text-left transition-all ${
                         isSelected ? "border-[#167653] bg-[#eaf3e9]" : "border-[#e1e7df] bg-white hover:border-[#cbd5e1]"
@@ -578,8 +673,13 @@ export const ActivityAndHydrationSection = (): ReactElement => {
                     <input
                       type="number"
                       min="1"
+                      max="360"
                       value={duration}
-                      onChange={(event) => setDuration(event.target.value)}
+                      onChange={(event) => {
+                        setDuration(event.target.value);
+                        setSaved(false);
+                        setActivityError("");
+                      }}
                       className="w-full bg-transparent text-sm font-normal outline-none text-[#203d32]"
                     />
                     <span className="text-xs font-normal text-[#728078]">menit</span>
@@ -591,21 +691,29 @@ export const ActivityAndHydrationSection = (): ReactElement => {
                     <input
                       type="time"
                       value={startTime}
-                      onChange={(event) => setStartTime(event.target.value)}
+                      onChange={(event) => {
+                        setStartTime(event.target.value);
+                        setSaved(false);
+                        setActivityError("");
+                      }}
                       className="w-full bg-transparent text-sm font-normal outline-none text-[#203d32]"
                     />
                     <span className="text-xs font-normal text-[#728078]">WIB</span>
                   </span>
                 </label>
               </div>
-              <div className="mt-5 flex items-center gap-4 rounded-xl bg-[#f0f3ec] p-[17px]">
+              <div
+                role="status"
+                aria-live="polite"
+                className="mt-5 flex items-center gap-4 rounded-xl bg-[#f0f3ec] p-[17px]"
+              >
                 <Flame className="h-[25px] w-[25px] text-[#167653]" />
                 <div className="flex-1">
                   <strong className="block text-[13px] text-[#124b39]">
-                    Estimasi energi: {estimatedCalories} kkal
+                    Estimasi energi: {estimatedCalories ?? "—"} kkal
                   </strong>
                   <span className="text-[10px] text-[#728078]">
-                    {selected.met} × 3,5 × 64 kg ÷ 200 × {duration || 0} menit
+                    {selected.met} × 3,5 × {weightKg.toLocaleString("id-ID")} kg ÷ 200 × {duration || 0} menit
                   </span>
                 </div>
                 <span className="rounded-full bg-[#e4e9e0] px-2.5 py-1 text-[11px] text-[#728078]">
@@ -833,6 +941,62 @@ export const ActivityAndHydrationSection = (): ReactElement => {
           </p>
         </aside>
       </section>
+
+      {editingActivity && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-activity-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h2
+              id="edit-activity-title"
+              className="text-base font-bold text-[#124b39]"
+            >
+              Edit aktivitas
+            </h2>
+            <p className="mt-1 text-xs text-[#728078]">
+              {editingActivity.nama_aktivitas} • {editingActivity.met} MET
+            </p>
+            <label className="mt-4 block text-xs font-semibold text-[#203d32]">
+              Durasi (menit)
+              <input
+                type="number"
+                aria-label="Durasi aktivitas"
+                min="1"
+                max="360"
+                value={activityEditDuration}
+                onChange={(event) =>
+                  setActivityEditDuration(event.target.value)
+                }
+                className="mt-2 w-full rounded-xl border border-[#d8e0d5] bg-[#f9faf7] px-3.5 py-2 text-sm text-[#203d32]"
+              />
+            </label>
+            {activityError && (
+              <p role="alert" className="mt-3 text-xs text-red-700">
+                {activityError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2 border-t border-[#e1e7df] pt-4">
+              <button
+                type="button"
+                onClick={() => setEditingActivity(null)}
+                className="rounded-xl border border-[#d8e0d5] px-4 py-2 text-xs font-semibold text-[#527063]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveActivityEdit}
+                className="rounded-xl bg-[#167653] px-5 py-2 text-xs font-semibold text-white"
+              >
+                Simpan perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Edit Jadwal / Catatan Minum */}
       {isEditModalOpen && (

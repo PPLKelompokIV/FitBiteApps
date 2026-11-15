@@ -25,7 +25,20 @@ def test_hitung_tdee_uses_selected_activity_factor():
 
 
 def test_hitung_sasaran_kalori_applies_weight_loss_deficit():
-    assert hitungSasaranKalori(1841.1) == 1560
+    assert hitungSasaranKalori(1841.1, "perempuan") == 1560
+
+
+@pytest.mark.parametrize(
+    ("tdee", "jenis_kelamin", "expected"),
+    [
+        (1111.8, "perempuan", 1200),
+        (1311.0, "laki-laki", 1500),
+    ],
+)
+def test_hitung_sasaran_kalori_enforces_gender_specific_minimum(
+    tdee, jenis_kelamin, expected
+):
+    assert hitungSasaranKalori(tdee, jenis_kelamin) == expected
 
 
 @pytest.fixture
@@ -169,11 +182,13 @@ def test_schema_migration_adds_and_backfills_calorie_target():
         connection.exec_driver_sql(
             "CREATE TABLE calorie_targets ("
             "id_calorie_target INTEGER PRIMARY KEY, "
+            "jenis_kelamin VARCHAR(20) NOT NULL, "
             "tdee_kcal_per_hari FLOAT NOT NULL)"
         )
         connection.exec_driver_sql(
-            "INSERT INTO calorie_targets (id_calorie_target, tdee_kcal_per_hari) "
-            "VALUES (1, 1841.1)"
+            "INSERT INTO calorie_targets "
+            "(id_calorie_target, jenis_kelamin, tdee_kcal_per_hari) "
+            "VALUES (1, 'perempuan', 1841.1)"
         )
 
     ensure_calorie_target_schema(engine)
