@@ -32,7 +32,6 @@ function App() {
       <Route path="/jurnal-makanan" element={<JurnalMakanan />} />
       <Route path="/jurnal-evaluasi" element={<JurnalEvaluasiPage />} />
       <Route path="/progres" element={<ProgresPage />} />
-
       {/* Route Baru untuk Profil Kesehatan */}
       <Route path="/profil-kesehatan" element={<HealthProfileSetup />} />
     </Routes>
