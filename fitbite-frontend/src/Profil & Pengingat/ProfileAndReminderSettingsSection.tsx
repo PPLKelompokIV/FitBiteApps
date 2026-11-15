@@ -47,6 +47,9 @@ type NotificationItem = {
   sudah_dibaca: boolean;
 };
 
+// Lokasi file audio di dalam folder fitbite-frontend/public/notification.mp3
+const SOUNDTRACK_PATH = "/notification.mp3";
+
 // 6 Pengingat harian FitBite sesuai ERD dan mock UI
 const defaultReminders: Reminder[] = [
   {
@@ -224,6 +227,7 @@ export const ProfileAndReminderSettingsSection = () => {
   const navigate = useNavigate();
   const bellDropdownRef = useRef<HTMLDivElement | null>(null);
   const triggeredRemindersRef = useRef<Set<string>>(new Set());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [personalization, setPersonalization] = useState(true);
   const [foodPhotos, setFoodPhotos] = useState(false);
@@ -236,47 +240,32 @@ export const ProfileAndReminderSettingsSection = () => {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // State Suara Notifikasi (Soundtrack)
+  // State Suara Notifikasi (Soundtrack Custom)
   const [soundEnabled, setSoundEnabled] = useState(true);
   const soundEnabledRef = useRef(true);
   useEffect(() => {
     soundEnabledRef.current = soundEnabled;
   }, [soundEnabled]);
 
-  // Fungsi memutar soundtrack notifikasi (nada denting lembut 2 ketukan)
+  // Fungsi memutar file soundtrack dari folder public/notification.mp3
   const playNotificationSound = (forcePlay = false) => {
     if (!forcePlay && !soundEnabledRef.current) return;
+
     try {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext;
-      const ctx = new AudioCtx();
-      if (ctx.state === "suspended") {
-        ctx.resume();
+      if (!audioRef.current) {
+        audioRef.current = new Audio(SOUNDTRACK_PATH);
       }
 
-      const now = ctx.currentTime;
-      const notes = [
-        { freq: 587.33, start: 0, duration: 0.28 },    // Nada D5
-        { freq: 880.0, start: 0.14, duration: 0.45 },    // Nada A5
-      ];
+      // Reset ke awal agar bisa diputar ulang dengan cepat saat diklik berkali-kali
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.volume = 1.0;
 
-      notes.forEach(({ freq, start, duration }) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, now + start);
-
-        gain.gain.setValueAtTime(0.001, now + start);
-        gain.gain.exponentialRampToValueAtTime(0.24, now + start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + duration);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(now + start);
-        osc.stop(now + start + duration);
+      audioRef.current.play().catch((err) => {
+        console.warn(
+          "Gagal memutar file /notification.mp3, pastikan file sudah ada di folder public/:",
+          err
+        );
       });
     } catch (err) {
       console.warn("Audio notifikasi tidak dapat diputar:", err);
@@ -730,7 +719,7 @@ export const ProfileAndReminderSettingsSection = () => {
                 <div
                   role="region"
                   aria-label="Dropdown daftar notifikasi"
-                  className="absolute right-0 top-[46px] z-50 flex w-[370px] flex-col gap-3 rounded-[16px] border border-[#e1e7df] bg-white p-4 shadow-[0_12px_32px_rgba(32,61,50,0.14)]"
+                  className="absolute right-0 top-[46px] z-50 flex w-[380px] flex-col gap-3 rounded-[16px] border border-[#e1e7df] bg-white p-4 shadow-[0_12px_32px_rgba(32,61,50,0.14)]"
                 >
                   <div className="flex items-center justify-between border-b border-[#edf1eb] pb-2.5">
                     <div className="flex items-center gap-2">
@@ -833,9 +822,9 @@ export const ProfileAndReminderSettingsSection = () => {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between border-t border-[#edf1eb] pt-2 text-[10px] text-[#728078]">
-                    <span>Klik item untuk menuju halaman log</span>
-                    <div className="flex items-center gap-2.5">
+                  <div className="flex items-center justify-between gap-2 border-t border-[#edf1eb] pt-2 text-[10px] text-[#728078]">
+                    <span className="truncate">Klik item ke halaman log</span>
+                    <div className="flex shrink-0 items-center gap-2.5 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => playNotificationSound(true)}
