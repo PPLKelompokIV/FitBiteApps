@@ -20,6 +20,7 @@ from app.models.notification import Notification as NotificationRecord
 from app.routers import (
     admin_foods,
     activity_logs,
+    auth,
     body_check,
     calorie_targets,
     evaluations,
@@ -129,6 +130,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(reminders.router)
 app.include_router(food_logs.router)
 app.include_router(water_logs.router)
