@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getAuthUser, logout } from "../utils/auth";
 import {
@@ -23,17 +23,16 @@ type NavigationItem = {
 };
 
 const navigationItems: NavigationItem[] = [
-  { label: "Hari ini", icon: LayoutGrid },
+  { label: "Hari ini", icon: LayoutGrid, to: "/dashboard-hari-ini" },
   { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
   { label: "Jurnal makanan", icon: Utensils, to: "/jurnal-makanan" },
-  { label: "Aktivitas & hidrasi", icon: Activity },
-  { label: "Jurnal & evaluasi", icon: CalendarCheck },
+  { label: "Aktivitas & hidrasi", icon: Activity, to: "/aktivitas-hidrasi" },
+  { label: "Jurnal & evaluasi", icon: CalendarCheck, to: "/jurnal-evaluasi" },
   { label: "Progres", icon: TrendingUp },
   { label: "Profil & pengingat", icon: SlidersHorizontal, to: "/profil-pengingat" },
 ];
 
 export const HealthAppSidebarSection = (): ReactElement => {
-  const [activeItem, setActiveItem] = useState("Jurnal makanan");
   const location = useLocation();
   const navigate = useNavigate();
   const authUser = getAuthUser();
@@ -52,7 +51,7 @@ export const HealthAppSidebarSection = (): ReactElement => {
           />
         </header>
 
-        {/* Navigation Items */}
+        {/* Navigation Items dengan Link Router */}
         <nav
           className="flex w-full flex-col items-start gap-[6px]"
           aria-label="Ruang sehatmu"
@@ -61,49 +60,45 @@ export const HealthAppSidebarSection = (): ReactElement => {
             RUANG SEHATMU
           </h2>
           {navigationItems.map((item) => {
-            const isActive = item.to
-              ? location.pathname === item.to
-              : activeItem === item.label;
+            const isActive = location.pathname === item.to;
             const IconComponent = item.icon;
             const className = `flex w-full items-center gap-3 rounded-[10px] px-[12px] py-2.5 text-left transition-colors ${
               isActive
                 ? "bg-[#eaf3e9] font-bold text-[#167653]"
                 : "bg-transparent font-medium text-[#728078] hover:bg-[#f4f7f3]"
             }`;
+            const content = (
+              <>
+                <IconComponent
+                  className={`h-[18px] w-[18px] shrink-0 ${
+                    isActive ? "text-[#167653]" : "text-[#728078]"
+                  }`}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                />
+                <span className="flex-1 text-xs leading-[18px]">{item.label}</span>
+              </>
+            );
 
-            return (
-              item.to ? (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  aria-current={isActive ? "page" : undefined}
-                  className={className}
-                >
-                  <IconComponent
-                    className={`h-[18px] w-[18px] shrink-0 ${
-                      isActive ? "text-[#167653]" : "text-[#728078]"
-                    }`}
-                    strokeWidth={isActive ? 2.2 : 1.8}
-                  />
-                  <span className="flex-1 text-xs leading-[18px]">{item.label}</span>
-                </Link>
-              ) : (
-                <button
-                  key={item.label}
-                  type="button"
-                  aria-current={isActive ? "page" : undefined}
-                  onClick={() => setActiveItem(item.label)}
-                  className={className}
-                >
-                  <IconComponent
-                    className={`h-[18px] w-[18px] shrink-0 ${
-                      isActive ? "text-[#167653]" : "text-[#728078]"
-                    }`}
-                    strokeWidth={isActive ? 2.2 : 1.8}
-                  />
-                  <span className="flex-1 text-xs leading-[18px]">{item.label}</span>
-                </button>
-              )
+            return item.to ? (
+              <Link
+                key={item.label}
+                to={item.to}
+                aria-current={isActive ? "page" : undefined}
+                className={className}
+              >
+                {content}
+              </Link>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Fitur belum tersedia"
+                className={`${className} cursor-not-allowed opacity-60`}
+              >
+                {content}
+              </button>
             );
           })}
         </nav>
@@ -153,4 +148,3 @@ export const HealthAppSidebarSection = (): ReactElement => {
     </aside>
   );
 };
-

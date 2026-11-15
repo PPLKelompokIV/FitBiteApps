@@ -1,7 +1,8 @@
+import { type ReactElement } from "react";
 import { HealthAppSidebarSection } from "./HealthAppSidebarSection";
 import { MealPhotoJournalSection } from "./MealPhotoJournalSection";
 
-export const FotoAiTinjauHasil = (): JSX.Element => {
+export const FotoAiTinjauHasil = (): ReactElement => {
   return (
     <div className="flex h-screen overflow-hidden bg-[#f6f7f2] text-[#1d2b24]">
       <HealthAppSidebarSection />

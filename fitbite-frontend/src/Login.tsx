@@ -17,67 +17,6 @@ export const Masuk = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    const emailTrimmed = email.trim();
-    if (!emailTrimmed) {
-      setErrorMessage("Silakan masukkan alamat email Anda.");
-      return;
-    }
-
-    if (!password) {
-      setErrorMessage("Silakan masukkan kata sandi Anda.");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const response = await axios.post("http://localhost:8000/api/auth/login", {
-        email: emailTrimmed,
-        password,
-        remember_me: rememberMe,
-      }, {
-        timeout: 10000,
-      });
-
-      const data = response.data;
-      if (data.status === "success" && data.token && data.user) {
-        // Simpan sesi otentikasi & audit ke LocalStorage (4A: Authentication & Accountability)
-        setAuthSession(data.token, data.user, data.audit);
-
-        setSuccessMessage(
-          `Autentikasi berhasil! Mengalihkan ke ${
-            data.user.role === "admin" ? "Ruang Administrator" : "Dashboard Pengguna"
-          }...`
-        );
-
-        // 4A: Authorization - Pengalihan halaman berbasis peran pengguna (RBAC)
-        setTimeout(() => {
-          navigate(data.redirect_url || (data.user.role === "admin" ? "/admin/pantau" : "/bodycheckpagi"));
-        }, 600);
-      } else {
-        setErrorMessage(data.message || "Gagal masuk ke sistem.");
-      }
-    } catch (err: any) {
-      console.error("Login error:", err);
-      if (err.response?.data?.detail) {
-        setErrorMessage(err.response.data.detail);
-      } else if (err.code === "ECONNABORTED" || err.message?.includes("Network Error")) {
-        setErrorMessage(
-          "Tidak dapat terhubung ke server backend (port 8000). Pastikan FastAPI berjalan."
-        );
-      } else {
-        setErrorMessage("Email atau kata sandi tidak sesuai. Silakan periksa kembali.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleFillDemo = (type: "user" | "admin") => {
     setErrorMessage(null);
     setSuccessMessage(null);

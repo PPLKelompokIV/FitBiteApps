@@ -1,0 +1,1107 @@
+import React, { useEffect, useMemo, useState, type ReactElement } from "react";
+import {
+  ChevronRight,
+  Bell,
+  Calendar,
+  Clock,
+  Flame,
+  Droplets,
+  Footprints,
+  Bike,
+  Waves,
+  Smile,
+  Dumbbell,
+  Info,
+  Trash2,
+  Pencil,
+  X,
+} from "lucide-react";
+
+type Activity = {
+  name: string;
+  met: string;
+  icon: React.ElementType;
+};
+
+type Drink = {
+  id?: number;
+  time: string;
+  amount: number;
+  note?: string;
+};
+
+type SavedActivity = {
+  id_activity_log: number;
+  nama_aktivitas: string;
+  durasi_menit: number;
+  waktu_mulai: string;
+  met: number;
+  kalori_terbakar: number;
+};
+
+const sortActivityHistory = (activities: SavedActivity[]) =>
+  [...activities].sort(
+    (first, second) =>
+      first.waktu_mulai.localeCompare(second.waktu_mulai) ||
+      first.id_activity_log - second.id_activity_log
+  );
+
+const activityOptions: Activity[] = [
+  { name: "Jalan kaki", met: "3,5 MET", icon: Footprints },
+  { name: "Lari", met: "7,0 MOV", icon: Footprints }, // Atau gunakan icon lari jika ada
+  { name: "Bersepeda", met: "6,0 MET", icon: Bike },
+  { name: "Berenang", met: "6,0 MET", icon: Waves },
+  { name: "Yoga", met: "2,5 MET", icon: Smile },
+  { name: "Latihan beban", met: "3,5 MET", icon: Dumbbell },
+];
+
+const suggestions = [
+  {
+    name: "Jalan santai",
+    detail: "20 menit • ±78 kkal",
+    description: "Pilihan ringan untuk menutup hari.",
+    icon: Footprints,
+  },
+  {
+    name: "Yoga pemulihan",
+    detail: "15 menit • ±42 kkal",
+    description: "Peregangan lembut, tanpa mengejar intensitas.",
+    icon: Smile,
+  },
+];
+
+export const ActivityAndHydrationSection = (): ReactElement => {
+  const API_BASE = "http://127.0.0.1:8000/api/water-logs";
+  const ACTIVITY_API_BASE = "http://127.0.0.1:8000/api/activity-logs";
+  const ACTIVITY_CREATE_API_URL = "http://127.0.0.1:8000/api/activities/log";
+
+  const [selectedActivity, setSelectedActivity] = useState("Jalan kaki");
+  const [duration, setDuration] = useState("20");
+  const [startTime, setStartTime] = useState("19:00");
+  const [customAmount, setCustomAmount] = useState("200");
+  const [saved, setSaved] = useState(false);
+  const [activityHistory, setActivityHistory] = useState<SavedActivity[]>([]);
+  const [activityError, setActivityError] = useState("");
+  const [isSavingActivity, setIsSavingActivity] = useState(false);
+  const [waterError, setWaterError] = useState("");
+
+  // Inisialisasi history dari localStorage atau initialDrinks
+  const [history, setHistory] = useState<Drink[]>(() => {
+    try {
+      const savedDrinks = localStorage.getItem("fitbite_water_drinks");
+      if (savedDrinks) {
+        const parsed = JSON.parse(savedDrinks);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {
+      console.error("Gagal membaca cache hidrasi.");
+    }
+    return [];
+  });
+  const todayDate = new Date();
+  const todayLabel = todayDate.toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const todayShortLabel = todayDate.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  // State Modal Edit
+  const [editingDrink, setEditingDrink] = useState<{ index: number; drink: Drink } | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ time: "", amount: 250 });
+  const [editingActivity, setEditingActivity] = useState<SavedActivity | null>(null);
+  const [activityEditDuration, setActivityEditDuration] = useState("");
+
+  // Sinkronisasi total hidrasi selalu akurat dari akumulasi riwayat minum
+  const hydration = useMemo(
+    () => history.reduce((sum, drink) => sum + Number(drink.amount || 0), 0),
+    [history]
+  );
+
+  const updateHistoryAndStorage = (newHistory: Drink[]) => {
+    setHistory(newHistory);
+    try {
+      localStorage.setItem("fitbite_water_drinks", JSON.stringify(newHistory));
+    } catch {
+      // ignore
+    }
+  };
+
+  // Catatan server adalah sumber kebenaran untuk perhitungan evaluasi.
+  useEffect(() => {
+    let isMounted = true;
+    const now = new Date();
+    const tanggal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    fetch(`${API_BASE}/1?tanggal=${tanggal}`)
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || "Gagal memuat catatan hidrasi.");
+        }
+        return body;
+      })
+      .then((json) => {
+        if (isMounted && json && Array.isArray(json.data)) {
+          const mapped: Drink[] = json.data.map((item: any) => ({
+            id: item.id_water_log,
+            time: item.waktu,
+            amount: item.jumlah_ml,
+            note: item.catatan,
+          }));
+          updateHistoryAndStorage(mapped);
+        }
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setWaterError(
+            error instanceof Error ? error.message : "Gagal memuat catatan hidrasi."
+          );
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const now = new Date();
+    const tanggal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    fetch(`${ACTIVITY_API_BASE}/1?tanggal=${tanggal}`)
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || "Gagal memuat catatan aktivitas.");
+        }
+        return body;
+      })
+      .then((body) => {
+        if (isMounted && Array.isArray(body.data)) {
+          setActivityHistory(sortActivityHistory(body.data));
+        }
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setActivityError(
+            error instanceof Error ? error.message : "Gagal memuat catatan aktivitas."
+          );
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleAddDrink = async (amount: number, timeStr?: string) => {
+    const now = new Date();
+    const defaultTime = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")} WIB`;
+    const time = timeStr || defaultTime;
+    const tempId = Date.now();
+    const newDrink: Drink = { id: tempId, time, amount };
+    const updated = [...history, newDrink];
+    updateHistoryAndStorage(updated);
+    setWaterError("");
+    setSaved(false);
+
+    try {
+      const res = await fetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_user: 1,
+          tanggal: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+          waktu: time,
+          jumlah_ml: amount,
+          catatan: "Air Putih",
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.detail || "Gagal menyimpan catatan hidrasi.");
+      }
+      const savedDrink = { ...newDrink, id: json?.data?.id_water_log };
+      updateHistoryAndStorage(
+        updated.map((item) => (item.id === tempId ? savedDrink : item))
+      );
+    } catch (error: unknown) {
+      updateHistoryAndStorage(history);
+      setWaterError(
+        error instanceof Error ? error.message : "Gagal menyimpan catatan hidrasi."
+      );
+    }
+  };
+
+  const addCustomHydration = () => {
+    const amount = Number(customAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    handleAddDrink(amount);
+  };
+
+  const openEditModal = (drink: Drink, index: number) => {
+    setEditingDrink({ index, drink });
+    setEditForm({ time: drink.time, amount: drink.amount });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingDrink) return;
+    const { index, drink } = editingDrink;
+    const updatedDrink: Drink = {
+      ...drink,
+      time: editForm.time,
+      amount: Number(editForm.amount),
+    };
+
+    const updatedHistory = history.map((item, i) =>
+      i === index ? updatedDrink : item
+    );
+    updateHistoryAndStorage(updatedHistory);
+    setIsEditModalOpen(false);
+    setEditingDrink(null);
+
+    if (drink.id) {
+      try {
+        const response = await fetch(`${API_BASE}/${drink.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            waktu: editForm.time,
+            jumlah_ml: Number(editForm.amount),
+          }),
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || "Gagal memperbarui catatan hidrasi.");
+        }
+        setWaterError("");
+      } catch (error: unknown) {
+        setWaterError(
+          error instanceof Error ? error.message : "Gagal memperbarui catatan hidrasi."
+        );
+      }
+    }
+  };
+
+  const handleDeleteDrink = async (index: number) => {
+    const target = history[index];
+    if (!target) return;
+    const updated = history.filter((_, i) => i !== index);
+    updateHistoryAndStorage(updated);
+
+    if (target.id) {
+      try {
+        const response = await fetch(`${API_BASE}/${target.id}`, {
+          method: "DELETE",
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || "Gagal menghapus catatan hidrasi.");
+        }
+        setWaterError("");
+      } catch (error: unknown) {
+        setWaterError(
+          error instanceof Error ? error.message : "Gagal menghapus catatan hidrasi."
+        );
+      }
+    }
+  };
+
+  const undoLastDrink = () => {
+    if (history.length === 0) return;
+    handleDeleteDrink(history.length - 1);
+  };
+
+  const selected = useMemo(
+    () =>
+      activityOptions.find((activity) => activity.name === selectedActivity) ??
+      activityOptions[0],
+    [selectedActivity]
+  );
+
+  const selectedMet = Number.parseFloat(selected.met.replace(",", "."));
+  const numericDuration = Number(duration);
+  const weightKg = Number(localStorage.getItem("fitbite_berat_badan_kg")) || 64;
+  const isDurationValid =
+    Number.isInteger(numericDuration) && numericDuration > 0 && numericDuration <= 360;
+  const estimatedCalories = isDurationValid
+    ? Math.round((selectedMet * 3.5 * weightKg * numericDuration) / 200)
+    : null;
+
+  const baseWaterTarget = Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240;
+  const userWeight = localStorage.getItem("fitbite_berat_badan_kg") || "64";
+  const hasIntenseActivity = activityHistory.some(
+    (activity) => activity.met >= 6 && activity.durasi_menit >= 30
+  );
+  const totalWaterTarget = baseWaterTarget + (hasIntenseActivity ? 400 : 0);
+  const progress = Math.round((hydration / totalWaterTarget) * 100);
+  const remainingHydration = Math.max(0, totalWaterTarget - hydration);
+  const totalActivityDuration = activityHistory.reduce(
+    (total, activity) => total + activity.durasi_menit,
+    0
+  );
+  const totalActivityCalories = activityHistory.reduce(
+    (total, activity) => total + activity.kalori_terbakar,
+    0
+  );
+  const activitySummary = [
+    {
+      label: "Durasi bergerak",
+      value: `${totalActivityDuration} menit`,
+      detail: `${activityHistory.length} aktivitas tercatat hari ini`,
+      Icon: Clock,
+    },
+    {
+      label: "Energi terbakar",
+      value: `${Math.round(totalActivityCalories)} kkal`,
+      detail: "Dihitung dari aktivitas tersimpan",
+      Icon: Flame,
+    },
+    {
+      label: "Bonus air olahraga",
+      value: `${hasIntenseActivity ? 400 : 0} ml`,
+      detail: hasIntenseActivity
+        ? "Aktivitas intens tercatat"
+        : "Belum ada aktivitas intens 30 menit",
+      Icon: Droplets,
+    },
+  ];
+
+  const handleSaveActivity = async () => {
+    if (!selectedActivity || !duration.trim()) {
+      setActivityError("Pilih jenis aktivitas dan isi durasi olahraga");
+      return;
+    }
+    if (!Number.isInteger(numericDuration) || numericDuration <= 0) {
+      setActivityError("Durasi aktivitas harus berupa angka positif lebih dari 0");
+      return;
+    }
+
+    let durationToSave = numericDuration;
+    if (numericDuration > 360) {
+      const confirmed = window.confirm(
+        "Durasi melebihi batas wajar. Maksimal durasi satu sesi adalah 360 menit. Simpan dengan batas 360 menit?"
+      );
+      if (!confirmed) return;
+      durationToSave = 360;
+      setDuration("360");
+    }
+
+    setActivityError("");
+    setIsSavingActivity(true);
+    try {
+      const now = new Date();
+      const response = await fetch(ACTIVITY_CREATE_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_user: 1,
+          tanggal: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+          nama_aktivitas: selectedActivity,
+          durasi_menit: durationToSave,
+          waktu_mulai: startTime,
+          met: selectedMet,
+          berat_kg: weightKg,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.detail || "Gagal menyimpan aktivitas.");
+      }
+      setActivityHistory((current) =>
+        sortActivityHistory([...current, body.data])
+      );
+      setSaved(true);
+    } catch (error: unknown) {
+      setActivityError(
+        error instanceof Error ? error.message : "Gagal menyimpan aktivitas."
+      );
+      setSaved(false);
+    } finally {
+      setIsSavingActivity(false);
+    }
+  };
+
+  const handleDeleteActivity = async (id: number) => {
+    if (!window.confirm("Hapus catatan aktivitas ini?")) return;
+    setActivityError("");
+    try {
+      const response = await fetch(`${ACTIVITY_API_BASE}/${id}`, {
+        method: "DELETE",
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.detail || "Gagal menghapus aktivitas.");
+      }
+      setActivityHistory((current) =>
+        current.filter((activity) => activity.id_activity_log !== id)
+      );
+    } catch (error: unknown) {
+      setActivityError(
+        error instanceof Error ? error.message : "Gagal menghapus aktivitas."
+      );
+    }
+  };
+
+  const openEditActivity = (activity: SavedActivity) => {
+    setEditingActivity(activity);
+    setActivityEditDuration(String(activity.durasi_menit));
+    setActivityError("");
+  };
+
+  const handleSaveActivityEdit = async () => {
+    if (!editingActivity) return;
+    const updatedDuration = Number(activityEditDuration);
+    if (
+      !Number.isInteger(updatedDuration) ||
+      updatedDuration <= 0 ||
+      updatedDuration > 360
+    ) {
+      setActivityError("Durasi aktivitas harus berupa angka positif lebih dari 0");
+      return;
+    }
+
+    setActivityError("");
+    try {
+      const response = await fetch(
+        `${ACTIVITY_API_BASE}/${editingActivity.id_activity_log}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            durasi_menit: updatedDuration,
+            berat_kg: weightKg,
+          }),
+        }
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.detail || "Gagal memperbarui aktivitas.");
+      }
+
+      setActivityHistory((current) =>
+        sortActivityHistory(
+          current.map((activity) =>
+            activity.id_activity_log === body.data.id_activity_log
+              ? body.data
+              : activity
+          )
+        )
+      );
+      setEditingActivity(null);
+    } catch (error: unknown) {
+      setActivityError(
+        error instanceof Error ? error.message : "Gagal memperbarui aktivitas."
+      );
+    }
+  };
+
+  return (
+    <main className="relative flex h-screen min-h-0 min-w-0 flex-1 flex-col items-start overflow-y-auto bg-[#f7f9f5] text-[#203d32]">
+      {/* Header Atas */}
+      <header className="sticky top-0 z-20 flex h-[78px] w-full shrink-0 items-center justify-between border-b border-[#e1e7df] bg-white px-9">
+        <nav aria-label="Breadcrumb" className="inline-flex items-center gap-2 text-xs">
+          <span className="text-[#728078]">Ruang sehat</span>
+          <ChevronRight className="h-3.5 w-3.5 text-[#728078]" />
+          <strong className="font-semibold text-[#203d32]">Aktivitas &amp; hidrasi</strong>
+        </nav>
+        <div className="inline-flex items-center gap-[18px]">
+          <span className="rounded-full bg-[#f0f3ec] px-2.5 py-1 text-[11px] font-semibold text-[#728078]">
+            Data tersimpan
+          </span>
+          <button type="button" aria-label="Notifikasi" className="relative rounded p-1 text-[#728078]">
+            <Bell className="h-[19px] w-[19px]" />
+            <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#167653]" />
+          </button>
+          <div className="flex h-[33px] w-[33px] items-center justify-center rounded-full bg-[#dcebb2] text-[11px] font-bold text-[#167653]">
+            NP
+          </div>
+        </div>
+      </header>
+
+      {/* Konten Utama */}
+      <section className="flex w-full flex-col gap-6 px-9 pb-7 pt-[30px]">
+        {/* Title Bar */}
+        <div className="flex items-center justify-between gap-6">
+          <div>
+            <h1 className="text-[32px] font-normal leading-[40px] tracking-[-0.3px] text-[#203d32]">
+              Bergerak cukup. Minum teratur.
+            </h1>
+            <p className="mt-1 text-[13px] text-[#728078]">
+              {todayLabel} • Catatan aktivitas dan hidrasi
+            </p>
+          </div>
+          <button
+            type="button"
+            className="flex min-h-11 items-center gap-2 rounded-[10px] border border-[#e1e7df] bg-white px-[18px] py-[11px] text-sm font-semibold text-[#167653] shadow-sm"
+          >
+            <Calendar className="h-[17px] w-[17px]" />
+            {todayShortLabel}
+          </button>
+        </div>
+
+        {/* Ringkasan 3 Kartu */}
+        <div className="grid grid-cols-3 gap-[18px]">
+          {activitySummary.map(({ label, value, detail, Icon }, index) => (
+            <article
+              key={label}
+              className={`rounded-[18px] border border-[#e1e7df] p-5 shadow-sm ${
+                index === 2 ? "bg-[#eaf3e9]" : "bg-white"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-[#728078]">
+                <span>{label}</span>
+                <Icon className="h-[18px] w-[18px] text-[#167653]" />
+              </div>
+              <strong className="mt-2 block text-[28px] leading-[42px] font-bold text-[#124b39]">
+                {value}
+              </strong>
+              <p className="text-[11px] text-[#728078]">{detail}</p>
+            </article>
+          ))}
+        </div>
+
+        {/* Layout Kolom Utama */}
+        <div className="grid grid-cols-1 lg:grid-cols-[728px_minmax(0,1fr)] items-start gap-6">
+          <div className="flex flex-col gap-5">
+            {/* Gerak Hari Ini */}
+            <section className="rounded-[18px] border border-[#e1e7df] bg-white p-6 shadow-sm">
+              <div className="mb-[18px] flex items-center justify-between">
+                <h2 className="text-lg font-bold text-[#124b39]">Gerak hari ini</h2>
+                <span className="text-xs text-[#728078]">
+                  {activityHistory.length} catatan tersimpan
+                </span>
+              </div>
+              <div className="space-y-4">
+                {activityHistory.map((activity, idx) => {
+                  const ActivityIcon =
+                    activityOptions.find(
+                      (option) => option.name === activity.nama_aktivitas
+                    )?.icon ?? Footprints;
+                  return (
+                    <div key={activity.id_activity_log}>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-[#eaf3e9] text-[#167653]">
+                          <ActivityIcon className="h-[19px] w-[19px]" />
+                        </div>
+                        <div className="flex-1">
+                          <strong className="block text-[13px] text-[#203d32]">{activity.nama_aktivitas}</strong>
+                          <span className="text-[11px] text-[#728078]">
+                            {activity.waktu_mulai} • {activity.durasi_menit} menit • {activity.met.toLocaleString("id-ID")} MET
+                          </span>
+                        </div>
+                        <strong className="text-sm text-[#124b39]">{Math.round(activity.kalori_terbakar)} kkal</strong>
+                      </div>
+                      {activity.met >= 6 && activity.durasi_menit >= 30 && (
+                        <span className="ml-[50px] mt-2 inline-block rounded-full bg-[#ecf5f7] px-2.5 py-1 text-[11px] font-semibold text-[#4b8dab]">
+                          Bonus air +400 ml
+                        </span>
+                      )}
+                      <div className="mt-4 flex justify-end text-[11px] text-[#728078] gap-2">
+                        <button
+                          type="button"
+                          aria-label={`Edit aktivitas ${activity.nama_aktivitas}`}
+                          onClick={() => openEditActivity(activity)}
+                          className="hover:text-[#167653]"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteActivity(activity.id_activity_log)}
+                          className="hover:text-red-600"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                      {idx < activityHistory.length - 1 && <hr className="mt-4 border-[#e1e7df]" />}
+                    </div>
+                  );
+                })}
+                {activityHistory.length === 0 && (
+                  <p className="text-xs text-[#728078]">
+                    Belum ada aktivitas tersimpan untuk hari ini.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            {/* Catat Aktivitas Baru */}
+            <section className="rounded-[18px] border border-[#e1e7df] bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-[#124b39]">Catat aktivitas baru</h2>
+              <p className="mt-1 text-xs text-[#728078]">
+                Pilih aktivitas dan durasi; kalori diperkirakan otomatis.
+              </p>
+              <div className="mt-[18px] grid grid-cols-3 gap-2.5">
+                {activityOptions.map((activity) => {
+                  const ActivityIcon = activity.icon;
+                  const isSelected = selectedActivity === activity.name;
+                  return (
+                    <button
+                      type="button"
+                      key={activity.name}
+                      onClick={() => {
+                        setSelectedActivity(activity.name);
+                        setSaved(false);
+                        setActivityError("");
+                      }}
+                      aria-pressed={isSelected}
+                      className={`flex items-center gap-2 rounded-[10px] border p-[13px] text-left transition-all ${
+                        isSelected ? "border-[#167653] bg-[#eaf3e9]" : "border-[#e1e7df] bg-white hover:border-[#cbd5e1]"
+                      }`}
+                    >
+                      <ActivityIcon className={`h-[21px] w-[21px] ${isSelected ? "text-[#167653]" : "text-[#728078]"}`} />
+                      <span>
+                        <span className="block text-xs font-semibold text-[#203d32]">{activity.name}</span>
+                        <span className="block text-[10px] text-[#728078]">{activity.met}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-[15px]">
+                <label className="text-[13px] font-semibold text-[#203d32]">
+                  Durasi
+                  <span className="mt-2 flex items-center rounded-[10px] border border-[#e1e7df] px-3.5 py-[11px] bg-white">
+                    <input
+                      type="number"
+                      min="1"
+                      max="360"
+                      value={duration}
+                      onChange={(event) => {
+                        setDuration(event.target.value);
+                        setSaved(false);
+                        setActivityError("");
+                      }}
+                      className="w-full bg-transparent text-sm font-normal outline-none text-[#203d32]"
+                    />
+                    <span className="text-xs font-normal text-[#728078]">menit</span>
+                  </span>
+                </label>
+                <label className="text-[13px] font-semibold text-[#203d32]">
+                  Waktu mulai
+                  <span className="mt-2 flex items-center rounded-[10px] border border-[#e1e7df] px-3.5 py-[11px] bg-white">
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(event) => {
+                        setStartTime(event.target.value);
+                        setSaved(false);
+                        setActivityError("");
+                      }}
+                      className="w-full bg-transparent text-sm font-normal outline-none text-[#203d32]"
+                    />
+                    <span className="text-xs font-normal text-[#728078]">WIB</span>
+                  </span>
+                </label>
+              </div>
+              <div
+                role="status"
+                aria-live="polite"
+                className="mt-5 flex items-center gap-4 rounded-xl bg-[#f0f3ec] p-[17px]"
+              >
+                <Flame className="h-[25px] w-[25px] text-[#167653]" />
+                <div className="flex-1">
+                  <strong className="block text-[13px] text-[#124b39]">
+                    Estimasi energi: {estimatedCalories ?? "—"} kkal
+                  </strong>
+                  <span className="text-[10px] text-[#728078]">
+                    {selected.met} × 3,5 × {weightKg.toLocaleString("id-ID")} kg ÷ 200 × {duration || 0} menit
+                  </span>
+                </div>
+                <span className="rounded-full bg-[#e4e9e0] px-2.5 py-1 text-[11px] text-[#728078]">
+                  {saved ? "Tersimpan" : "Belum dicatat"}
+                </span>
+              </div>
+              <p className="mt-4 text-[11px] leading-[16.5px] text-[#728078]">
+                MET adalah perkiraan intensitas dari katalog. Hasil dapat berbeda menurut kecepatan dan kondisi tiap orang; bukan pengukuran perangkat.
+              </p>
+              {activityError && (
+                <p role="alert" className="mt-3 text-xs text-red-700">
+                  {activityError}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleSaveActivity}
+                disabled={isSavingActivity}
+                className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#167653] px-[18px] py-[11px] text-sm font-semibold text-white hover:bg-[#125c41] transition-colors shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSavingActivity ? "Menyimpan..." : saved ? "Tambah aktivitas lagi" : "Simpan aktivitas"}
+              </button>
+            </section>
+
+            {/* Rekomendasi Sesuai Energi */}
+            <section>
+              <h2 className="mb-3.5 text-lg font-bold text-[#124b39]">Sesuai energi 4/5 hari ini</h2>
+              <div className="grid grid-cols-2 gap-4">
+                {suggestions.map((suggestion) => {
+                  const SuggIcon = suggestion.icon;
+                  return (
+                    <button
+                      type="button"
+                      key={suggestion.name}
+                      onClick={() =>
+                        setSelectedActivity(
+                          suggestion.name.replace(" santai", "").replace(" pemulihan", "")
+                        )
+                      }
+                      className="rounded-2xl bg-[#eaf3e9] p-5 text-left border border-transparent hover:border-[#167653]/30 transition-all"
+                    >
+                      <SuggIcon className="h-[26px] w-[26px] text-[#167653]" />
+                      <strong className="mt-2.5 block text-[15px] text-[#124b39]">{suggestion.name}</strong>
+                      <span className="mt-1 block text-xs font-semibold text-[#167653]">
+                        {suggestion.detail}
+                      </span>
+                      <p className="mt-2 text-[11px] text-[#728078]">{suggestion.description}</p>
+                      <span className="mt-2 block text-[11px] text-[#167653] font-medium">
+                        Pilih aktivitas →
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-3.5 text-[11px] text-[#728078]">
+                Opsional, bukan tambahan wajib. Berhenti dan istirahat bila merasa tidak nyaman.
+              </p>
+            </section>
+          </div>
+
+          {/* Kolom Kanan (Hidrasi & Riwayat Minum) */}
+          <div className="flex flex-col gap-5">
+            {/* Widget Hidrasi */}
+            <section className="rounded-[18px] border border-[#e1e7df] bg-white p-[22px] shadow-sm">
+              <h2 className="text-lg font-bold text-[#124b39]">Isi ulang energimu</h2>
+              <p className="mt-1 text-xs text-[#728078]">Hidrasi hari ini</p>
+              {waterError && (
+                <p role="alert" className="mt-2 text-xs text-red-700">
+                  {waterError}
+                </p>
+              )}
+              <div className="mt-[18px] flex items-center gap-[23px]">
+                <div className="relative h-40 w-[82px] overflow-hidden rounded-[22px] border-2 border-[#c5dde3] bg-[#ecf5f7]">
+                  <div
+                    className="absolute bottom-0 left-0 w-full bg-[#a8ccd7] transition-all duration-300"
+                    style={{ height: `${Math.max(0, Math.min(100, progress))}%` }}
+                  />
+                  <div className="relative p-2 text-[#4b8dab]">
+                    <Droplets className="h-[25px] w-[25px]" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[29px] font-bold text-[#124b39]">
+                    {hydration.toLocaleString("id-ID")}{" "}
+                    <span className="text-xs font-normal text-[#728078]">ml</span>
+                  </p>
+                  <p className="text-xs text-[#728078]">dari {totalWaterTarget.toLocaleString("id-ID")} ml</p>
+                  <span className="mt-2 inline-block rounded-full bg-[#ecf5f7] px-2.5 py-1 text-[11px] font-semibold text-[#4b8dab]">
+                    {progress}% tercapai
+                  </span>
+                  <p className="mt-1 text-[11px] text-[#728078]">Tersisa {remainingHydration.toLocaleString("id-ID")} ml</p>
+                </div>
+              </div>
+              <div className="mt-5">
+                <div className="mb-2 flex justify-between text-xs text-[#728078]">
+                  <span>Target hari ini</span>
+                  <span className="font-semibold text-[#203d32]">{progress}%</span>
+                </div>
+                <div className="h-[7px] overflow-hidden rounded-full bg-[#f0f3ec]">
+                  <div
+                    className="h-full rounded-full bg-[#4b8dab] transition-all duration-300"
+                    style={{ width: `${Math.min(100, progress)}%` }}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleAddDrink(250)}
+                  className="min-h-11 rounded-[10px] border border-[#e1e7df] text-sm font-semibold text-[#167653] hover:bg-[#f6f7f2] transition-colors"
+                >
+                  +250 ml
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddDrink(500)}
+                  className="min-h-11 rounded-[10px] bg-[#167653] text-sm font-semibold text-white hover:bg-[#125c41] transition-colors"
+                >
+                  +500 ml
+                </button>
+              </div>
+              <div className="mt-4 flex items-end gap-2.5">
+                <label className="flex-1 text-[13px] font-semibold text-[#203d32]">
+                  Jumlah lainnya
+                  <span className="mt-2 flex rounded-[10px] border border-[#e1e7df] px-3.5 py-[11px] bg-white">
+                    <input
+                      type="number"
+                      min="1"
+                      value={customAmount}
+                      onChange={(event) => setCustomAmount(event.target.value)}
+                      className="w-full outline-none text-[#203d32]"
+                    />
+                    <span className="text-xs font-normal text-[#728078]">ml</span>
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={addCustomHydration}
+                  className="min-h-11 rounded-[10px] border border-[#e1e7df] px-[18px] text-sm font-semibold text-[#167653] hover:bg-[#f6f7f2] transition-colors"
+                >
+                  Tambah
+                </button>
+              </div>
+              <hr className="my-5 border-[#e1e7df]" />
+              <div className="space-y-4 text-[13px] text-[#203d32]">
+                <div className="flex justify-between">
+                  <span>
+                    <strong className="block font-semibold">Target dasar</strong>
+                    <small className="text-[11px] text-[#728078]">35 ml × {userWeight} kg</small>
+                  </span>
+                  <strong className="font-bold">{baseWaterTarget.toLocaleString("id-ID")} ml</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span>
+                    <strong className="block font-semibold">Bonus olahraga</strong>
+                    <small className="text-[11px] text-[#728078]">
+                      {hasIntenseActivity
+                        ? "Aktivitas intens ≥30 menit tersimpan"
+                        : "Aktivitas intens ≥30 menit belum dicatat"}
+                    </small>
+                  </span>
+                  <strong className="font-bold text-[#167653]">
+                    +{hasIntenseActivity ? 400 : 0} ml
+                  </strong>
+                </div>
+              </div>
+              <p className="mt-4 text-[10px] leading-[15px] text-[#728078]">
+                Bonus 400 ml diberikan satu kali jika ada aktivitas intens minimal 30 menit.
+              </p>
+            </section>
+
+            {/* Riwayat Minum */}
+            <section className="rounded-[18px] border border-[#e1e7df] bg-white p-[22px] shadow-sm">
+              <h2 className="text-lg font-bold text-[#124b39]">Riwayat minum</h2>
+              <p className="mt-1 text-xs text-[#728078]">
+                {history.length} catatan • total {hydration.toLocaleString("id-ID")} ml
+              </p>
+              <div className="mt-[18px] space-y-3">
+                {history.map((drink, index) => (
+                  <div
+                    key={`${drink.time}-${index}`}
+                    className="group flex items-center gap-3 rounded-xl p-2 text-xs text-[#203d32] transition-colors hover:bg-[#f8faf6]"
+                  >
+                    <Droplets className="h-[18px] w-[18px] text-[#4b8dab]" />
+                    <span className="flex-1 font-medium">{drink.time}</span>
+                    <span className="text-[13px] font-semibold">{drink.amount} ml</span>
+                    <div className="flex items-center gap-1.5 opacity-80 transition-opacity group-hover:opacity-100">
+                      <button
+                        type="button"
+                        aria-label={`Edit catatan ${drink.time}`}
+                        onClick={() => openEditModal(drink, index)}
+                        className="rounded-lg p-1 text-[#728078] transition-colors hover:bg-[#eaf3e9] hover:text-[#167653]"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Hapus catatan ${drink.time}`}
+                        onClick={() => handleDeleteDrink(index)}
+                        className="rounded-lg p-1 text-[#728078] transition-colors hover:bg-[#fee2e2] hover:text-red-600"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <hr className="my-4 border-[#e1e7df]" />
+              <button
+                type="button"
+                onClick={undoLastDrink}
+                className="text-[11px] font-semibold text-[#167653] hover:underline"
+              >
+                ↶ Batalkan catatan terakhir
+              </button>
+            </section>
+          </div>
+        </div>
+
+        {/* Informasi Footer Bawah */}
+        <aside className="flex items-start gap-[11px] rounded-[10px] bg-[#eaf3e9] p-3.5 text-xs text-[#124b39]">
+          <Info className="h-[18px] w-[18px] shrink-0 text-[#167653]" />
+          <p>
+            Aktivitas tersimpan menambah sisa kalori. Hanya olahraga intens yang menambah target air. Menghapus aktivitas juga menyesuaikan kedua target secara otomatis.
+          </p>
+        </aside>
+      </section>
+
+      {editingActivity && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-activity-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h2
+              id="edit-activity-title"
+              className="text-base font-bold text-[#124b39]"
+            >
+              Edit aktivitas
+            </h2>
+            <p className="mt-1 text-xs text-[#728078]">
+              {editingActivity.nama_aktivitas} • {editingActivity.met} MET
+            </p>
+            <label className="mt-4 block text-xs font-semibold text-[#203d32]">
+              Durasi (menit)
+              <input
+                type="number"
+                aria-label="Durasi aktivitas"
+                min="1"
+                max="360"
+                value={activityEditDuration}
+                onChange={(event) =>
+                  setActivityEditDuration(event.target.value)
+                }
+                className="mt-2 w-full rounded-xl border border-[#d8e0d5] bg-[#f9faf7] px-3.5 py-2 text-sm text-[#203d32]"
+              />
+            </label>
+            {activityError && (
+              <p role="alert" className="mt-3 text-xs text-red-700">
+                {activityError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2 border-t border-[#e1e7df] pt-4">
+              <button
+                type="button"
+                onClick={() => setEditingActivity(null)}
+                className="rounded-xl border border-[#d8e0d5] px-4 py-2 text-xs font-semibold text-[#527063]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveActivityEdit}
+                className="rounded-xl bg-[#167653] px-5 py-2 text-xs font-semibold text-white"
+              >
+                Simpan perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit Jadwal / Catatan Minum */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-[#e1e7df] pb-3">
+              <h3 className="text-base font-bold text-[#124b39]">Edit Catatan Minum</h3>
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="rounded-lg p-1.5 text-[#728078] hover:bg-[#f2f5ee] hover:text-[#203d32] transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveEdit();
+              }}
+              className="mt-4 space-y-4"
+            >
+              <div>
+                <label className="block text-xs font-semibold text-[#203d32]">
+                  Waktu Minum
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editForm.time}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, time: e.target.value })
+                  }
+                  placeholder="Contoh: 08.00 WIB"
+                  className="mt-1 w-full rounded-xl border border-[#d8e0d5] bg-[#f9faf7] px-3.5 py-2 text-sm text-[#203d32] focus:border-[#167653] focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#203d32]">
+                  Jumlah Air (ml)
+                </label>
+                <input
+                  type="number"
+                  min="10"
+                  max="3000"
+                  step="10"
+                  required
+                  value={editForm.amount}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      amount: Number(e.target.value),
+                    })
+                  }
+                  className="mt-1 w-full rounded-xl border border-[#d8e0d5] bg-[#f9faf7] px-3.5 py-2 text-sm text-[#203d32] focus:border-[#167653] focus:bg-white focus:outline-none"
+                />
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {[150, 200, 250, 350, 500].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() =>
+                        setEditForm({ ...editForm, amount: preset })
+                      }
+                      className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                        editForm.amount === preset
+                          ? "bg-[#167653] text-white"
+                          : "border border-[#d8e0d5] bg-white text-[#527063] hover:bg-[#f0f6ee]"
+                      }`}
+                    >
+                      {preset} ml
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 border-t border-[#e1e7df] pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="rounded-xl border border-[#d8e0d5] bg-white px-4 py-2 text-xs font-semibold text-[#527063] transition hover:bg-[#f6f8f4]"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[#167653] px-5 py-2 text-xs font-semibold text-white transition hover:bg-[#125c41]"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Footer Hak Cipta */}
+      <footer className="flex w-full items-start justify-between px-9 pb-6 pt-2 text-[10px] text-[#728078]">
+        <p>FitBite mendukung kebiasaan sehat, bukan pengganti dokter atau ahli gizi.</p>
+        <span>FitBite © 2026</span>
+      </footer>
+    </main>
+  );
+};
+
+export default ActivityAndHydrationSection;

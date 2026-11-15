@@ -1,6 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Masuk } from './Login';
 import Daftar from './Register';
+import DashboardHariIni from './Dashboard hari ini';
+import AktivitasHidrasi from './Aktivitas & hidrasi';
 import BodyCheckPagi from './Body Check Pagi/bodycheckpagi';
 import FotoAiTinjauHasil from './FotoAi';
 import AdminPantauAkun from './Admin/AdminPantau';
@@ -8,6 +10,8 @@ import AdminPengelolaan from './Admin/AdminPengelolaan';
 import ActivitiesPage from './Admin/ActivitiesPage';
 import ProfilPengingat from './Profil & Pengingat/Profil&Pengingat';
 import JurnalMakanan from './JurnalMakanan';
+import JurnalEvaluasi from './Jurnal & evaluasi';
+import HealthProfileSetup from './Profil pengaturan awal/HealthProfileSetup';
 import { isAuthenticated, isAdmin } from './utils/auth';
 
 /**
@@ -42,10 +46,42 @@ function App() {
 
       {/* Rute Terproteksi: Pengguna Umum FitBite */}
       <Route
+        path="/dashboard-hari-ini"
+        element={
+          <ProtectedRoute>
+            <DashboardHariIni />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/aktivitas-hidrasi"
+        element={
+          <ProtectedRoute>
+            <AktivitasHidrasi />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/body-check-pagi"
+        element={
+          <ProtectedRoute>
+            <BodyCheckPagi />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/bodycheckpagi"
         element={
           <ProtectedRoute>
             <BodyCheckPagi />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/foto-ai"
+        element={
+          <ProtectedRoute>
+            <FotoAiTinjauHasil />
           </ProtectedRoute>
         }
       />
@@ -58,10 +94,18 @@ function App() {
         }
       />
       <Route
-        path="/foto-ai"
+        path="/jurnal-evaluasi"
         element={
           <ProtectedRoute>
-            <FotoAiTinjauHasil />
+            <JurnalEvaluasi />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profil-kesehatan"
+        element={
+          <ProtectedRoute>
+            <HealthProfileSetup />
           </ProtectedRoute>
         }
       />

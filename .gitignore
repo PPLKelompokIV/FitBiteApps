@@ -16,3 +16,7 @@ dist/
 # System / IDE
 .DS_Store
 .vscode/
+
+# Database & Test artifacts
+*.db
+.pytest_cache/
