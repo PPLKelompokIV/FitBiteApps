@@ -20,7 +20,12 @@ def ensure_calorie_target_schema(engine: Engine) -> None:
         connection.execute(
             text(
                 "UPDATE calorie_targets "
-                "SET sasaran_kalori_kcal_per_hari = "
-                "ROUND(tdee_kcal_per_hari * 0.85 / 10.0) * 10"
+                "SET sasaran_kalori_kcal_per_hari = CASE "
+                "WHEN jenis_kelamin = 'perempuan' THEN "
+                "CASE WHEN ROUND(tdee_kcal_per_hari * 0.85 / 10.0) * 10 < 1200 "
+                "THEN 1200 ELSE ROUND(tdee_kcal_per_hari * 0.85 / 10.0) * 10 END "
+                "ELSE CASE WHEN ROUND(tdee_kcal_per_hari * 0.85 / 10.0) * 10 < 1500 "
+                "THEN 1500 ELSE ROUND(tdee_kcal_per_hari * 0.85 / 10.0) * 10 END "
+                "END"
             )
         )

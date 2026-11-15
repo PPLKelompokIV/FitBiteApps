@@ -12,6 +12,7 @@ def test_feature_routes_and_swagger_tags_are_registered():
 
     assert "/api/food-logs" in paths
     assert "/api/water-logs" in paths
+    assert "/api/activities/log" in paths
     assert "/api/reminders/save" in paths
     assert "/api/body-check" in paths
     assert "/api/calorie-targets" in paths

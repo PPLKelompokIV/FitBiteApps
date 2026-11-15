@@ -1,16 +1,22 @@
 """
 Pengujian Selenium PBI-03: Kalkulator BMR & TDEE Dinamis.
 Kasus uji: TC-PBI03-001 sampai TC-PBI03-005 dari workbook Test_Case_FitBiteApps.xlsx.
-Halaman: http://localhost:5173/bodycheckpagi dan /dashboard-hari-ini
+Halaman: http://localhost:5173/dashboard-hari-ini
 API: http://localhost:8000
+Server lokal dijalankan otomatis jika belum aktif.
 Jalankan: python -m pytest test_kalkulator_bmr_tdee.py -v
 """
 
 import os
+import shutil
+import subprocess
+import tempfile
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
 
 import pytest
-
-pytest.importorskip("selenium")
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -18,11 +24,139 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 
-URL_BODY_CHECK = "http://localhost:5173/bodycheckpagi"
+REPOSITORY_ROOT = Path(__file__).resolve().parent
+BACKEND_ROOT = REPOSITORY_ROOT / "fitbite-backend"
+FRONTEND_ROOT = REPOSITORY_ROOT / "fitbite-frontend"
 URL_DASHBOARD = "http://localhost:5173/dashboard-hari-ini"
 API_BASE_URL = "http://localhost:8000"
+BACKEND_HEALTH_URL = f"{API_BASE_URL}/"
 TIMEOUT = 15
+SERVER_STARTUP_TIMEOUT = 60
 CALORIE_SUMMARY_LABEL = "Ringkasan kebutuhan kalori dari backend"
+
+
+def status_http(url):
+    try:
+        with urllib.request.urlopen(url, timeout=1) as response:
+            return response.status
+    except urllib.error.HTTPError as error:
+        return error.code
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return None
+
+
+def detail_log(log_file):
+    log_file.flush()
+    log_file.seek(0)
+    return log_file.read().decode("utf-8", errors="replace").strip()
+
+
+def wait_for_server(url, process, log_file, name):
+    deadline = time.monotonic() + SERVER_STARTUP_TIMEOUT
+    while time.monotonic() < deadline:
+        status = status_http(url)
+        if status is not None:
+            if status >= 500:
+                raise RuntimeError(
+                    f"{name} returned HTTP {status} during startup.\n"
+                    f"{detail_log(log_file)}"
+                )
+            return
+        if process.poll() is not None:
+            raise RuntimeError(
+                f"{name} exited with code {process.returncode}.\n"
+                f"{detail_log(log_file)}"
+            )
+        time.sleep(0.5)
+
+    raise RuntimeError(
+        f"{name} did not become ready within {SERVER_STARTUP_TIMEOUT} seconds.\n"
+        f"{detail_log(log_file)}"
+    )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def local_app_servers():
+    """Starts local app servers when needed and stops only the servers it owns."""
+    processes = []
+    log_files = []
+    try:
+        backend_status = status_http(BACKEND_HEALTH_URL)
+        if backend_status is None:
+            backend_python = BACKEND_ROOT / ".venv" / "Scripts" / "python.exe"
+            if not backend_python.is_file():
+                raise RuntimeError(f"Backend Python environment not found: {backend_python}")
+
+            backend_log = tempfile.TemporaryFile()
+            log_files.append(backend_log)
+            backend_process = subprocess.Popen(
+                [
+                    str(backend_python),
+                    "-m",
+                    "uvicorn",
+                    "app.main:app",
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    "8000",
+                ],
+                cwd=BACKEND_ROOT,
+                stdout=backend_log,
+                stderr=subprocess.STDOUT,
+            )
+            processes.append(backend_process)
+            wait_for_server(
+                BACKEND_HEALTH_URL,
+                backend_process,
+                backend_log,
+                "FastAPI backend",
+            )
+        elif backend_status >= 500:
+            raise RuntimeError(
+                f"FastAPI backend returned HTTP {backend_status} at {BACKEND_HEALTH_URL}."
+            )
+
+        frontend_status = status_http(URL_DASHBOARD)
+        if frontend_status is None:
+            node_executable = shutil.which("node")
+            vite_script = FRONTEND_ROOT / "node_modules" / "vite" / "bin" / "vite.js"
+            if not node_executable:
+                raise RuntimeError("Node.js is required to start the frontend.")
+            if not vite_script.is_file():
+                raise RuntimeError(f"Vite entry point not found: {vite_script}")
+
+            frontend_log = tempfile.TemporaryFile()
+            log_files.append(frontend_log)
+            frontend_process = subprocess.Popen(
+                [node_executable, str(vite_script), "--host", "127.0.0.1"],
+                cwd=FRONTEND_ROOT,
+                stdout=frontend_log,
+                stderr=subprocess.STDOUT,
+            )
+            processes.append(frontend_process)
+            wait_for_server(
+                URL_DASHBOARD,
+                frontend_process,
+                frontend_log,
+                "Vite frontend",
+            )
+        elif frontend_status >= 500:
+            raise RuntimeError(
+                f"Vite frontend returned HTTP {frontend_status} at {URL_DASHBOARD}."
+            )
+
+        yield
+    finally:
+        for process in reversed(processes):
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+        for log_file in log_files:
+            log_file.close()
 
 
 @pytest.fixture
@@ -33,11 +167,7 @@ def driver():
         options.add_argument("--headless=new")
     options.add_argument("--window-size=1366,900")
 
-    try:
-        browser = webdriver.Chrome(options=options)
-    except Exception as error:
-        pytest.skip(f"Chrome WebDriver tidak dapat diinisialisasi: {error}")
-
+    browser = webdriver.Chrome(options=options)
     yield browser
     browser.quit()
 
@@ -112,8 +242,8 @@ def test_tc_pbi03_001_hitung_simpan_dan_sinkronkan_bmr_tdee_ke_dashboard(driver)
     assert data["tdee_kcal_per_hari"] == pytest.approx(2602.1, abs=0.1)
 
     driver.get(URL_DASHBOARD)
-    assert "1.679" in nilai_kebutuhan_kalori(driver, "BMR")
-    assert "2.602" in nilai_kebutuhan_kalori(driver, "TDEE")
+    assert "1.678,8" in nilai_kebutuhan_kalori(driver, "BMR")
+    assert "2.602,1" in nilai_kebutuhan_kalori(driver, "TDEE")
 
 
 def test_tc_pbi03_002_tdee_dikoreksi_berdasarkan_kesiapan_dan_tidur(driver):

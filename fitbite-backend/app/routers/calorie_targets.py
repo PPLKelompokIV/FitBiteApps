@@ -77,7 +77,10 @@ def calculate_and_save_calorie_target(
         faktor_aktivitas=FAKTOR_AKTIVITAS[payload.tingkat_aktivitas],
         bmr_kcal_per_hari=bmr,
         tdee_kcal_per_hari=tdee,
-        sasaran_kalori_kcal_per_hari=hitungSasaranKalori(tdee),
+        sasaran_kalori_kcal_per_hari=hitungSasaranKalori(
+            tdee,
+            payload.jenis_kelamin,
+        ),
     )
     db.add(record)
     db.commit()

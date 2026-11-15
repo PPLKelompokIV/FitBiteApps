@@ -25,6 +25,7 @@ def test_application_entrypoints_expose_integrated_apis():
     assert "/api/food-logs" in paths
     assert "/api/water-logs/{id_user}" in paths
     assert "/api/activity-logs" in paths
+    assert "/api/activities/log" in paths
     assert "/api/evaluations/trigger" in paths
     assert "/api/evaluations/scheduler/status" in paths
 
@@ -48,6 +49,7 @@ def api():
 
     test_app = FastAPI()
     test_app.include_router(activity_logs.router)
+    test_app.include_router(activity_logs.activities_router)
     test_app.include_router(evaluations.router)
     test_app.dependency_overrides[get_db] = override_get_db
 
@@ -243,6 +245,77 @@ def test_activity_log_can_be_saved_and_counted_by_evaluation(api):
     assert detail["jumlah_log_aktivitas"] == 1
     assert detail["durasi_olahraga"] == 35
     assert detail["bonus_air_olahraga"] == 400
+
+
+def test_met_activity_endpoint_calculates_calories_and_saves_log(api):
+    client, test_session = api
+    response = client.post(
+        "/api/activities/log",
+        json={
+            "id_user": 2,
+            "tanggal": "2026-10-22",
+            "nama_aktivitas": "Bersepeda",
+            "durasi_menit": 30,
+            "waktu_mulai": "16:30",
+            "met": 6,
+            "berat_kg": 70,
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["data"]["kalori_terbakar"] == 220.5
+
+    with test_session() as db:
+        log = db.query(ActivityLog).one()
+        assert log.id_user == 2
+        assert log.met == 6
+        assert log.kalori_terbakar == 220.5
+
+
+def test_activity_log_update_recalculates_calories(api):
+    client, _ = api
+    create_response = client.post(
+        "/api/activities/log",
+        json={
+            "id_user": 1,
+            "tanggal": "2026-10-22",
+            "nama_aktivitas": "Lari",
+            "durasi_menit": 30,
+            "waktu_mulai": "16:30",
+            "met": 7,
+            "berat_kg": 70,
+        },
+    )
+    assert create_response.status_code == 201
+    log_id = create_response.json()["data"]["id_activity_log"]
+
+    update_response = client.put(
+        f"/api/activity-logs/{log_id}",
+        json={"durasi_menit": 45, "berat_kg": 70},
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["data"]["durasi_menit"] == 45
+    assert update_response.json()["data"]["kalori_terbakar"] == 385.9
+
+
+def test_met_activity_endpoint_rejects_nonpositive_weight(api):
+    client, _ = api
+    response = client.post(
+        "/api/activities/log",
+        json={
+            "id_user": 2,
+            "tanggal": "2026-10-22",
+            "nama_aktivitas": "Bersepeda",
+            "durasi_menit": 30,
+            "waktu_mulai": "16:30",
+            "met": 6,
+            "berat_kg": 0,
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_scheduler_status_and_simulation_routes_are_available(api):

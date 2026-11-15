@@ -86,15 +86,14 @@ export const loadCalorieTarget = () => {
     if (
       !target ||
       target.id_user !== profile.id_user ||
-      target.usia !== profile.usia ||
-      target.jenis_kelamin !== profile.jenis_kelamin ||
-      target.tinggi_cm !== profile.tinggi_cm ||
-      target.berat_kg !== profile.berat_kg ||
-      target.tingkat_aktivitas !== profile.tingkat_aktivitas ||
+      !Number.isFinite(target.bmr_kcal_per_hari) ||
+      target.bmr_kcal_per_hari <= 0 ||
+      !Number.isFinite(target.tdee_kcal_per_hari) ||
+      target.tdee_kcal_per_hari <= 0 ||
       !Number.isFinite(target.sasaran_kalori_kcal_per_hari) ||
       target.sasaran_kalori_kcal_per_hari <= 0
     ) {
-      return saveCalorieTarget(profile);
+      throw new Error("Backend mengembalikan sasaran kalori yang tidak valid.");
     }
 
     return target;
