@@ -1,21 +1,21 @@
 import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Menggunakan koneksi lokal langsung (aman tanpa file .env)
-SQLALCHEMY_DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg2://postgres:Faiz050105@localhost:5432/fitbite_db"
+load_dotenv()
+
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+if not SQLALCHEMY_DATABASE_URL:
+    raise RuntimeError("DATABASE_URL must be set to a PostgreSQL connection URL.")
+if not SQLALCHEMY_DATABASE_URL.startswith(("postgresql://", "postgresql+")):
+    raise ValueError("DATABASE_URL must use PostgreSQL.")
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"connect_timeout": 2},
 )
-
-if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
-elif "postgresql" in SQLALCHEMY_DATABASE_URL:
-    connect_args = {"connect_timeout": 2}
-else:
-    connect_args = {}
-
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args=connect_args)
 
 SessionLocal = sessionmaker(
     autocommit=False,
