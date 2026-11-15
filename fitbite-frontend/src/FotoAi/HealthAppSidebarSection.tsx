@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { getAuthUser, logout } from "../utils/auth";
 import {
   LayoutGrid,
   Sun,
@@ -13,7 +14,7 @@ import {
   ArrowUpRight,
   type LucideIcon,
 } from "lucide-react";
-import identitasFitbite from "../assets/Identitas FitBite (1).png"; // Sesuaikan path gambar jika perlu
+import identitasFitbite from "../assets/Identitas FitBite (1).png";
 
 type NavigationItem = {
   label: string;
@@ -33,6 +34,8 @@ const navigationItems: NavigationItem[] = [
 
 export const HealthAppSidebarSection = (): ReactElement => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const authUser = getAuthUser();
 
   return (
     <aside
@@ -76,28 +79,26 @@ export const HealthAppSidebarSection = (): ReactElement => {
               </>
             );
 
-            return (
-              item.to ? (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  aria-current={isActive ? "page" : undefined}
-                  className={className}
-                >
-                  {content}
-                </Link>
-              ) : (
-                <button
-                  key={item.label}
-                  type="button"
-                  disabled
-                  aria-disabled="true"
-                  title="Fitur belum tersedia"
-                  className={`${className} cursor-not-allowed opacity-60`}
-                >
-                  {content}
-                </button>
-              )
+            return item.to ? (
+              <Link
+                key={item.label}
+                to={item.to}
+                aria-current={isActive ? "page" : undefined}
+                className={className}
+              >
+                {content}
+              </Link>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Fitur belum tersedia"
+                className={`${className} cursor-not-allowed opacity-60`}
+              >
+                {content}
+              </button>
             );
           })}
         </nav>
@@ -128,13 +129,21 @@ export const HealthAppSidebarSection = (): ReactElement => {
           </div>
           <div className="flex min-w-0 flex-1 flex-col items-start">
             <div className="w-full truncate text-[13px] font-semibold leading-[18px] text-[#203d32]">
-              Nadia Putri
+              {authUser?.nama || "Nadia Putri"}
             </div>
             <div className="text-[11px] font-normal leading-[16px] text-[#728078]">
-              Anggota FitBite
+              {authUser?.role === "admin" ? "Administrator FitBite" : "Anggota FitBite"}
             </div>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => logout(navigate)}
+          className="inline-flex items-center gap-1 text-[11px] font-normal leading-[16.5px] text-[#728078] transition-colors hover:text-[#203d32] cursor-pointer"
+        >
+          <span>Keluar dari akun</span>
+          <ArrowUpRight className="h-3 w-3" />
+        </button>
       </footer>
     </aside>
   );
