@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getAuthUser, logout } from "../utils/auth";
+import { getAuthUser, getAuthUserName, logout } from "../utils/auth";
 import {
   LayoutGrid,
   Sun,
@@ -129,7 +129,7 @@ export const HealthAppSidebarSection = (): ReactElement => {
           </div>
           <div className="flex min-w-0 flex-1 flex-col items-start">
             <div className="w-full truncate text-[13px] font-semibold leading-[18px] text-[#203d32]">
-              {authUser?.nama || "Nadia Putri"}
+              {getAuthUserName(authUser)}
             </div>
             <div className="text-[11px] font-normal leading-[16px] text-[#728078]">
               {authUser?.role === "admin" ? "Administrator FitBite" : "Anggota FitBite"}

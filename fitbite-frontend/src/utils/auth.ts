@@ -65,6 +65,26 @@ export const getAuthUser = (): AuthUser | null => {
   }
 };
 
+export const getAuthUserName = (user: AuthUser | null = getAuthUser()): string => {
+  return user?.nama?.trim() || "Pengguna FitBite";
+};
+
+export const getAuthUserFirstName = (
+  user: AuthUser | null = getAuthUser()
+): string => {
+  return user?.nama?.trim().split(/\s+/)[0] || "kamu";
+};
+
+export const getAuthUserInitials = (
+  user: AuthUser | null = getAuthUser()
+): string => {
+  return getAuthUserName(user)
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+};
+
 /**
  * Memeriksa apakah pengguna saat ini sedang login secara valid
  */

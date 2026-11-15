@@ -1,5 +1,12 @@
 import type { ReactElement } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  getAuthUser,
+  getAuthUserFirstName,
+  getAuthUserInitials,
+  getAuthUserName,
+  logout,
+} from "../utils/auth";
 import {
   LayoutGrid,
   Sun,
@@ -70,6 +77,8 @@ const navigationItems: NavigationItem[] = [
 
 export const BodyCheckSidebar = (): ReactElement => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const authUser = getAuthUser();
 
   return (
     <aside
@@ -169,15 +178,18 @@ export const BodyCheckSidebar = (): ReactElement => {
           </div>
           <div className="flex min-w-0 flex-1 flex-col items-start">
             <div className="w-full truncate text-[13px] font-semibold leading-[18px] text-[#203d32]">
-              Nadia Putri
+              {getAuthUserName(authUser)}
             </div>
             <div className="text-[11px] font-normal leading-[16px] text-[#728078]">
-              Anggota FitBite
+              {authUser?.role === "admin"
+                ? "Administrator FitBite"
+                : "Anggota FitBite"}
             </div>
           </div>
         </div>
         <button
           type="button"
+          onClick={() => logout(navigate)}
           className="inline-flex items-center gap-1 text-[11px] font-normal leading-[16.5px] text-[#728078] transition-colors hover:text-[#203d32]"
         >
           <span>Keluar dari akun</span>
@@ -193,6 +205,8 @@ export const BodyCheckSidebar = (): ReactElement => {
 // ==========================================
 
 export const BodyCheckHeader = (): ReactElement => {
+  const authUser = getAuthUser();
+
   return (
     <header className="sticky top-0 z-10 flex h-[72px] w-full shrink-0 items-center justify-between border-b border-[#e1e7df] bg-[#f6f7f2] px-9">
       {/* Breadcrumb */}
@@ -222,7 +236,9 @@ export const BodyCheckHeader = (): ReactElement => {
         </button>
 
         <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#dcebb2]">
-          <span className="text-[11px] font-bold text-[#203d32]">NP</span>
+          <span className="text-[11px] font-bold text-[#203d32]">
+            {getAuthUserInitials(authUser)}
+          </span>
         </div>
       </div>
     </header>
@@ -238,6 +254,8 @@ interface BodyCheckBannerProps {
 }
 
 export const BodyCheckBanner = ({ isSaved }: BodyCheckBannerProps): ReactElement => {
+  const firstName = getAuthUserFirstName();
+
   return (
     <div>
       {/* Title Section */}
@@ -246,7 +264,8 @@ export const BodyCheckBanner = ({ isSaved }: BodyCheckBannerProps): ReactElement
           BODY CHECK PAGI
         </span>
         <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-[#143d30] sm:text-[28px]">
-          Selamat pagi, Nadia <span className="text-xl sm:text-2xl">☀️</span>
+          Selamat pagi, {firstName}{" "}
+          <span className="text-xl sm:text-2xl">☀️</span>
         </h1>
         <p className="mt-1 text-xs text-[#7a8c82]">
           Senin, 19 Oktober 2026 • 06.45 WIB •{" "}

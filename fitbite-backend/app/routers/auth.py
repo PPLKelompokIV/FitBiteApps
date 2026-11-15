@@ -55,6 +55,14 @@ FALLBACK_USERS = {
         "role": "user",
         "status_akun": "active",
     },
+    "nadia.putri@email.com": {
+        "id_user": "44444444-4444-4444-4444-444444444444",
+        "nama": "Nadia Putri",
+        "email": "nadia.putri@email.com",
+        "password": "Nadia123!",
+        "role": "user",
+        "status_akun": "active",
+    },
 }
 
 

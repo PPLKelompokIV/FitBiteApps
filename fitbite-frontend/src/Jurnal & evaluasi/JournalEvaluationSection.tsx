@@ -16,6 +16,7 @@ import {
   Sprout,
   X,
 } from "lucide-react";
+import { getAuthUser, getAuthUserInitials, getAuthUserName } from "../utils/auth";
 
 const API_BASE = "http://127.0.0.1:8000";
 const USER_ID = 1;
@@ -195,6 +196,8 @@ const readJson = async <T,>(response: Response, fallback: string): Promise<T> =>
 };
 
 export const JournalEvaluationSection = () => {
+  const authUser = getAuthUser();
+  const userInitials = getAuthUserInitials(authUser);
   const today = localDateString(new Date());
   const [selectedDate, setSelectedDate] = useState(today);
   const [visibleMonth, setVisibleMonth] = useState(
@@ -545,9 +548,11 @@ export const JournalEvaluationSection = () => {
           </button>
           <div
             className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#dcebb2]"
-            aria-label="Profil"
+            aria-label={`Profil ${getAuthUserName(authUser)}`}
           >
-            <span className="text-[11px] font-bold text-[#203d32]">NP</span>
+            <span className="text-[11px] font-bold text-[#203d32]">
+              {userInitials}
+            </span>
           </div>
         </div>
       </header>

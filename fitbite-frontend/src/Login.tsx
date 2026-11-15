@@ -5,17 +5,78 @@ import identitasFitbite from "./assets/Identitas FitBite.png";
 import lapisanKeterbacaan from "./assets/Lapisan keterbacaan.png";
 import lariPagiDiTaman from "./assets/Lari pagi di taman.png";
 import { setAuthSession } from "./utils/auth";
-import { Loader2, AlertCircle, CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
+  UserCheck,
+  Eye,
+  EyeOff,
+  Sprout,
+} from "lucide-react";
 
 export const Masuk = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("budi@fitbite.com");
-  const [password, setPassword] = useState("Budi123!");
+  const [email, setEmail] = useState("nadia.putri@email.com");
+  const [password, setPassword] = useState("Nadia123!");
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsLoading(true);
+
+    try {
+      const response = await axios.post(
+        "http://localhost:8000/api/auth/login",
+        {
+          email: email.trim(),
+          password,
+          remember_me: rememberMe,
+        },
+        { timeout: 10000 }
+      );
+
+      const data = response.data;
+      if (data.status !== "success" || !data.token || !data.user) {
+        setErrorMessage(data.message || "Gagal masuk. Silakan coba lagi.");
+        return;
+      }
+
+      setAuthSession(data.token, data.user, data.audit);
+      setSuccessMessage(data.message || "Berhasil masuk.");
+      navigate(
+        data.redirect_url ||
+          (data.user.role === "admin" ? "/admin/pantau" : "/bodycheckpagi")
+      );
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const detail = error.response?.data?.detail;
+        if (typeof detail === "string") {
+          setErrorMessage(detail);
+        } else if (
+          error.code === "ECONNABORTED" ||
+          error.message === "Network Error"
+        ) {
+          setErrorMessage(
+            "Tidak dapat terhubung ke backend. Pastikan server berjalan di port 8000."
+          );
+        } else {
+          setErrorMessage("Terjadi kesalahan saat masuk. Silakan coba lagi.");
+        }
+      } else {
+        setErrorMessage("Terjadi kesalahan saat masuk. Silakan coba lagi.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleFillDemo = (type: "user" | "admin") => {
     setErrorMessage(null);
@@ -24,8 +85,8 @@ export const Masuk = () => {
       setEmail("admin@fitbite.com");
       setPassword("Admin123!");
     } else {
-      setEmail("budi@fitbite.com");
-      setPassword("Budi123!");
+      setEmail("nadia.putri@email.com");
+      setPassword("Nadia123!");
     }
   };
 
@@ -75,16 +136,16 @@ export const Masuk = () => {
           </div>
 
           {/* Card Info Bawah Kiri dengan Efek Glassmorphism & Hover */}
-          <aside className="relative z-10 flex flex-col w-full items-start gap-1.5 p-4 bg-[#ffffffd9] backdrop-blur-md rounded-[16px] shadow-sm hover:bg-white/90 transition-all duration-300">
+          <aside className="relative z-10 flex flex-col w-full items-start gap-2 p-4 bg-[#ffffffd9] backdrop-blur-md rounded-[16px] shadow-sm hover:bg-white/90 transition-all duration-300">
             <div className="flex items-center gap-2 w-full">
-              <ShieldCheck className="w-4 h-4 text-[#167653] shrink-0" />
-              <p className="font-bold text-[#203d32] text-xs">
-                Sistem Keamanan 4A Terintegrasi
+              <Sprout className="w-5 h-5 text-[#167653] shrink-0" />
+              <p className="font-bold text-[#203d32] text-sm">
+                Bukan tentang diet yang sempurna.
               </p>
             </div>
-            <p className="font-normal text-[#728078] text-[11px] leading-relaxed">
-              Dilengkapi Authentication kriptografis, Authorization berbasis peran (Admin/User),
-              dan pencatatan audit sesi yang aman.
+            <p className="font-normal text-[#728078] text-xs leading-relaxed">
+              Tentang pilihan yang lebih sadar. Catat nutrisi, gerak, dan air
+              minum dalam satu ruang yang ramah.
             </p>
           </aside>
         </section>
@@ -99,7 +160,7 @@ export const Masuk = () => {
             <p className="text-xs leading-4">
               <span className="text-[#728078]">Butuh bantuan?&nbsp;&nbsp;</span>
               <a className="text-[#167653] font-medium hover:underline transition-all" href="mailto:bantuan@fitbite.id">
-                Hubungi kami ↗
+                Hubungi kami
               </a>
             </p>
           </div>
@@ -129,7 +190,7 @@ export const Masuk = () => {
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#f0f5ec] hover:bg-[#e2edd9] text-[#167653] text-[10px] font-semibold transition-colors cursor-pointer border border-[#c9ddc1]"
               >
                 <UserCheck className="w-3 h-3" />
-                User (Budi)
+                User (Nadia)
               </button>
               <button
                 type="button"
@@ -215,9 +276,13 @@ export const Masuk = () => {
                         : "Tampilkan kata sandi"
                     }
                     onClick={() => setShowPassword((visible) => !visible)}
-                    className="text-xs text-gray-400 hover:text-[#167653] transition-colors p-1"
+                    className="p-1 text-[#728078] transition-colors hover:text-[#167653] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#167653]/30 rounded"
                   >
-                    {showPassword ? "🙈" : "👁️"}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                    )}
                   </button>
                 </div>
               </div>

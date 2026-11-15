@@ -6,7 +6,7 @@
 
 -- ------------------------------------------------------------------------------
 -- 1. SEED: USERS (Admin & Demo Users)
--- Password Default: 'FitBite123!' (dihash menggunakan pgcrypto crypt bf)
+-- Password demo: Admin123!, Budi123!, Siti123!, Nadia123! (dihash dengan pgcrypto)
 -- ------------------------------------------------------------------------------
 INSERT INTO users (id_user, nama, email, password_hash, role, tanggal_lahir, jenis_kelamin, tinggi_badan_cm, berat_badan_awal_kg, target_berat_badan_kg, status_akun)
 VALUES 
@@ -47,6 +47,19 @@ VALUES
         160.0,
         55.0,
         52.0,
+        'active'
+    ),
+    (
+        '44444444-4444-4444-4444-444444444444',
+        'Nadia Putri',
+        'nadia.putri@email.com',
+        crypt('Nadia123!', gen_salt('bf')),
+        'user',
+        '1998-04-12',
+        'P',
+        160.0,
+        64.8,
+        60.0,
         'active'
     )
 ON CONFLICT (email) DO NOTHING;

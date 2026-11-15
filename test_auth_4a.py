@@ -142,6 +142,18 @@ def test_4a_administration():
         print("  [WARN] Gagal membersihkan data uji:", e)
 
 
+def test_nadia_demo_login_uses_fallback_when_database_unavailable(monkeypatch):
+    monkeypatch.setattr("main.get_pg_connection", lambda: None)
+
+    response = login_user(
+        LoginRequest(email="nadia.putri@email.com", password="Nadia123!")
+    )
+
+    assert response["status"] == "success"
+    assert response["user"]["nama"] == "Nadia Putri"
+    assert response["user"]["email"] == "nadia.putri@email.com"
+
+
 if __name__ == "__main__":
     print("=" * 65)
     print("   PENGUJIAN MENYELURUH FITUR LOGIN & REGISTER (FIT-61)")
