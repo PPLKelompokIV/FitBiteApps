@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getAuthUser, logout } from "../utils/auth";
 import {
   LayoutGrid,
   Sun,
@@ -30,6 +32,8 @@ const navigationItems: NavigationItem[] = [
 
 export const PrimaryNavigationSection = () => {
   const [activeItem, setActiveItem] = useState("Jurnal makanan");
+  const navigate = useNavigate();
+  const authUser = getAuthUser();
 
   return (
     <aside
@@ -99,14 +103,17 @@ export const PrimaryNavigationSection = () => {
           </div>
           <div className="flex flex-col flex-1 min-w-0">
             <span className="text-xs font-semibold text-[#203d32] truncate">
-              Nadia Putri
+              {authUser?.nama || "Nadia Putri"}
             </span>
-            <span className="text-[10px] text-[#728078]">Anggota FitBite</span>
+            <span className="text-[10px] text-[#728078]">
+              {authUser?.role === "admin" ? "Administrator FitBite" : "Anggota FitBite"}
+            </span>
           </div>
         </div>
         <button
           type="button"
-          className="flex items-center gap-1.5 text-[11px] text-[#728078] hover:text-[#203d32] transition-colors"
+          onClick={() => logout(navigate)}
+          className="flex items-center gap-1.5 text-[11px] text-[#728078] hover:text-[#203d32] transition-colors cursor-pointer"
         >
           <span>Keluar dari akun</span>
           <ArrowUpRight className="h-3.5 w-3.5" />

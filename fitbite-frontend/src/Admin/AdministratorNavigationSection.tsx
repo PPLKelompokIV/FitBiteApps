@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import identitasFitbite from "../assets/Identitas FitBite.png";
 import {
   LayoutDashboard,
@@ -12,6 +12,7 @@ import {
   LogOut,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { getAuthUser, logout } from "../utils/auth";
 
 const navigationItems: { label: string; icon: LucideIcon; to?: string }[] = [
   {
@@ -43,9 +44,14 @@ export const AdministratorNavigationSection = () => {
   const [activeItem, setActiveItem] = useState("");
   const [isSignedOut, setIsSignedOut] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const authUser = getAuthUser();
 
   const handleSignOut = () => {
     setIsSignedOut(true);
+    setTimeout(() => {
+      logout(navigate);
+    }, 300);
   };
 
   return (
@@ -127,7 +133,7 @@ export const AdministratorNavigationSection = () => {
           </div>
           <div className="flex flex-col items-start gap-[3px] relative flex-1 grow">
             <div className="self-stretch mt-[-1.00px] [font-family:'Inter-SemiBold',Helvetica] font-semibold text-white text-[13px] leading-[19.5px] relative tracking-[0]">
-              Raka Pratama
+              {authUser?.nama || "Administrator FitBite"}
             </div>
             <div className="relative self-stretch [font-family:'Inter-Regular',Helvetica] font-normal text-[#c2d4c8] text-[11px] tracking-[0] leading-[16.5px]">
               Administrator

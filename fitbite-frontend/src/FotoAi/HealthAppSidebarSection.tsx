@@ -1,5 +1,6 @@
 import { useState, type ReactElement } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { getAuthUser, logout } from "../utils/auth";
 import {
   LayoutGrid,
   Sun,
@@ -34,6 +35,8 @@ const navigationItems: NavigationItem[] = [
 export const HealthAppSidebarSection = (): ReactElement => {
   const [activeItem, setActiveItem] = useState("Jurnal makanan");
   const location = useLocation();
+  const navigate = useNavigate();
+  const authUser = getAuthUser();
 
   return (
     <aside
@@ -131,17 +134,17 @@ export const HealthAppSidebarSection = (): ReactElement => {
           </div>
           <div className="flex min-w-0 flex-1 flex-col items-start">
             <div className="w-full truncate text-[13px] font-semibold leading-[18px] text-[#203d32]">
-              Nadia Putri
+              {authUser?.nama || "Nadia Putri"}
             </div>
             <div className="text-[11px] font-normal leading-[16px] text-[#728078]">
-              Anggota FitBite
+              {authUser?.role === "admin" ? "Administrator FitBite" : "Anggota FitBite"}
             </div>
           </div>
         </div>
         <button
           type="button"
-          onClick={() => undefined}
-          className="inline-flex items-center gap-1 text-[11px] font-normal leading-[16.5px] text-[#728078] transition-colors hover:text-[#203d32]"
+          onClick={() => logout(navigate)}
+          className="inline-flex items-center gap-1 text-[11px] font-normal leading-[16.5px] text-[#728078] transition-colors hover:text-[#203d32] cursor-pointer"
         >
           <span>Keluar dari akun</span>
           <ArrowUpRight className="h-3 w-3" />
