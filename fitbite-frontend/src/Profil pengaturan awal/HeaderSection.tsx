@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { getAuthUserName } from "../utils/auth";
 import vector from "./vector.svg";
 
 export const HeaderSection = (): ReactElement => {
@@ -33,7 +34,7 @@ export const HeaderSection = (): ReactElement => {
           </span>
         </span>
         <span className="relative w-fit [font-family:'Inter-Regular',Helvetica] font-normal text-[#728078] text-xs tracking-[0] leading-[18px] whitespace-nowrap">
-          Nadia Putri&nbsp;&nbsp;·&nbsp;&nbsp;Keluar
+          {getAuthUserName()}&nbsp;&nbsp;·&nbsp;&nbsp;Keluar
         </span>
       </div>
     </header>

@@ -1,23 +1,94 @@
-import { useState, type FormEvent, type ReactElement } from "react";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import identitasFitbite from "./assets/Identitas FitBite.png";
 import lapisanKeterbacaan from "./assets/Lapisan keterbacaan.png";
 import lariPagiDiTaman from "./assets/Lari pagi di taman.png";
-
-const image = "";
-const vector = "";
-const vector2 = "";
-const vector3 = "";
-const vector4 = "";
+import { setAuthSession } from "./utils/auth";
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
+  UserCheck,
+  Eye,
+  EyeOff,
+  Sprout,
+} from "lucide-react";
 
 export const Masuk = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("nadia.putri@email.com");
-  const [password, setPassword] = useState("fitbite123456");
+  const [password, setPassword] = useState("Nadia123!");
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-  event.preventDefault();
-};
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsLoading(true);
+
+    try {
+      const response = await axios.post(
+        "http://localhost:8000/api/auth/login",
+        {
+          email: email.trim(),
+          password,
+          remember_me: rememberMe,
+        },
+        { timeout: 10000 }
+      );
+
+      const data = response.data;
+      if (data.status !== "success" || !data.token || !data.user) {
+        setErrorMessage(data.message || "Gagal masuk. Silakan coba lagi.");
+        return;
+      }
+
+      setAuthSession(data.token, data.user, data.audit);
+      setSuccessMessage(data.message || "Berhasil masuk.");
+      navigate(
+        data.redirect_url ||
+          (data.user.role === "admin" ? "/admin/pantau" : "/bodycheckpagi")
+      );
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const detail = error.response?.data?.detail;
+        if (typeof detail === "string") {
+          setErrorMessage(detail);
+        } else if (
+          error.code === "ECONNABORTED" ||
+          error.message === "Network Error"
+        ) {
+          setErrorMessage(
+            "Tidak dapat terhubung ke backend. Pastikan server berjalan di port 8000."
+          );
+        } else {
+          setErrorMessage("Terjadi kesalahan saat masuk. Silakan coba lagi.");
+        }
+      } else {
+        setErrorMessage("Terjadi kesalahan saat masuk. Silakan coba lagi.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFillDemo = (type: "user" | "admin") => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    if (type === "admin") {
+      setEmail("admin@fitbite.com");
+      setPassword("Admin123!");
+    } else {
+      setEmail("nadia.putri@email.com");
+      setPassword("Nadia123!");
+    }
+  };
 
   return (
     <main className="flex h-screen w-screen items-center justify-center p-4 bg-[#f6f7f2] overflow-hidden">
@@ -65,23 +136,14 @@ const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
           </div>
 
           {/* Card Info Bawah Kiri dengan Efek Glassmorphism & Hover */}
-          <aside className="relative z-10 flex flex-col w-full items-start gap-1.5 p-4 bg-[#ffffffd9] backdrop-blur-md rounded-[16px] shadow-sm hover:bg-white/90 transition-all duration-300">
+          <aside className="relative z-10 flex flex-col w-full items-start gap-2 p-4 bg-[#ffffffd9] backdrop-blur-md rounded-[16px] shadow-sm hover:bg-white/90 transition-all duration-300">
             <div className="flex items-center gap-2 w-full">
-              {vector && (
-                <div className="relative w-4 h-4 shrink-0">
-                  <img
-                    className="w-full h-full object-contain"
-                    alt=""
-                    aria-hidden="true"
-                    src={vector}
-                  />
-                </div>
-              )}
-              <p className="font-bold text-[#203d32] text-xs">
+              <Sprout className="w-5 h-5 text-[#167653] shrink-0" />
+              <p className="font-bold text-[#203d32] text-sm">
                 Bukan tentang diet yang sempurna.
               </p>
             </div>
-            <p className="font-normal text-[#728078] text-[11px] leading-relaxed">
+            <p className="font-normal text-[#728078] text-xs leading-relaxed">
               Tentang pilihan yang lebih sadar. Catat nutrisi, gerak, dan air
               minum dalam satu ruang yang ramah.
             </p>
@@ -98,14 +160,14 @@ const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
             <p className="text-xs leading-4">
               <span className="text-[#728078]">Butuh bantuan?&nbsp;&nbsp;</span>
               <a className="text-[#167653] font-medium hover:underline transition-all" href="mailto:bantuan@fitbite.id">
-                Hubungi kami ↗
+                Hubungi kami
               </a>
             </p>
           </div>
 
           {/* Container Form Utama */}
-          <div className="flex flex-col items-start gap-4 w-full max-w-[380px] mx-auto my-auto">
-            <header className="flex flex-col items-start gap-1.5 w-full">
+          <div className="flex flex-col items-start gap-3 w-full max-w-[380px] mx-auto my-auto">
+            <header className="flex flex-col items-start gap-1 w-full">
               <div className="inline-flex items-start px-2.5 py-0.5 bg-[#eaf3e9] rounded-full">
                 <div className="text-[#167653] text-[9px] font-semibold tracking-wider uppercase">
                   SELAMAT DATANG KEMBALI
@@ -118,6 +180,49 @@ const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
                 Masuk dan lanjutkan perjalanan sehatmu bersama FitBite.
               </p>
             </header>
+
+            {/* Quick Demo Selector untuk Pengujian */}
+            <div className="flex items-center gap-2 w-full py-1">
+              <span className="text-[10px] text-[#728078] font-medium">Akun Uji:</span>
+              <button
+                type="button"
+                onClick={() => handleFillDemo("user")}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#f0f5ec] hover:bg-[#e2edd9] text-[#167653] text-[10px] font-semibold transition-colors cursor-pointer border border-[#c9ddc1]"
+              >
+                <UserCheck className="w-3 h-3" />
+                User (Nadia)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFillDemo("admin")}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#fdf3e7] hover:bg-[#fae3cc] text-[#b45309] text-[10px] font-semibold transition-colors cursor-pointer border border-[#fed7aa]"
+              >
+                <ShieldCheck className="w-3 h-3" />
+                Admin
+              </button>
+            </div>
+
+            {/* Notifikasi Error */}
+            {errorMessage && (
+              <div
+                role="alert"
+                className="flex items-center gap-2 w-full p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs animate-shake"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <span className="flex-1">{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Notifikasi Sukses */}
+            {successMessage && (
+              <div
+                role="status"
+                className="flex items-center gap-2 w-full p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs"
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span className="flex-1 font-medium">{successMessage}</span>
+              </div>
+            )}
 
             <form className="flex flex-col items-start gap-3 w-full" onSubmit={handleSubmit}>
               {/* Field Email dengan Efek Focus Glow */}
@@ -137,11 +242,9 @@ const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
                     required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
+                    placeholder="nama@email.com"
                     className="w-full bg-transparent outline-none font-normal text-[#203d32] text-xs"
                   />
-                  {image && (
-                    <img className="w-4 h-4" alt="" aria-hidden="true" src={image} />
-                  )}
                 </div>
               </div>
 
@@ -162,6 +265,7 @@ const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
                     className="w-full bg-transparent outline-none font-normal text-[#203d32] text-xs"
                   />
                   <button
@@ -172,10 +276,12 @@ const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
                         : "Tampilkan kata sandi"
                     }
                     onClick={() => setShowPassword((visible) => !visible)}
-                    className="w-4 h-4 shrink-0 hover:opacity-75 transition-opacity"
+                    className="p-1 text-[#728078] transition-colors hover:text-[#167653] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#167653]/30 rounded"
                   >
-                    {vector2 && (
-                      <img className="w-full h-full" alt="" aria-hidden="true" src={vector2} />
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="h-4 w-4" aria-hidden="true" />
                     )}
                   </button>
                 </div>
@@ -201,39 +307,38 @@ const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
                 </a>
               </div>
 
-              {/* Tombol Submit dengan Efek Membal (Active Scale) & Shadow */}
+              {/* Tombol Submit */}
               <button
                 type="submit"
-                className="flex min-h-[40px] items-center justify-center gap-2 px-4 py-2 w-full bg-[#167653] hover:bg-[#125f43] active:scale-[0.98] transition-all duration-200 shadow-md hover:shadow-lg rounded-lg text-white font-semibold text-xs mt-1 cursor-pointer"
+                disabled={isLoading}
+                className="flex min-h-[40px] items-center justify-center gap-2 px-4 py-2 w-full bg-[#167653] hover:bg-[#125f43] active:scale-[0.98] transition-all duration-200 shadow-md hover:shadow-lg rounded-lg text-white font-semibold text-xs mt-1 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {vector3 && (
-                  <span className="w-4 h-4">
-                    <img className="w-full h-full" alt="" aria-hidden="true" src={vector3} />
-                  </span>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Memverifikasi kredensial...</span>
+                  </>
+                ) : (
+                  <span>Masuk</span>
                 )}
-                <span>Masuk</span>
               </button>
             </form>
 
             {/* Footer Form Register */}
             <p className="text-xs text-center w-full">
               <span className="text-[#728078]">Baru di FitBite? </span>
-              <a href="Register" className="font-bold text-[#167653] hover:underline transition-all">
+              <Link to="/register" className="font-bold text-[#167653] hover:underline transition-all">
                 Daftar sekarang
-              </a>
+              </Link>
             </p>
           </div>
 
           {/* Footer Bawah */}
           <footer className="flex flex-col items-start gap-1 w-full pt-2 border-t border-gray-100">
             <div className="flex items-center gap-1.5 w-full">
-              {vector4 && (
-                <div className="w-3.5 h-3.5 shrink-0">
-                  <img className="w-full h-full" alt="" aria-hidden="true" src={vector4} />
-                </div>
-              )}
+              <ShieldCheck className="w-3.5 h-3.5 text-[#167653] shrink-0" />
               <p className="text-[#728078] text-[10px]">
-                Data kesehatanmu pribadi. Kamu yang memegang kendali.
+                Data kesehatanmu pribadi. Kamu yang memegang kendali penuh.
               </p>
             </div>
             <p className="text-[#728078] text-[9px]">
@@ -248,3 +353,5 @@ const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     </main>
   );
 };
+
+export default Masuk;

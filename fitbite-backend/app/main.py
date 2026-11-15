@@ -20,6 +20,7 @@ from app.models.notification import Notification as NotificationRecord
 from app.routers import (
     admin_foods,
     activity_logs,
+    auth,
     body_check,
     calorie_targets,
     evaluations,
@@ -115,6 +116,7 @@ for router_module in (
     water_logs,
 ):
     app.include_router(router_module.router)
+app.include_router(activity_logs.activities_router)
 
 # Izinkan komunikasi dari Frontend (5173) & Node.js (5000)
 app.add_middleware(
@@ -129,6 +131,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(reminders.router)
 app.include_router(food_logs.router)
 app.include_router(water_logs.router)

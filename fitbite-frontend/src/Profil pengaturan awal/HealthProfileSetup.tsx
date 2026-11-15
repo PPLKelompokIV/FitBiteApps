@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getAuthUserName, logout } from '../utils/auth';
 
 const HealthProfileSetup = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     tanggalLahir: '',
     jenisKelamin: 'Perempuan',
@@ -49,9 +52,15 @@ const HealthProfileSetup = () => {
         
         <div className="flex items-center gap-4 text-sm text-gray-500">
           <span className="bg-gray-100 px-3 py-1 rounded-md text-xs font-medium text-gray-600">Data contoh • 5 Okt 2026</span>
-          <span className="text-gray-700">Nadia Putri</span>
+          <span className="text-gray-700">{getAuthUserName()}</span>
           <span>•</span>
-          <button className="hover:text-red-500 transition-colors">Keluar</button>
+          <button
+            type="button"
+            onClick={() => logout(navigate)}
+            className="hover:text-red-500 transition-colors"
+          >
+            Keluar
+          </button>
         </div>
       </header>
 

@@ -27,6 +27,12 @@ import {
 import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 import { MealLogModal } from "./MealLogModal";
 import { loadCalorieTarget } from "../calorieTargets";
+import {
+  getAuthUser,
+  getAuthUserFirstName,
+  getAuthUserInitials,
+  getAuthUserName,
+} from "../utils/auth";
 
 const initialMeals = [
   {
@@ -144,6 +150,7 @@ const FoodIcon = ({ kind }) => {
 
 export const DashboardHariIni = () => {
   const navigate = useNavigate();
+  const authUser = getAuthUser();
   const [isMealModalOpen, setIsMealModalOpen] = useState(false);
   const [mealList, setMealList] = useState([]);
   const [calorieTarget, setCalorieTarget] = useState(null);
@@ -337,10 +344,10 @@ export const DashboardHariIni = () => {
               <span className="absolute -right-0.5 top-0 h-1.5 w-1.5 rounded-full bg-[#167653]" />
             </button>
             <div
-              aria-label="Profil Nadia Putri"
+              aria-label={`Profil ${getAuthUserName(authUser)}`}
               className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-[#dcebb2] text-[11px] font-bold text-[#203d32]"
             >
-              NP
+              {getAuthUserInitials(authUser)}
             </div>
           </div>
         </header>
@@ -353,7 +360,7 @@ export const DashboardHariIni = () => {
                 Hari baik dimulai dari pilihan kecil.
               </h1>
               <p className="mt-1.5 text-xs leading-[19px] text-[#728078] sm:text-[13px]">
-                Halo, Nadia. Ini perjalanan sehatmu pada Senin, 19 Oktober 2026 • 18.30 WIB.
+                Halo, {getAuthUserFirstName(authUser)}. Ini perjalanan sehatmu pada Senin, 19 Oktober 2026 • 18.30 WIB.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">

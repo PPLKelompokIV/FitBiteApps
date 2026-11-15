@@ -1,6 +1,7 @@
 import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { getAuthUserInitials } from "../utils/auth";
 import {
   ChevronRight,
   Bell,
@@ -65,6 +66,7 @@ const mealTypes = ["Sarapan", "Makan siang", "Makan malam", "Camilan"];
 
 export const MealPhotoJournalSection = (): ReactElement => {
   const navigate = useNavigate();
+  const userInitials = getAuthUserInitials();
   const [selectedMealType, setSelectedMealType] = useState("Makan siang");
   const [checked, setChecked] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -269,10 +271,10 @@ export const MealPhotoJournalSection = (): ReactElement => {
             <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#167653]" />
           </button>
           <div
-            aria-label="Profil NP"
+            aria-label={`Profil ${userInitials}`}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-[#dcebb2] font-bold text-xs text-[#203d32]"
           >
-            NP
+            {userInitials}
           </div>
         </div>
       </header>

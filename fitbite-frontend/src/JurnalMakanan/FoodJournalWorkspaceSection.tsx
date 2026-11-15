@@ -1,6 +1,7 @@
 import { useState, useEffect, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { getAuthUserInitials } from "../utils/auth";
 import fotoHidangan from "../assets/foto-hidangan.png";
 import fotoHidangan2 from "../assets/foto-hidangan-2.png";
 import fotoHidangan3 from "../assets/foto-hidangan-3.png";
@@ -1294,6 +1295,7 @@ function AddFoodPanel({
 }
 
 export const FoodJournalWorkspaceSection = (): ReactElement => {
+  const userInitials = getAuthUserInitials();
   const [recommendationMeal, setRecommendationMeal] = useState("Makan siang");
   const [savingLoading, setSavingLoading] = useState(false);
   const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
@@ -1686,7 +1688,7 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
             <span
               className={`text-[11px] leading-[16.5px] text-[#203d32] ${boldClass}`}
             >
-              NP
+              {userInitials}
             </span>
           </div>
         </div>

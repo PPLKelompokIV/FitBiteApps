@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
+import { getAuthUser, getAuthUserName, logout } from "../utils/auth";
 
 type NavigationItem = {
   label: string;
@@ -49,6 +50,7 @@ const navigationItems: NavigationItem[] = [
 export const PrimaryNavigationSection = (): ReactElement => {
   const [activeItem, setActiveItem] = useState("Hari ini");
   const navigate = useNavigate();
+  const authUser = getAuthUser();
 
   return (
     <aside className="flex flex-col w-[216px] items-start gap-[33px] px-[18px] py-[30px] relative self-stretch bg-white border-r [border-right-style:solid] border-[#e1e7df]">
@@ -152,16 +154,18 @@ export const PrimaryNavigationSection = (): ReactElement => {
           </div>
           <div className="flex flex-col items-start gap-[3px] relative flex-1 grow">
             <div className="relative self-stretch mt-[-1.00px] [font-family:'Inter-SemiBold',Helvetica] font-semibold text-[#203d32] text-[13px] tracking-[0] leading-[19.5px]">
-              Nadia Putri
+              {getAuthUserName(authUser)}
             </div>
             <div className="relative self-stretch [font-family:'Inter-Regular',Helvetica] font-normal text-[#728078] text-[11px] tracking-[0] leading-[16.5px]">
-              Anggota FitBite
+              {authUser?.role === "admin"
+                ? "Administrator FitBite"
+                : "Anggota FitBite"}
             </div>
           </div>
         </div>
         <button
           type="button"
-          onClick={() => undefined}
+          onClick={() => logout(navigate)}
           className="self-stretch text-left [font-family:'Inter-Regular',Helvetica] font-normal text-[#728078] text-[11px] leading-[16.5px] relative tracking-[0]"
         >
           Keluar dari akun&nbsp;&nbsp;↗

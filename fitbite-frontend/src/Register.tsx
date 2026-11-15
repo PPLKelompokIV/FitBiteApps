@@ -1,13 +1,20 @@
-import { useState, type FormEvent, type ReactElement } from "react";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import identitasFitbite from "./assets/Identitas FitBite.png";
 import lapisanKeterbacaan from "./assets/Lapisan keterbacaan.png";
 import lariPagiDiTaman from "./assets/Lari pagi di taman.png";
-
-const image = "";
-const vector = "";
-const vector2 = "";
-const vector3 = "";
-const vector4 = "";
+import { setAuthSession } from "./utils/auth";
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Sprout,
+} from "lucide-react";
 
 export const BrandStorySection = () => {
   return (
@@ -51,25 +58,16 @@ export const BrandStorySection = () => {
       </div>
 
       {/* Card Info Bawah Kiri */}
-      <aside className="relative z-10 flex flex-col w-full items-start gap-1.5 p-4 bg-[#ffffffd9] backdrop-blur-md rounded-[16px] shadow-sm hover:bg-white/90 transition-all duration-300">
+      <aside className="relative z-10 flex flex-col w-full items-start gap-2 p-4 bg-[#ffffffd9] backdrop-blur-md rounded-[16px] shadow-sm hover:bg-white/90 transition-all duration-300">
         <div className="flex items-center gap-2 w-full">
-          {vector && (
-            <div className="relative w-4 h-4 shrink-0">
-              <img
-                className="w-full h-full object-contain"
-                alt=""
-                aria-hidden="true"
-                src={vector}
-              />
-            </div>
-          )}
-          <p className="font-bold text-[#203d32] text-xs">
+          <Sprout className="w-5 h-5 text-[#167653] shrink-0" />
+          <p className="font-bold text-[#203d32] text-sm">
             Bukan tentang diet yang sempurna.
           </p>
         </div>
-        <p className="font-normal text-[#728078] text-[11px] leading-relaxed">
-          Tentang pilihan yang lebih sadar. Catat nutrisi, gerak, dan air
-          minum dalam satu ruang yang ramah.
+        <p className="font-normal text-[#728078] text-xs leading-relaxed">
+          Tentang pilihan yang lebih sadar. Catat nutrisi, gerak, dan air minum
+          dalam satu ruang yang ramah.
         </p>
       </aside>
     </section>
@@ -77,17 +75,32 @@ export const BrandStorySection = () => {
 };
 
 export const AccountRegistrationSection = () => {
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreement, setAgreement] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [registeredUser, setRegisteredUser] = useState<any>(null);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setErrorMessage("");
+    setErrorMessage(null);
+
+    const nameTrimmed = fullName.trim();
+    if (nameTrimmed.length < 3) {
+      setErrorMessage("Nama lengkap harus memiliki setidaknya 3 karakter.");
+      return;
+    }
+
+    const emailTrimmed = email.trim();
+    if (!emailTrimmed) {
+      setErrorMessage("Alamat email wajib diisi.");
+      return;
+    }
 
     if (password.length < 8) {
       setErrorMessage("Kata sandi harus memiliki setidaknya 8 karakter.");
@@ -95,11 +108,50 @@ export const AccountRegistrationSection = () => {
     }
 
     if (!agreement) {
-      setErrorMessage("Kamu harus menyetujui syarat dan ketentuan.");
+      setErrorMessage("Kamu harus menyetujui kebijakan privasi dan ketentuan penggunaan.");
       return;
     }
 
-    setIsSubmitted(true);
+    setIsLoading(true);
+
+    try {
+      const response = await axios.post("http://localhost:8000/api/auth/register", {
+        nama: nameTrimmed,
+        email: emailTrimmed,
+        password,
+      }, {
+        timeout: 10000,
+      });
+
+      const data = response.data;
+      if (data.status === "success" && data.user) {
+        setRegisteredUser(data.user);
+        setIsSubmitted(true);
+        // Otomatis siapkan sesi jika ingin langsung masuk
+        if (data.token) {
+          setAuthSession(data.token, data.user, data.audit);
+        }
+      } else {
+        setErrorMessage(data.message || "Gagal melakukan pendaftaran akun.");
+      }
+    } catch (err: any) {
+      console.error("Register error:", err);
+      if (err.response?.data?.detail) {
+        setErrorMessage(err.response.data.detail);
+      } else if (err.code === "ECONNABORTED" || err.message?.includes("Network Error")) {
+        setErrorMessage(
+          "Tidak dapat terhubung ke server backend (port 8000). Pastikan FastAPI berjalan."
+        );
+      } else {
+        setErrorMessage("Terjadi kesalahan saat pendaftaran akun. Silakan coba lagi.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDirectToDashboard = () => {
+    navigate("/bodycheckpagi");
   };
 
   return (
@@ -112,7 +164,7 @@ export const AccountRegistrationSection = () => {
         <p className="text-xs leading-4">
           <span className="text-[#728078]">Butuh bantuan?&nbsp;&nbsp;</span>
           <a className="text-[#167653] font-medium hover:underline transition-all" href="mailto:bantuan@fitbite.id">
-            Hubungi kami ↗
+            Hubungi kami
           </a>
         </p>
       </div>
@@ -141,20 +193,40 @@ export const AccountRegistrationSection = () => {
             <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-[#167653] text-white font-bold text-xs">
               ✓
             </div>
-            <h3 className="text-base font-bold">Akun berhasil dibuat</h3>
+            <h3 className="text-base font-bold">Akun berhasil dibuat!</h3>
             <p className="mt-1 text-xs text-[#728078]">
-              Selamat datang di FitBite. Kami siap menemani perjalanan sehatmu.
+              Selamat datang, <strong className="text-[#203d32]">{registeredUser?.nama || fullName}</strong> ({registeredUser?.email || email}). Akun Anda telah aktif dan siap digunakan.
             </p>
-            <button
-              type="button"
-              onClick={() => setIsSubmitted(false)}
-              className="mt-4 text-xs font-semibold text-[#167653] underline underline-offset-4 hover:text-[#125f43] transition-colors"
-            >
-              Buat akun lain
-            </button>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleDirectToDashboard}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#167653] hover:bg-[#125f43] text-white font-semibold text-xs rounded-lg shadow transition-colors cursor-pointer"
+              >
+                <span>Mulai Sekarang (Body Check Pagi)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <Link
+                to="/login"
+                className="text-center text-xs font-semibold text-[#167653] hover:underline transition-colors py-1"
+              >
+                Masuk melalui halaman login
+              </Link>
+            </div>
           </div>
         ) : (
           <form className="flex flex-col items-start gap-2.5 w-full" onSubmit={handleSubmit}>
+            {/* Notifikasi Error */}
+            {errorMessage && (
+              <div
+                role="alert"
+                className="flex items-center gap-2 w-full p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs animate-shake"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <span className="flex-1">{errorMessage}</span>
+              </div>
+            )}
+
             {/* Field Nama Lengkap */}
             <div className="flex flex-col items-start gap-1 w-full">
               <label htmlFor="full-name" className="text-[#203d32] text-[11px] font-semibold">
@@ -188,14 +260,13 @@ export const AccountRegistrationSection = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-transparent outline-none font-normal text-[#203d32] text-xs placeholder:text-gray-300"
                 />
-                {image && <img className="w-4 h-4" alt="" aria-hidden="true" src={image} />}
               </div>
             </div>
 
             {/* Field Password */}
             <div className="flex flex-col items-start gap-1 w-full">
               <label htmlFor="password" className="text-[#203d32] text-[11px] font-semibold">
-                Kata sandi
+                Kata sandi (Minimal 8 karakter)
               </label>
               <div className="flex min-h-[38px] items-center gap-2 px-3 py-1 w-full bg-white rounded-lg border border-[#e1e7df] focus-within:border-[#167653] focus-within:ring-2 focus-within:ring-[#167653]/20 transition-all duration-200">
                 <input
@@ -210,10 +281,15 @@ export const AccountRegistrationSection = () => {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
                   onClick={() => setShowPassword((visible) => !visible)}
-                  className="w-4 h-4 shrink-0 text-[10px] text-gray-500 hover:text-[#167653] transition-colors"
+                  className="p-1 text-[#728078] transition-colors hover:text-[#167653] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#167653]/30 rounded"
                 >
-                  {vector2 ? <img className="w-full h-full" alt="" src={vector2} /> : (showPassword ? "🙈" : "👁️")}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  )}
                 </button>
               </div>
             </div>
@@ -240,21 +316,20 @@ export const AccountRegistrationSection = () => {
               </label>
             </div>
 
-            {errorMessage && (
-              <p className="text-[10px] font-medium text-red-500 mt-0.5">{errorMessage}</p>
-            )}
-
             {/* Tombol Daftar */}
             <button
               type="submit"
-              className="flex min-h-[38px] items-center justify-center gap-2 px-4 py-2 w-full bg-[#167653] hover:bg-[#125f43] active:scale-[0.98] transition-all duration-200 shadow-md hover:shadow-lg rounded-lg text-white font-semibold text-xs mt-1 cursor-pointer"
+              disabled={isLoading}
+              className="flex min-h-[38px] items-center justify-center gap-2 px-4 py-2 w-full bg-[#167653] hover:bg-[#125f43] active:scale-[0.98] transition-all duration-200 shadow-md hover:shadow-lg rounded-lg text-white font-semibold text-xs mt-1 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {vector3 && (
-                <span className="w-4 h-4">
-                  <img className="w-full h-full" alt="" aria-hidden="true" src={vector3} />
-                </span>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Mendaftarkan akun...</span>
+                </>
+              ) : (
+                <span>Daftar</span>
               )}
-              <span>Daftar</span>
             </button>
           </form>
         )}
@@ -262,22 +337,18 @@ export const AccountRegistrationSection = () => {
         {/* Footer Link ke Login */}
         <p className="text-xs text-center w-full mt-1">
           <span className="text-[#728078]">Sudah punya akun? </span>
-          <a href="/login" className="font-bold text-[#167653] hover:underline transition-all">
+          <Link to="/login" className="font-bold text-[#167653] hover:underline transition-all">
             Masuk di sini
-          </a>
+          </Link>
         </p>
       </div>
 
       {/* Footer Bawah */}
       <footer className="flex flex-col items-start gap-1 w-full pt-2 border-t border-gray-100">
         <div className="flex items-center gap-1.5 w-full">
-          {vector4 && (
-            <div className="w-3.5 h-3.5 shrink-0">
-              <img className="w-full h-full" alt="" aria-hidden="true" src={vector4} />
-            </div>
-          )}
+          <ShieldCheck className="w-3.5 h-3.5 text-[#167653] shrink-0" />
           <p className="text-[#728078] text-[10px]">
-            Data kesehatanmu pribadi. Kamu yang memegang kendali.
+            Data kesehatanmu pribadi. Kamu yang memegang kendali penuh.
           </p>
         </div>
         <p className="text-[#728078] text-[9px]">

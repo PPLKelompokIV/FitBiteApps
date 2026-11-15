@@ -24,6 +24,11 @@ import {
   VolumeX,
 } from "lucide-react";
 import {
+  getAuthUser,
+  getAuthUserInitials,
+  getAuthUserName,
+} from "../utils/auth";
+import {
   calculateCalorieTargets,
   sampleCalorieProfile,
 } from "../calorieTargets";
@@ -111,7 +116,7 @@ const fallbackNotifications: NotificationItem[] = [
     judul: "Body Check pagi tersimpan",
     pesan: "Target hari ini siap • 19 Okt, 06.48 WIB",
     waktu_kirim: "19 Okt • 06.48 WIB",
-    tautan_tujuan: "/body-check-pagi",
+    tautan_tujuan: "/bodycheckpagi",
     sudah_dibaca: true,
   },
   {
@@ -225,6 +230,8 @@ const Card = ({
 
 export const ProfileAndReminderSettingsSection = () => {
   const navigate = useNavigate();
+  const authUser = getAuthUser();
+  const userInitials = getAuthUserInitials(authUser);
   const bellDropdownRef = useRef<HTMLDivElement | null>(null);
   const triggeredRemindersRef = useRef<Set<string>>(new Set());
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -858,7 +865,9 @@ export const ProfileAndReminderSettingsSection = () => {
             </div>
 
             <div className="flex h-[32px] w-[32px] items-center justify-center rounded-full bg-[#dcebb2]">
-              <span className="text-[11px] font-bold text-[#203d32]">NP</span>
+              <span className="text-[11px] font-bold text-[#203d32]">
+                {userInitials}
+              </span>
             </div>
           </div>
         </header>
@@ -915,14 +924,18 @@ export const ProfileAndReminderSettingsSection = () => {
               >
                 <div className="flex w-full items-center gap-3.5">
                   <div className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full bg-[#dcebb2]">
-                    <span className="text-lg font-bold text-[#203d32]">NP</span>
+                    <span className="text-lg font-bold text-[#203d32]">
+                      {userInitials}
+                    </span>
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-bold leading-[24px] text-[#203d32]">
-                      Nadia Putri
+                      {getAuthUserName(authUser)}
                     </h3>
                     <p className="text-[11px] leading-[16.5px] text-[#728078]">
-                      Bergabung 5 Oktober 2026
+                      {authUser?.role === "admin"
+                        ? "Administrator FitBite"
+                        : "Anggota FitBite"}
                     </p>
                   </div>
                 </div>
@@ -933,7 +946,7 @@ export const ProfileAndReminderSettingsSection = () => {
                       Email
                     </h3>
                     <p className="text-[11px] leading-[16.5px] text-[#728078]">
-                      nadia.putri@email.com
+                      {authUser?.email || "Email belum tersedia"}
                     </p>
                   </div>
                   <button
