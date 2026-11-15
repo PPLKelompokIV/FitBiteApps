@@ -74,7 +74,7 @@ async def evening_evaluation_scheduler_loop():
                     evaluasiMalam(
                         db=db,
                         id_user=1,
-                        target_date=now_wib.date()
+                        target_date=now_wib.date(),
                         tipe_pemicu="otomatis_20_00",
                         kirim_notifikasi=True,
                     )
