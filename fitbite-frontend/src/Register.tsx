@@ -5,7 +5,16 @@ import identitasFitbite from "./assets/Identitas FitBite.png";
 import lapisanKeterbacaan from "./assets/Lapisan keterbacaan.png";
 import lariPagiDiTaman from "./assets/Lari pagi di taman.png";
 import { setAuthSession } from "./utils/auth";
-import { Loader2, AlertCircle, CheckCircle2, ShieldCheck, ArrowRight } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Sprout,
+} from "lucide-react";
 
 export const BrandStorySection = () => {
   return (
@@ -49,16 +58,16 @@ export const BrandStorySection = () => {
       </div>
 
       {/* Card Info Bawah Kiri */}
-      <aside className="relative z-10 flex flex-col w-full items-start gap-1.5 p-4 bg-[#ffffffd9] backdrop-blur-md rounded-[16px] shadow-sm hover:bg-white/90 transition-all duration-300">
+      <aside className="relative z-10 flex flex-col w-full items-start gap-2 p-4 bg-[#ffffffd9] backdrop-blur-md rounded-[16px] shadow-sm hover:bg-white/90 transition-all duration-300">
         <div className="flex items-center gap-2 w-full">
-          <ShieldCheck className="w-4 h-4 text-[#167653] shrink-0" />
-          <p className="font-bold text-[#203d32] text-xs">
-            Privasi Data Terjamin (NFR-02 & NFR-03)
+          <Sprout className="w-5 h-5 text-[#167653] shrink-0" />
+          <p className="font-bold text-[#203d32] text-sm">
+            Bukan tentang diet yang sempurna.
           </p>
         </div>
-        <p className="font-normal text-[#728078] text-[11px] leading-relaxed">
-          Kredensial Anda dienkripsi secara aman. Data kesehatan bersifat pribadi dan
-          terisolasi antar pengguna.
+        <p className="font-normal text-[#728078] text-xs leading-relaxed">
+          Tentang pilihan yang lebih sadar. Catat nutrisi, gerak, dan air minum
+          dalam satu ruang yang ramah.
         </p>
       </aside>
     </section>
@@ -155,7 +164,7 @@ export const AccountRegistrationSection = () => {
         <p className="text-xs leading-4">
           <span className="text-[#728078]">Butuh bantuan?&nbsp;&nbsp;</span>
           <a className="text-[#167653] font-medium hover:underline transition-all" href="mailto:bantuan@fitbite.id">
-            Hubungi kami ↗
+            Hubungi kami
           </a>
         </p>
       </div>
@@ -274,9 +283,13 @@ export const AccountRegistrationSection = () => {
                   type="button"
                   aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
                   onClick={() => setShowPassword((visible) => !visible)}
-                  className="text-xs text-gray-400 hover:text-[#167653] transition-colors p-1"
+                  className="p-1 text-[#728078] transition-colors hover:text-[#167653] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#167653]/30 rounded"
                 >
-                  {showPassword ? "🙈" : "👁️"}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  )}
                 </button>
               </div>
             </div>

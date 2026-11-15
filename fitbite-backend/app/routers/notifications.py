@@ -22,7 +22,7 @@ DEFAULT_NOTIFICATIONS = [
         "judul": "Body Check pagi tersimpan",
         "pesan": "Target hari ini siap • 19 Okt, 06.48 WIB",
         "waktu_kirim": "19 Okt • 06.48 WIB",
-        "tautan_tujuan": "/body-check-pagi",
+        "tautan_tujuan": "/bodycheckpagi",
         "sudah_dibaca": True,
     },
     {
@@ -40,7 +40,7 @@ REMINDER_TEMPLATE_MAP = {
     "body_check": {
         "judul": "Waktunya Body Check pagi",
         "pesan": "Mulai hari dengan mengenali kondisi tubuh dan berat badanmu hari ini.",
-        "tautan_tujuan": "/body-check-pagi",
+        "tautan_tujuan": "/bodycheckpagi",
     },
     "sarapan": {
         "judul": "Waktunya mencatat sarapan",

@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getAuthUser, getAuthUserName, logout } from "../utils/auth";
 import {
   LayoutGrid,
   Sun,
@@ -53,6 +55,8 @@ const navigationItems: NavigationItem[] = [
 export const SidebarNavigationSection = () => {
   const [activeItem, setActiveItem] = useState("Jurnal & evaluasi");
   const [imgError, setImgError] = useState(false);
+  const navigate = useNavigate();
+  const authUser = getAuthUser();
 
   return (
     <aside
@@ -140,17 +144,19 @@ export const SidebarNavigationSection = () => {
           </div>
           <div className="flex flex-col items-start flex-1 min-w-0">
             <div className="font-semibold text-[#203d32] text-[13px] leading-[18px] truncate w-full">
-              Nadia Putri
+              {getAuthUserName(authUser)}
             </div>
             <div className="font-normal text-[#728078] text-[11px] leading-[16px]">
-              Anggota FitBite
+              {authUser?.role === "admin"
+                ? "Administrator FitBite"
+                : "Anggota FitBite"}
             </div>
           </div>
         </div>
         <button
           type="button"
           className="inline-flex items-center gap-1 font-normal text-[#728078] hover:text-[#203d32] text-[11px] leading-[16.5px] text-left border-0 bg-transparent p-0 transition-colors cursor-pointer"
-          onClick={() => undefined}
+          onClick={() => logout(navigate)}
         >
           <span>Keluar dari akun</span>
           <ArrowUpRight className="w-3 h-3" />

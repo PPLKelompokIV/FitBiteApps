@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAuthUser, logout } from "../utils/auth";
+import { getAuthUser, getAuthUserName, logout } from "../utils/auth";
 import {
   LayoutGrid,
   Sun,
@@ -103,7 +103,7 @@ export const PrimaryNavigationSection = () => {
           </div>
           <div className="flex flex-col flex-1 min-w-0">
             <span className="text-xs font-semibold text-[#203d32] truncate">
-              {authUser?.nama || "Nadia Putri"}
+              {getAuthUserName(authUser)}
             </span>
             <span className="text-[10px] text-[#728078]">
               {authUser?.role === "admin" ? "Administrator FitBite" : "Anggota FitBite"}

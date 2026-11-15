@@ -63,11 +63,7 @@ function App() {
       />
       <Route
         path="/body-check-pagi"
-        element={
-          <ProtectedRoute>
-            <BodyCheckPagi />
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/bodycheckpagi" replace />}
       />
       <Route
         path="/bodycheckpagi"

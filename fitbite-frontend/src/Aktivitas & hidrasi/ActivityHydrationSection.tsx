@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, type ReactElement } from "react";
+import { getAuthUserInitials } from "../utils/auth";
 import {
   ChevronRight,
   Bell,
@@ -71,6 +72,7 @@ const suggestions = [
 ];
 
 export const ActivityAndHydrationSection = (): ReactElement => {
+  const userInitials = getAuthUserInitials();
   const API_BASE = "http://127.0.0.1:8000/api/water-logs";
   const ACTIVITY_API_BASE = "http://127.0.0.1:8000/api/activity-logs";
   const ACTIVITY_CREATE_API_URL = "http://127.0.0.1:8000/api/activities/log";
@@ -521,7 +523,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
             <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#167653]" />
           </button>
           <div className="flex h-[33px] w-[33px] items-center justify-center rounded-full bg-[#dcebb2] text-[11px] font-bold text-[#167653]">
-            NP
+            {userInitials}
           </div>
         </div>
       </header>
