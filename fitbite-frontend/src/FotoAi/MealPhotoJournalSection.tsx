@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -6,6 +6,7 @@ import {
   Bell,
   ArrowLeft,
   Info,
+  Camera,
   RotateCcw,
   Upload,
   RefreshCw,
@@ -15,6 +16,7 @@ import {
   Loader2,
   Sparkles,
   AlertCircle,
+  X,
 } from "lucide-react";
 
 type Meal = {
@@ -24,7 +26,33 @@ type Meal = {
   portion: string;
   calories: string;
   nutrients: [string, string, string]; // [Protein, Karbo, Lemak]
+  // Nilai acuan (hasil AI / input terakhir) untuk hitung proporsional saat porsi diubah
+  basePortion?: string;
+  baseCalories?: string;
+  baseNutrients?: [string, string, string];
 };
+
+const MAX_FILE_SIZE_MB = 5;
+const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+function parseAngka(nilai: string | number): number {
+  const cocok = String(nilai).replace(",", ".").match(/-?\d+(?:\.\d+)?/);
+  return cocok ? Number.parseFloat(cocok[0]) : 0;
+}
+
+function formatAngka(nilai: number): string {
+  if (!Number.isFinite(nilai)) return "0";
+  const dibulatkan = Math.round(nilai * 10) / 10;
+  return Number.isInteger(dibulatkan) ? String(dibulatkan) : dibulatkan.toFixed(1);
+}
+
+/** Rasio perubahan porsi, mis. "10 tusuk" -> "5 tusuk" = 0.5 */
+function hitungRasioPorsi(porsiLama: string, porsiBaru: string): number | null {
+  const lama = parseAngka(porsiLama);
+  const baru = parseAngka(porsiBaru);
+  if (lama <= 0 || baru <= 0) return null;
+  return baru / lama;
+}
 
 const initialMeals: Meal[] = [
   {
@@ -70,9 +98,10 @@ export const MealPhotoJournalSection = (): ReactElement => {
   const [saved, setSaved] = useState(false);
   const [rows, setRows] = useState<Meal[]>(initialMeals);
   
-  // Tanggal & waktu default otomatis mengikuti hari dan jam saat ini
-  const todayDateStr = new Date().toISOString().split("T")[0];
-  const currentTimeStr = new Date().toTimeString().slice(0, 5);
+  // Tanggal & waktu default otomatis mengikuti hari dan jam saat ini (zona waktu lokal)
+  const now = new Date();
+  const todayDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const currentTimeStr = now.toTimeString().slice(0, 5);
   const [entryDate, setEntryDate] = useState(todayDateStr);
   const [entryTime, setEntryTime] = useState(currentTimeStr);
 
@@ -89,8 +118,79 @@ export const MealPhotoJournalSection = (): ReactElement => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [analysisSuccess, setAnalysisSuccess] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const hentikanKamera = () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setIsCameraActive(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
+  const bukaKamera = async () => {
+    setCameraError(null);
+    setAnalysisError(null);
+    try {
+      const mediaDevices = navigator.mediaDevices;
+      if (!mediaDevices?.getUserMedia) {
+        throw new Error("Kamera tidak tersedia");
+      }
+      const stream = await mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      streamRef.current = stream;
+      setIsCameraActive(true);
+      window.setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => undefined);
+        }
+      }, 0);
+    } catch {
+      setCameraError(
+        "Izin kamera ditolak. Gunakan tombol Unggah foto untuk memilih dari galeri/penyimpanan."
+      );
+      setIsCameraActive(false);
+    }
+  };
+
+  const ambilFotoKamera = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const file = new File([blob], "kamera.jpg", { type: "image/jpeg" });
+        hentikanKamera();
+        setSelectedFile(file);
+        setPhotoPreview(URL.createObjectURL(file));
+        setPhotoInfo({
+          name: file.name,
+          size: `${(file.size / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`,
+          isSample: false,
+        });
+        analyzePhoto(file);
+      },
+      "image/jpeg",
+      0.9
+    );
+  };
 
   const analyzePhoto = async (file: File) => {
     setIsAnalyzing(true);
@@ -125,18 +225,39 @@ export const MealPhotoJournalSection = (): ReactElement => {
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      const url = URL.createObjectURL(file);
-      setPhotoPreview(url);
-      setPhotoInfo({
-        name: file.name,
-        size: `${(file.size / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`,
-        isSample: false,
-      });
-      // Trigger AI Vision recognition
-      analyzePhoto(file);
+    if (!file) return;
+
+    setAnalysisError(null);
+    setAnalysisSuccess(null);
+
+    // Validasi format berkas (TC-PBI19-002)
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setAnalysisError(
+        "Format berkas tidak didukung. Harap unggah foto berekstensi .jpg, .jpeg, atau .png"
+      );
+      e.target.value = "";
+      return;
     }
+
+    // Validasi ukuran berkas maksimal 5 MB (TC-PBI19-003)
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setAnalysisError(
+        `Ukuran foto terlalu besar (maksimal ${MAX_FILE_SIZE_MB} MB). Kompres foto terlebih dahulu.`
+      );
+      e.target.value = "";
+      return;
+    }
+
+    setSelectedFile(file);
+    const url = URL.createObjectURL(file);
+    setPhotoPreview(url);
+    setPhotoInfo({
+      name: file.name,
+      size: `${(file.size / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`,
+      isSample: false,
+    });
+    // Trigger AI Vision recognition
+    analyzePhoto(file);
   };
 
   const handleRetry = () => {
@@ -177,17 +298,21 @@ export const MealPhotoJournalSection = (): ReactElement => {
         name: r.name,
         detail: `${r.portion} • ${r.detail}`,
         calories: r.calories,
+        nutrients: r.nutrients.map((nilai) => Number(parseAngka(nilai))),
       })),
       macros: `Protein ${Math.round(totalProtein)} g  ·  Karbo ${Math.round(totalCarb)} g  ·  Lemak ${Math.round(totalFat)} g`,
       updatedAt: new Date().toISOString(),
     };
 
     try {
+      // Halaman jurnal membaca key per tanggal: fitbite_journal_slots_<tanggal>
       localStorage.setItem("fitbite_journal_date", entryDate);
-      const existingStr = localStorage.getItem("fitbite_journal_slots");
+      localStorage.setItem("fitbite_journal_active_date", entryDate);
+      const storageKey = `fitbite_journal_slots_${entryDate}`;
+      const existingStr = localStorage.getItem(storageKey);
       const existing = existingStr ? JSON.parse(existingStr) : {};
       existing[selectedMealType] = newEntry;
-      localStorage.setItem("fitbite_journal_slots", JSON.stringify(existing));
+      localStorage.setItem(storageKey, JSON.stringify(existing));
     } catch (err) {
       console.error("Gagal menyimpan ke localStorage:", err);
     }
@@ -203,7 +328,51 @@ export const MealPhotoJournalSection = (): ReactElement => {
     value: string
   ) => {
     setRows((current) =>
-      current.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+      current.map((item) => {
+        if (item.id !== id) return item;
+
+        const basePortion = item.basePortion ?? item.portion;
+        const baseCalories = item.baseCalories ?? item.calories;
+        const baseNutrients = item.baseNutrients ?? item.nutrients;
+
+        // Porsi berubah -> kalori & makronutrien dihitung proporsional dari acuan
+        if (field === "portion") {
+          const rasio = hitungRasioPorsi(basePortion, value);
+          if (rasio === null) {
+            return {
+              ...item,
+              portion: value,
+              basePortion,
+              baseCalories,
+              baseNutrients,
+            };
+          }
+          return {
+            ...item,
+            portion: value,
+            basePortion,
+            baseCalories,
+            baseNutrients,
+            calories: formatAngka(parseAngka(baseCalories) * rasio),
+            nutrients: baseNutrients.map((nilai) =>
+              formatAngka(parseAngka(nilai) * rasio)
+            ) as [string, string, string],
+          };
+        }
+
+        // Nilai kalori dikoreksi manual -> jadikan acuan baru pada porsi saat ini
+        if (field === "calories") {
+          return {
+            ...item,
+            calories: value,
+            basePortion: item.portion,
+            baseCalories: value,
+            baseNutrients,
+          };
+        }
+
+        return { ...item, [field]: value };
+      })
     );
   };
 
@@ -217,7 +386,13 @@ export const MealPhotoJournalSection = (): ReactElement => {
         if (item.id !== id) return item;
         const newNutrients = [...item.nutrients] as [string, string, string];
         newNutrients[nutrientIndex] = value;
-        return { ...item, nutrients: newNutrients };
+        return {
+          ...item,
+          nutrients: newNutrients,
+          basePortion: item.portion,
+          baseCalories: item.calories,
+          baseNutrients: newNutrients,
+        };
       })
     );
   };
@@ -332,24 +507,64 @@ export const MealPhotoJournalSection = (): ReactElement => {
             <article className="flex flex-col gap-4 rounded-2xl border border-[#e1e7df] bg-white p-5">
               <h2 className="font-bold text-base text-[#203d32]">Foto makananmu</h2>
               <div className="flex flex-col gap-2">
-                <div className="relative h-64 w-full overflow-hidden rounded-xl bg-[#f0f3ec]">
-                  <img
-                    className={`h-full w-full object-cover transition-all ${isAnalyzing ? "scale-105 filter blur-[2px]" : ""}`}
-                    src={photoPreview}
-                    alt="Foto hidangan makan siang"
-                  />
-                  {isAnalyzing && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black/50 backdrop-blur-[2px] text-white p-4 text-center z-10 transition-all">
-                      <Loader2 className="h-9 w-9 animate-spin text-[#dcebb2]" />
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-bold">Menganalisis piringmu...</span>
-                        <span className="text-[11px] text-[#e1ede0]">
-                          Model AI sedang mendeteksi komponen makanan & nutrisi
-                        </span>
-                      </div>
+                {isCameraActive ? (
+                  <div className="relative h-64 w-full overflow-hidden rounded-xl bg-black">
+                    <video
+                      ref={videoRef}
+                      className="h-full w-full object-cover"
+                      autoPlay
+                      muted
+                      playsInline
+                      aria-label="Pratinjau kamera"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-black/50 p-3">
+                      <button
+                        type="button"
+                        onClick={ambilFotoKamera}
+                        className="inline-flex items-center gap-2 rounded-lg bg-[#167653] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#125f43]"
+                      >
+                        <Camera className="h-4 w-4" />
+                        <span>Ambil Foto</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={hentikanKamera}
+                        className="inline-flex items-center gap-2 rounded-lg bg-white/90 px-3 py-2 text-xs font-semibold text-[#203d32] transition-colors hover:bg-white"
+                      >
+                        <X className="h-4 w-4" />
+                        <span>Batal</span>
+                      </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="relative h-64 w-full overflow-hidden rounded-xl bg-[#f0f3ec]">
+                    <img
+                      className={`h-full w-full object-cover transition-all ${isAnalyzing ? "scale-105 filter blur-[2px]" : ""}`}
+                      src={photoPreview}
+                      alt="Foto hidangan makan siang"
+                    />
+                    {isAnalyzing && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 bg-black/50 backdrop-blur-[2px] text-white p-4 text-center z-10 transition-all">
+                        <Loader2 className="h-9 w-9 animate-spin text-[#dcebb2]" />
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm font-bold">Menganalisis piringmu...</span>
+                          <span className="text-[11px] text-[#e1ede0]">
+                            Model AI sedang mendeteksi komponen makanan & nutrisi
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {cameraError && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-[11px] text-red-700"
+                  >
+                    <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                    <p>{cameraError}</p>
+                  </div>
+                )}
                 <div className="flex items-center justify-between pt-1 text-xs">
                   <span className="text-[#728078]">
                     {photoInfo.name} • {photoInfo.size}
@@ -367,11 +582,11 @@ export const MealPhotoJournalSection = (): ReactElement => {
                 <button
                   type="button"
                   disabled={isAnalyzing}
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={bukaKamera}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#e1e7df] bg-white px-3 py-2.5 font-semibold text-xs text-[#167653] transition-colors hover:bg-[#f8faf6] disabled:opacity-50"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  <span>Ambil ulang</span>
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>Gunakan Kamera</span>
                 </button>
                 <button
                   type="button"
@@ -396,7 +611,7 @@ export const MealPhotoJournalSection = (): ReactElement => {
                 />
               </div>
               <p className="text-[11px] leading-relaxed text-[#728078]">
-                Kamera tidak tersedia atau izin ditolak? Unggah foto dari perangkat. Format JPG/PNG, maksimal 10 MB.
+                Kamera tidak tersedia atau izin ditolak? Unggah foto dari perangkat. Format JPG/PNG, maksimal 5 MB.
               </p>
             </article>
 

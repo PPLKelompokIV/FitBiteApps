@@ -74,6 +74,8 @@ export const ActivityAndHydrationSection = (): ReactElement => {
   const API_BASE = "http://127.0.0.1:8000/api/water-logs";
   const ACTIVITY_API_BASE = "http://127.0.0.1:8000/api/activity-logs";
   const ACTIVITY_CREATE_API_URL = "http://127.0.0.1:8000/api/activities/log";
+  // Batas wajar satu kali minum (BVA TC-PBI08-005) untuk mencegah salah ketik.
+  const MAX_SEKALI_MINUM_ML = 2000;
 
   const [selectedActivity, setSelectedActivity] = useState("Jalan kaki");
   const [duration, setDuration] = useState("20");
@@ -241,7 +243,17 @@ export const ActivityAndHydrationSection = (): ReactElement => {
 
   const addCustomHydration = () => {
     const amount = Number(customAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setWaterError("Jumlah cairan harus lebih dari 0 ml.");
+      return;
+    }
+    if (amount > MAX_SEKALI_MINUM_ML) {
+      setWaterError(
+        `Jumlah cairan maksimal ${MAX_SEKALI_MINUM_ML} ml sekali minum untuk menghindari salah ketik.`
+      );
+      return;
+    }
+    setWaterError("");
     handleAddDrink(amount);
   };
 

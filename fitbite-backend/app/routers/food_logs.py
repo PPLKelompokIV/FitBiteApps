@@ -65,7 +65,25 @@ def get_daily_food_logs(id_user: int, tanggal: date = date.today(), db: Session 
         .order_by(FoodLog.id_food_log.asc())
         .all()
     )
-    return {"status": "success", "data": logs}
+    return {
+        "status": "success",
+        "data": [
+            {
+                "id_food_log": item.id_food_log,
+                "id_user": item.id_user,
+                "tanggal": str(item.tanggal),
+                "slot_makan": item.slot_makan,
+                "metode_input": item.metode_input,
+                "nama_makanan": item.nama_makanan,
+                "estimasi_gram": item.estimasi_gram,
+                "kalori": item.kalori,
+                "protein_g": item.protein_g,
+                "karbo_g": item.karbo_g,
+                "lemak_g": item.lemak_g,
+            }
+            for item in logs
+        ],
+    }
 
 @router.delete("/{id_food_log}")
 def delete_food_log(id_food_log: int, db: Session = Depends(get_db)):
