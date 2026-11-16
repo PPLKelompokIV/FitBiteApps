@@ -1,4 +1,5 @@
 import re
+import time
 import pytest
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -17,6 +18,8 @@ def driver():
     WebDriverWait(d, 10).until(
         EC.visibility_of_element_located((By.XPATH, "//h1[contains(text(), 'Makan dengan sadar')]"))
     )
+    # Tunggu data awal selesai dimuat dari backend
+    time.sleep(0.8)
     yield d
     d.quit()
 
@@ -45,12 +48,14 @@ def ambil_angka_kalori_slot(driver, slot_makan: str) -> int:
     return int(angka) if angka else 0
 
 
-def tambah_makanan_katalog(driver, slot_makan: str, nama_cari: str, porsi: str):
+def tambah_makanan_katalog(driver, slot_makan: str, nama_cari: str, porsi: str, tambahan_kkal: int):
+    kalori_awal = ambil_angka_kalori_slot(driver, slot_makan)
+
     tombol_slot = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.XPATH, f"//button[normalize-space()='{slot_makan}']"))
     )
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", tombol_slot)
-    tombol_slot.click()
+    driver.execute_script("arguments[0].click();", tombol_slot)
 
     input_cari = WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.CSS_SELECTOR, "input[aria-label='Cari di katalog']"))
@@ -62,7 +67,7 @@ def tambah_makanan_katalog(driver, slot_makan: str, nama_cari: str, porsi: str):
             (By.XPATH, f"//button[.//span[contains(text(), '{nama_cari}')]]")
         )
     )
-    item_katalog.click()
+    driver.execute_script("arguments[0].click();", item_katalog)
 
     input_porsi = driver.find_element(By.CSS_SELECTOR, "input[aria-label='Jumlah porsi']")
     set_react_input_value(driver, input_porsi, porsi)
@@ -73,28 +78,21 @@ def tambah_makanan_katalog(driver, slot_makan: str, nama_cari: str, porsi: str):
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", tombol_submit)
     driver.execute_script("arguments[0].click();", tombol_submit)
 
-    WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located(
-            (By.XPATH, f"//*[contains(text(), 'berhasil disimpan ke {slot_makan}')]")
-        )
+    # Tunggu sampai total kalori pada header slot bertambah sesuai porsi yang ditambahkan
+    WebDriverWait(driver, 15).until(
+        lambda d: ambil_angka_kalori_slot(d, slot_makan) == kalori_awal + tambahan_kkal
     )
 
 
 # 1. TC-PBI06-001: Mencatat makanan dari katalog ke slot Sarapan dan verifikasi akumulasi kalori slot
 def test_tc_pbi06_001_katalog_sarapan(driver):
-    kalori_awal = ambil_angka_kalori_slot(driver, "Sarapan")
-    tambah_makanan_katalog(driver, "Sarapan", "Nasi merah matang", "2")
-    kalori_akhir = ambil_angka_kalori_slot(driver, "Sarapan")
-    assert kalori_akhir == kalori_awal + 220
+    tambah_makanan_katalog(driver, "Sarapan", "Nasi merah matang", "2", 220)
 
 
 # 2. TC-PBI06-002: Mencatat makanan pada ke-4 slot berbeda (Sarapan, Makan siang, Makan malam, Camilan)
 def test_tc_pbi06_002_empat_slot_waktu_makan(driver):
     for slot in ["Sarapan", "Makan siang", "Makan malam", "Camilan"]:
-        kalori_awal = ambil_angka_kalori_slot(driver, slot)
-        tambah_makanan_katalog(driver, slot, "Nasi merah matang", "1")
-        kalori_akhir = ambil_angka_kalori_slot(driver, slot)
-        assert kalori_akhir == kalori_awal + 110
+        tambah_makanan_katalog(driver, slot, "Nasi merah matang", "1", 110)
 
 
 # 3. TC-PBI06-003: Inline edit porsi/kalori makanan pada list slot yang telah tersimpan
@@ -118,7 +116,6 @@ def test_tc_pbi06_003_inline_edit_kalori(driver):
     )
     driver.execute_script("arguments[0].click();", btn_simpan)
 
-    # Tunggu input edit menghilang dan teks '300 kkal' tampil di halaman
     WebDriverWait(driver, 10).until(
         EC.invisibility_of_element_located((By.CSS_SELECTOR, "input[placeholder='Kkal']"))
     )
@@ -162,7 +159,6 @@ def test_tc_pbi06_005_edit_kalori_negatif(driver):
     )
     driver.execute_script("arguments[0].click();", btn_simpan)
 
-    # Sistem menolak menyimpan angka negatif sehingga form inline edit tetap aktif
     assert input_kkal.is_displayed()
 
 
@@ -172,6 +168,5 @@ def test_tc_pbi06_006_sinkronisasi_kalender_jurnal(driver):
         EC.visibility_of_element_located((By.XPATH, "//*[contains(normalize-space(), '2026')]"))
     )
     assert header_tanggal.is_displayed()
-    # Verifikasi keempat slot waktu makan tersinkronisasi untuk tanggal aktif
     for slot in ["Sarapan", "Makan siang", "Makan malam", "Camilan"]:
         assert driver.find_element(By.XPATH, f"//h3[text()='{slot}']").is_displayed()

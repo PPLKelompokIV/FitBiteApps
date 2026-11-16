@@ -1,6 +1,6 @@
-// @ts-nocheck
-import { useState, type ReactElement } from "react";
-import { Link, useLocation } from "react-router-dom";
+import type { ReactElement } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { getAuthUser, getAuthUserName, logout } from "../utils/auth";
 import {
   LayoutGrid,
   Sun,
@@ -14,7 +14,7 @@ import {
   ArrowUpRight,
   type LucideIcon,
 } from "lucide-react";
-import identitasFitbite from "../assets/Identitas FitBite (1).png"; // Sesuaikan path gambar jika perlu
+import identitasFitbite from "../assets/Identitas FitBite (1).png";
 
 type NavigationItem = {
   label: string;
@@ -22,19 +22,20 @@ type NavigationItem = {
   to?: string;
 };
 
-// PASTIKAN SEMUA MENU MEMILIKI PATH 'to' AGAR BISA DIKLIK BERPINDAH HALAMAN
 const navigationItems: NavigationItem[] = [
   { label: "Hari ini", icon: LayoutGrid, to: "/dashboard-hari-ini" },
   { label: "Body Check pagi", icon: Sun, to: "/bodycheckpagi" },
   { label: "Jurnal makanan", icon: Utensils, to: "/jurnal-makanan" },
   { label: "Aktivitas & hidrasi", icon: Activity, to: "/aktivitas-hidrasi" },
-  { label: "Jurnal & evaluasi", icon: CalendarCheck },
-  { label: "Progres", icon: TrendingUp },
+  { label: "Jurnal & evaluasi", icon: CalendarCheck, to: "/jurnal-evaluasi" },
+  { label: "Progres", icon: TrendingUp, to: "/progres" },
   { label: "Profil & pengingat", icon: SlidersHorizontal, to: "/profil-pengingat" },
 ];
 
 export const HealthAppSidebarSection = (): ReactElement => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const authUser = getAuthUser();
 
   return (
     <aside
@@ -66,14 +67,8 @@ export const HealthAppSidebarSection = (): ReactElement => {
                 ? "bg-[#eaf3e9] font-bold text-[#167653]"
                 : "bg-transparent font-medium text-[#728078] hover:bg-[#f4f7f3]"
             }`;
-
-            return (
-              <Link
-                key={item.label}
-                to={item.to || "#"}
-                aria-current={isActive ? "page" : undefined}
-                className={className}
-              >
+            const content = (
+              <>
                 <IconComponent
                   className={`h-[18px] w-[18px] shrink-0 ${
                     isActive ? "text-[#167653]" : "text-[#728078]"
@@ -81,7 +76,29 @@ export const HealthAppSidebarSection = (): ReactElement => {
                   strokeWidth={isActive ? 2.2 : 1.8}
                 />
                 <span className="flex-1 text-xs leading-[18px]">{item.label}</span>
+              </>
+            );
+
+            return item.to ? (
+              <Link
+                key={item.label}
+                to={item.to}
+                aria-current={isActive ? "page" : undefined}
+                className={className}
+              >
+                {content}
               </Link>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Fitur belum tersedia"
+                className={`${className} cursor-not-allowed opacity-60`}
+              >
+                {content}
+              </button>
             );
           })}
         </nav>
@@ -112,13 +129,21 @@ export const HealthAppSidebarSection = (): ReactElement => {
           </div>
           <div className="flex min-w-0 flex-1 flex-col items-start">
             <div className="w-full truncate text-[13px] font-semibold leading-[18px] text-[#203d32]">
-              Nadia Putri
+              {getAuthUserName(authUser)}
             </div>
             <div className="text-[11px] font-normal leading-[16px] text-[#728078]">
-              Anggota FitBite
+              {authUser?.role === "admin" ? "Administrator FitBite" : "Anggota FitBite"}
             </div>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => logout(navigate)}
+          className="inline-flex items-center gap-1 text-[11px] font-normal leading-[16.5px] text-[#728078] transition-colors hover:text-[#203d32] cursor-pointer"
+        >
+          <span>Keluar dari akun</span>
+          <ArrowUpRight className="h-3 w-3" />
+        </button>
       </footer>
     </aside>
   );

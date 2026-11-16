@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, type ReactElement } from "react";
+import { getAuthUserInitials } from "../utils/auth";
 import {
   ChevronRight,
   Bell,
@@ -30,6 +31,23 @@ type Drink = {
   note?: string;
 };
 
+type SavedActivity = {
+  id_activity_log: number;
+  tanggal: string;
+  nama_aktivitas: string;
+  durasi_menit: number;
+  waktu_mulai: string;
+  met: number;
+  kalori_terbakar: number;
+};
+
+const sortActivityHistory = (activities: SavedActivity[]) =>
+  [...activities].sort(
+    (first, second) =>
+      first.waktu_mulai.localeCompare(second.waktu_mulai) ||
+      first.id_activity_log - second.id_activity_log
+  );
+
 const activityOptions: Activity[] = [
   { name: "Jalan kaki", met: "3,5 MET", icon: Footprints },
   { name: "Lari", met: "7,0 MOV", icon: Footprints }, // Atau gunakan icon lari jika ada
@@ -37,31 +55,6 @@ const activityOptions: Activity[] = [
   { name: "Berenang", met: "6,0 MET", icon: Waves },
   { name: "Yoga", met: "2,5 MET", icon: Smile },
   { name: "Latihan beban", met: "3,5 MET", icon: Dumbbell },
-];
-
-const initialDrinks: Drink[] = [
-  { time: "07.00 WIB", amount: 500 },
-  { time: "09.30 WIB", amount: 250 },
-  { time: "12.00 WIB", amount: 500 },
-  { time: "15.30 WIB", amount: 250 },
-  { time: "17.30 WIB", amount: 250 },
-];
-
-const activityHistory = [
-  {
-    name: "Bersepeda intens",
-    detail: "16.00 • 30 menit • 6,0 MET",
-    calories: "202 kkal",
-    icon: Bike,
-    bonus: true,
-  },
-  {
-    name: "Yoga",
-    detail: "17.00 • 20 menit • 2,5 MET",
-    calories: "56 kkal",
-    icon: Smile,
-    bonus: false,
-  },
 ];
 
 const suggestions = [
@@ -80,13 +73,22 @@ const suggestions = [
 ];
 
 export const ActivityAndHydrationSection = (): ReactElement => {
-  const API_BASE = "http://localhost:8000/api/water-logs";
+  const userInitials = getAuthUserInitials();
+  const API_BASE = "http://127.0.0.1:8000/api/water-logs";
+  const ACTIVITY_API_BASE = "http://127.0.0.1:8000/api/activity-logs";
+  const ACTIVITY_CREATE_API_URL = "http://127.0.0.1:8000/api/activities/log";
+  // Batas wajar satu kali minum (BVA TC-PBI08-005) untuk mencegah salah ketik.
+  const MAX_SEKALI_MINUM_ML = 2000;
 
   const [selectedActivity, setSelectedActivity] = useState("Jalan kaki");
   const [duration, setDuration] = useState("20");
-  const [_startTime, setStartTime] = useState("19.00");
+  const [startTime, setStartTime] = useState("19:00");
   const [customAmount, setCustomAmount] = useState("200");
   const [saved, setSaved] = useState(false);
+  const [activityHistory, setActivityHistory] = useState<SavedActivity[]>([]);
+  const [activityError, setActivityError] = useState("");
+  const [isSavingActivity, setIsSavingActivity] = useState(false);
+  const [waterError, setWaterError] = useState("");
 
   // Inisialisasi history dari localStorage atau initialDrinks
   const [history, setHistory] = useState<Drink[]>(() => {
@@ -94,18 +96,32 @@ export const ActivityAndHydrationSection = (): ReactElement => {
       const savedDrinks = localStorage.getItem("fitbite_water_drinks");
       if (savedDrinks) {
         const parsed = JSON.parse(savedDrinks);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {
-      // ignore
+      console.error("Gagal membaca cache hidrasi.");
     }
-    return initialDrinks;
+    return [];
+  });
+  const todayDate = new Date();
+  const todayLabel = todayDate.toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const todayShortLabel = todayDate.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 
   // State Modal Edit
   const [editingDrink, setEditingDrink] = useState<{ index: number; drink: Drink } | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({ time: "", amount: 250 });
+  const [editingActivity, setEditingActivity] = useState<SavedActivity | null>(null);
+  const [activityEditDuration, setActivityEditDuration] = useState("");
 
   // Sinkronisasi total hidrasi selalu akurat dari akumulasi riwayat minum
   const hydration = useMemo(
@@ -122,13 +138,21 @@ export const ActivityAndHydrationSection = (): ReactElement => {
     }
   };
 
-  // Fetch dari API saat pertama kali load (graceful fallback)
+  // Catatan server adalah sumber kebenaran untuk perhitungan evaluasi.
   useEffect(() => {
     let isMounted = true;
-    fetch(`${API_BASE}/1`)
-      .then((res) => (res.ok ? res.json() : null))
+    const now = new Date();
+    const tanggal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    fetch(`${API_BASE}/1?tanggal=${tanggal}`)
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || "Gagal memuat catatan hidrasi.");
+        }
+        return body;
+      })
       .then((json) => {
-        if (isMounted && json && Array.isArray(json.data) && json.data.length > 0) {
+        if (isMounted && json && Array.isArray(json.data)) {
           const mapped: Drink[] = json.data.map((item: any) => ({
             id: item.id_water_log,
             time: item.waktu,
@@ -138,8 +162,42 @@ export const ActivityAndHydrationSection = (): ReactElement => {
           updateHistoryAndStorage(mapped);
         }
       })
-      .catch(() => {
-        // Backend offline: tetap gunakan data lokal
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setWaterError(
+            error instanceof Error ? error.message : "Gagal memuat catatan hidrasi."
+          );
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    const now = new Date();
+    const tanggal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    fetch(`${ACTIVITY_API_BASE}/1?tanggal=${tanggal}`)
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || "Gagal memuat catatan aktivitas.");
+        }
+        return body;
+      })
+      .then((body) => {
+        if (isMounted && Array.isArray(body.data)) {
+          setActivityHistory(sortActivityHistory(body.data));
+        }
+      })
+      .catch((error: unknown) => {
+        if (isMounted) {
+          setActivityError(
+            error instanceof Error ? error.message : "Gagal memuat catatan aktivitas."
+          );
+        }
       });
 
     return () => {
@@ -153,42 +211,52 @@ export const ActivityAndHydrationSection = (): ReactElement => {
     const time = timeStr || defaultTime;
     const tempId = Date.now();
     const newDrink: Drink = { id: tempId, time, amount };
-
-    // Update optimis instan
     const updated = [...history, newDrink];
     updateHistoryAndStorage(updated);
+    setWaterError("");
     setSaved(false);
 
-    // Kirim ke backend
     try {
       const res = await fetch(API_BASE, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id_user: 1,
+          tanggal: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
           waktu: time,
           jumlah_ml: amount,
           catatan: "Air Putih",
         }),
       });
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.data?.id_water_log) {
-          setHistory((curr) =>
-            curr.map((item) =>
-              item.id === tempId ? { ...item, id: json.data.id_water_log } : item
-            )
-          );
-        }
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.detail || "Gagal menyimpan catatan hidrasi.");
       }
-    } catch {
-      // Backend offline: data tetap tersimpan di lokal
+      const savedDrink = { ...newDrink, id: json?.data?.id_water_log };
+      updateHistoryAndStorage(
+        updated.map((item) => (item.id === tempId ? savedDrink : item))
+      );
+    } catch (error: unknown) {
+      updateHistoryAndStorage(history);
+      setWaterError(
+        error instanceof Error ? error.message : "Gagal menyimpan catatan hidrasi."
+      );
     }
   };
 
   const addCustomHydration = () => {
     const amount = Number(customAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setWaterError("Jumlah cairan harus lebih dari 0 ml.");
+      return;
+    }
+    if (amount > MAX_SEKALI_MINUM_ML) {
+      setWaterError(
+        `Jumlah cairan maksimal ${MAX_SEKALI_MINUM_ML} ml sekali minum untuk menghindari salah ketik.`
+      );
+      return;
+    }
+    setWaterError("");
     handleAddDrink(amount);
   };
 
@@ -216,7 +284,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
 
     if (drink.id) {
       try {
-        await fetch(`${API_BASE}/${drink.id}`, {
+        const response = await fetch(`${API_BASE}/${drink.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -224,8 +292,15 @@ export const ActivityAndHydrationSection = (): ReactElement => {
             jumlah_ml: Number(editForm.amount),
           }),
         });
-      } catch {
-        // Backend offline
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || "Gagal memperbarui catatan hidrasi.");
+        }
+        setWaterError("");
+      } catch (error: unknown) {
+        setWaterError(
+          error instanceof Error ? error.message : "Gagal memperbarui catatan hidrasi."
+        );
       }
     }
   };
@@ -238,9 +313,18 @@ export const ActivityAndHydrationSection = (): ReactElement => {
 
     if (target.id) {
       try {
-        await fetch(`${API_BASE}/${target.id}`, { method: "DELETE" });
-      } catch {
-        // Backend offline
+        const response = await fetch(`${API_BASE}/${target.id}`, {
+          method: "DELETE",
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          throw new Error(body?.detail || "Gagal menghapus catatan hidrasi.");
+        }
+        setWaterError("");
+      } catch (error: unknown) {
+        setWaterError(
+          error instanceof Error ? error.message : "Gagal menghapus catatan hidrasi."
+        );
       }
     }
   };
@@ -257,20 +341,240 @@ export const ActivityAndHydrationSection = (): ReactElement => {
     [selectedActivity]
   );
 
-  const estimatedCalories = Math.round(
-    (Number(selected.met.replace(",", ".")) *
-      3.5 *
-      64 *
-      Number(duration || 0)) /
-      200
-  );
+  const selectedMet = Number.parseFloat(selected.met.replace(",", "."));
+  const numericDuration = Number(duration);
+  const weightKg = Number(localStorage.getItem("fitbite_berat_badan_kg")) || 64;
+  const isDurationValid =
+    Number.isInteger(numericDuration) && numericDuration > 0 && numericDuration <= 360;
+  const estimatedCalories = isDurationValid
+    ? Math.round((selectedMet * 3.5 * weightKg * numericDuration) / 200)
+    : null;
 
-  // Sinkronisasi target cairan dasar dari Body Check (FIT-47)
   const baseWaterTarget = Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240;
   const userWeight = localStorage.getItem("fitbite_berat_badan_kg") || "64";
-  const totalWaterTarget = baseWaterTarget + 400; // + bonus olahraga intens (400 ml)
+  const hasIntenseActivity = activityHistory.some(
+    (activity) => activity.met >= 6 && activity.durasi_menit >= 30
+  );
+  const totalWaterTarget = baseWaterTarget + (hasIntenseActivity ? 400 : 0);
   const progress = Math.round((hydration / totalWaterTarget) * 100);
   const remainingHydration = Math.max(0, totalWaterTarget - hydration);
+  const totalActivityDuration = activityHistory.reduce(
+    (total, activity) => total + activity.durasi_menit,
+    0
+  );
+  const totalActivityCalories = activityHistory.reduce(
+    (total, activity) => total + activity.kalori_terbakar,
+    0
+  );
+  const activitySummary = [
+    {
+      label: "Durasi bergerak",
+      value: `${totalActivityDuration} menit`,
+      detail: `${activityHistory.length} aktivitas tercatat hari ini`,
+      Icon: Clock,
+    },
+    {
+      label: "Energi terbakar",
+      value: `${Math.round(totalActivityCalories)} kkal`,
+      detail: "Dihitung dari aktivitas tersimpan",
+      Icon: Flame,
+    },
+    {
+      label: "Bonus air olahraga",
+      value: `${hasIntenseActivity ? 400 : 0} ml`,
+      detail: hasIntenseActivity
+        ? "Aktivitas intens tercatat"
+        : "Belum ada aktivitas intens 30 menit",
+      Icon: Droplets,
+    },
+  ];
+
+  const handleSaveActivity = async () => {
+    if (!selectedActivity || !duration.trim()) {
+      setActivityError("Pilih jenis aktivitas dan isi durasi olahraga");
+      return;
+    }
+    if (!Number.isInteger(numericDuration) || numericDuration <= 0) {
+      setActivityError("Durasi aktivitas harus berupa angka positif lebih dari 0");
+      return;
+    }
+
+    let durationToSave = numericDuration;
+    if (numericDuration > 360) {
+      const confirmed = window.confirm(
+        "Durasi melebihi batas wajar. Maksimal durasi satu sesi adalah 360 menit. Simpan dengan batas 360 menit?"
+      );
+      if (!confirmed) return;
+      durationToSave = 360;
+      setDuration("360");
+    }
+
+    setActivityError("");
+    setIsSavingActivity(true);
+    try {
+      const now = new Date();
+      const response = await fetch(ACTIVITY_CREATE_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_user: 1,
+          tanggal: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+          nama_aktivitas: selectedActivity,
+          durasi_menit: durationToSave,
+          waktu_mulai: startTime,
+          met: selectedMet,
+          berat_kg: weightKg,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.detail || "Gagal menyimpan aktivitas.");
+      }
+      setActivityHistory((current) =>
+        sortActivityHistory([...current, body.data])
+      );
+      setSaved(true);
+
+      try {
+        const storageKey = `fitbite_activity_logs_${activity.tanggal}`;
+        const storedLogs = localStorage.getItem(storageKey);
+        const parsedLogs: unknown = storedLogs ? JSON.parse(storedLogs) : [];
+        if (!Array.isArray(parsedLogs)) {
+          throw new Error("Format riwayat aktivitas tidak valid.");
+        }
+
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify([
+            ...parsedLogs,
+            {
+              id: activity.id_activity_log,
+              name: activity.nama_aktivitas,
+              met: `${activity.met.toLocaleString("id-ID")} MET`,
+              durationMinutes: activity.durasi_menit,
+              calories: activity.kalori_terbakar,
+              startTime: activity.waktu_mulai,
+            },
+          ])
+        );
+      } catch (error) {
+        console.error("Aktivitas tersimpan, tetapi gagal disinkronkan ke jurnal.", error);
+        setActivityError(
+          "Aktivitas tersimpan, tetapi belum dapat ditampilkan di Jurnal & evaluasi."
+        );
+      }
+    } catch (error: unknown) {
+      setActivityError(
+        error instanceof Error ? error.message : "Gagal menyimpan aktivitas."
+      );
+      setSaved(false);
+    } finally {
+      setIsSavingActivity(false);
+    }
+  };
+
+  const handleDeleteActivity = async (id: number) => {
+    if (!window.confirm("Hapus catatan aktivitas ini?")) return;
+    setActivityError("");
+    const activity = activityHistory.find((item) => item.id_activity_log === id);
+    try {
+      const response = await fetch(`${ACTIVITY_API_BASE}/${id}`, {
+        method: "DELETE",
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.detail || "Gagal menghapus aktivitas.");
+      }
+      setActivityHistory((current) =>
+        current.filter((activity) => activity.id_activity_log !== id)
+      );
+      if (activity) {
+        try {
+          const storageKey = `fitbite_activity_logs_${activity.tanggal}`;
+          const storedLogs = localStorage.getItem(storageKey);
+          const parsedLogs: unknown = storedLogs ? JSON.parse(storedLogs) : [];
+          if (!Array.isArray(parsedLogs)) {
+            throw new Error("Format riwayat aktivitas tidak valid.");
+          }
+
+          localStorage.setItem(
+            storageKey,
+            JSON.stringify(
+              parsedLogs.filter(
+                (log) =>
+                  typeof log !== "object" ||
+                  log === null ||
+                  !("id" in log) ||
+                  log.id !== id
+              )
+            )
+          );
+        } catch (error) {
+          console.error("Aktivitas dihapus, tetapi gagal disinkronkan ke jurnal.", error);
+          setActivityError(
+            "Aktivitas dihapus, tetapi riwayat Jurnal & evaluasi belum tersinkron."
+          );
+        }
+      }
+    } catch (error: unknown) {
+      setActivityError(
+        error instanceof Error ? error.message : "Gagal menghapus aktivitas."
+      );
+    }
+  };
+
+  const openEditActivity = (activity: SavedActivity) => {
+    setEditingActivity(activity);
+    setActivityEditDuration(String(activity.durasi_menit));
+    setActivityError("");
+  };
+
+  const handleSaveActivityEdit = async () => {
+    if (!editingActivity) return;
+    const updatedDuration = Number(activityEditDuration);
+    if (
+      !Number.isInteger(updatedDuration) ||
+      updatedDuration <= 0 ||
+      updatedDuration > 360
+    ) {
+      setActivityError("Durasi aktivitas harus berupa angka positif lebih dari 0");
+      return;
+    }
+
+    setActivityError("");
+    try {
+      const response = await fetch(
+        `${ACTIVITY_API_BASE}/${editingActivity.id_activity_log}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            durasi_menit: updatedDuration,
+            berat_kg: weightKg,
+          }),
+        }
+      );
+      const body = await response.json();
+      if (!response.ok) {
+        throw new Error(body?.detail || "Gagal memperbarui aktivitas.");
+      }
+
+      setActivityHistory((current) =>
+        sortActivityHistory(
+          current.map((activity) =>
+            activity.id_activity_log === body.data.id_activity_log
+              ? body.data
+              : activity
+          )
+        )
+      );
+      setEditingActivity(null);
+    } catch (error: unknown) {
+      setActivityError(
+        error instanceof Error ? error.message : "Gagal memperbarui aktivitas."
+      );
+    }
+  };
 
   return (
     <main className="relative flex h-screen min-h-0 min-w-0 flex-1 flex-col items-start overflow-y-auto bg-[#f7f9f5] text-[#203d32]">
@@ -283,14 +587,14 @@ export const ActivityAndHydrationSection = (): ReactElement => {
         </nav>
         <div className="inline-flex items-center gap-[18px]">
           <span className="rounded-full bg-[#f0f3ec] px-2.5 py-1 text-[11px] font-semibold text-[#728078]">
-            Data contoh
+            Data tersimpan
           </span>
           <button type="button" aria-label="Notifikasi" className="relative rounded p-1 text-[#728078]">
             <Bell className="h-[19px] w-[19px]" />
             <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#167653]" />
           </button>
           <div className="flex h-[33px] w-[33px] items-center justify-center rounded-full bg-[#dcebb2] text-[11px] font-bold text-[#167653]">
-            NP
+            {userInitials}
           </div>
         </div>
       </header>
@@ -304,7 +608,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
               Bergerak cukup. Minum teratur.
             </h1>
             <p className="mt-1 text-[13px] text-[#728078]">
-              Senin, 19 Oktober 2026 • Catatan hingga 18.30 WIB
+              {todayLabel} • Catatan aktivitas dan hidrasi
             </p>
           </div>
           <button
@@ -312,26 +616,22 @@ export const ActivityAndHydrationSection = (): ReactElement => {
             className="flex min-h-11 items-center gap-2 rounded-[10px] border border-[#e1e7df] bg-white px-[18px] py-[11px] text-sm font-semibold text-[#167653] shadow-sm"
           >
             <Calendar className="h-[17px] w-[17px]" />
-            19 Okt 2026
+            {todayShortLabel}
           </button>
         </div>
 
         {/* Ringkasan 3 Kartu */}
         <div className="grid grid-cols-3 gap-[18px]">
-          {[
-            ["Durasi bergerak", "50 menit", "2 aktivitas tercatat hari ini", Clock],
-            ["Energi terbakar", "258 kkal", "Ditambahkan ke sisa kalori", Flame],
-            ["Bonus air olahraga", "400 ml", "Bersepeda intens • 30 menit", Droplets],
-          ].map(([label, value, detail, IconComponent]: any, index) => (
+          {activitySummary.map(({ label, value, detail, Icon }, index) => (
             <article
-              key={String(label)}
+              key={label}
               className={`rounded-[18px] border border-[#e1e7df] p-5 shadow-sm ${
                 index === 2 ? "bg-[#eaf3e9]" : "bg-white"
               }`}
             >
               <div className="flex items-center justify-between text-xs text-[#728078]">
                 <span>{label}</span>
-                <IconComponent className="h-[18px] w-[18px] text-[#167653]" />
+                <Icon className="h-[18px] w-[18px] text-[#167653]" />
               </div>
               <strong className="mt-2 block text-[28px] leading-[42px] font-bold text-[#124b39]">
                 {value}
@@ -348,39 +648,61 @@ export const ActivityAndHydrationSection = (): ReactElement => {
             <section className="rounded-[18px] border border-[#e1e7df] bg-white p-6 shadow-sm">
               <div className="mb-[18px] flex items-center justify-between">
                 <h2 className="text-lg font-bold text-[#124b39]">Gerak hari ini</h2>
-                <button type="button" className="text-xs font-semibold text-[#167653] hover:underline">
-                  Lihat riwayat →
-                </button>
+                <span className="text-xs text-[#728078]">
+                  {activityHistory.length} catatan tersimpan
+                </span>
               </div>
               <div className="space-y-4">
                 {activityHistory.map((activity, idx) => {
-                  const ActivityIcon = activity.icon;
+                  const ActivityIcon =
+                    activityOptions.find(
+                      (option) => option.name === activity.nama_aktivitas
+                    )?.icon ?? Footprints;
                   return (
-                    <div key={activity.name}>
+                    <div key={activity.id_activity_log}>
                       <div className="flex items-center gap-3">
                         <div className="flex h-[38px] w-[38px] items-center justify-center rounded-xl bg-[#eaf3e9] text-[#167653]">
                           <ActivityIcon className="h-[19px] w-[19px]" />
                         </div>
                         <div className="flex-1">
-                          <strong className="block text-[13px] text-[#203d32]">{activity.name}</strong>
-                          <span className="text-[11px] text-[#728078]">{activity.detail}</span>
+                          <strong className="block text-[13px] text-[#203d32]">{activity.nama_aktivitas}</strong>
+                          <span className="text-[11px] text-[#728078]">
+                            {activity.waktu_mulai} • {activity.durasi_menit} menit • {activity.met.toLocaleString("id-ID")} MET
+                          </span>
                         </div>
-                        <strong className="text-sm text-[#124b39]">{activity.calories}</strong>
+                        <strong className="text-sm text-[#124b39]">{Math.round(activity.kalori_terbakar)} kkal</strong>
                       </div>
-                      {activity.bonus && (
+                      {activity.met >= 6 && activity.durasi_menit >= 30 && (
                         <span className="ml-[50px] mt-2 inline-block rounded-full bg-[#ecf5f7] px-2.5 py-1 text-[11px] font-semibold text-[#4b8dab]">
                           Bonus air +400 ml
                         </span>
                       )}
                       <div className="mt-4 flex justify-end text-[11px] text-[#728078] gap-2">
-                        <button type="button" className="hover:text-[#167653]">Edit</button>
-                        <span>·</span>
-                        <button type="button" className="hover:text-red-600">Hapus</button>
+                        <button
+                          type="button"
+                          aria-label={`Edit aktivitas ${activity.nama_aktivitas}`}
+                          onClick={() => openEditActivity(activity)}
+                          className="hover:text-[#167653]"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteActivity(activity.id_activity_log)}
+                          className="hover:text-red-600"
+                        >
+                          Hapus
+                        </button>
                       </div>
                       {idx < activityHistory.length - 1 && <hr className="mt-4 border-[#e1e7df]" />}
                     </div>
                   );
                 })}
+                {activityHistory.length === 0 && (
+                  <p className="text-xs text-[#728078]">
+                    Belum ada aktivitas tersimpan untuk hari ini.
+                  </p>
+                )}
               </div>
             </section>
 
@@ -398,7 +720,11 @@ export const ActivityAndHydrationSection = (): ReactElement => {
                     <button
                       type="button"
                       key={activity.name}
-                      onClick={() => setSelectedActivity(activity.name)}
+                      onClick={() => {
+                        setSelectedActivity(activity.name);
+                        setSaved(false);
+                        setActivityError("");
+                      }}
                       aria-pressed={isSelected}
                       className={`flex items-center gap-2 rounded-[10px] border p-[13px] text-left transition-all ${
                         isSelected ? "border-[#167653] bg-[#eaf3e9]" : "border-[#e1e7df] bg-white hover:border-[#cbd5e1]"
@@ -420,8 +746,13 @@ export const ActivityAndHydrationSection = (): ReactElement => {
                     <input
                       type="number"
                       min="1"
+                      max="360"
                       value={duration}
-                      onChange={(event) => setDuration(event.target.value)}
+                      onChange={(event) => {
+                        setDuration(event.target.value);
+                        setSaved(false);
+                        setActivityError("");
+                      }}
                       className="w-full bg-transparent text-sm font-normal outline-none text-[#203d32]"
                     />
                     <span className="text-xs font-normal text-[#728078]">menit</span>
@@ -432,22 +763,30 @@ export const ActivityAndHydrationSection = (): ReactElement => {
                   <span className="mt-2 flex items-center rounded-[10px] border border-[#e1e7df] px-3.5 py-[11px] bg-white">
                     <input
                       type="time"
-                      defaultValue="19:00"
-                      onChange={(event) => setStartTime(event.target.value.replace(":", "."))}
+                      value={startTime}
+                      onChange={(event) => {
+                        setStartTime(event.target.value);
+                        setSaved(false);
+                        setActivityError("");
+                      }}
                       className="w-full bg-transparent text-sm font-normal outline-none text-[#203d32]"
                     />
                     <span className="text-xs font-normal text-[#728078]">WIB</span>
                   </span>
                 </label>
               </div>
-              <div className="mt-5 flex items-center gap-4 rounded-xl bg-[#f0f3ec] p-[17px]">
+              <div
+                role="status"
+                aria-live="polite"
+                className="mt-5 flex items-center gap-4 rounded-xl bg-[#f0f3ec] p-[17px]"
+              >
                 <Flame className="h-[25px] w-[25px] text-[#167653]" />
                 <div className="flex-1">
                   <strong className="block text-[13px] text-[#124b39]">
-                    Estimasi energi: {estimatedCalories} kkal
+                    Estimasi energi: {estimatedCalories ?? "—"} kkal
                   </strong>
                   <span className="text-[10px] text-[#728078]">
-                    {selected.met} × 3,5 × 64 kg ÷ 200 × {duration || 0} menit
+                    {selected.met} × 3,5 × {weightKg.toLocaleString("id-ID")} kg ÷ 200 × {duration || 0} menit
                   </span>
                 </div>
                 <span className="rounded-full bg-[#e4e9e0] px-2.5 py-1 text-[11px] text-[#728078]">
@@ -457,12 +796,18 @@ export const ActivityAndHydrationSection = (): ReactElement => {
               <p className="mt-4 text-[11px] leading-[16.5px] text-[#728078]">
                 MET adalah perkiraan intensitas dari katalog. Hasil dapat berbeda menurut kecepatan dan kondisi tiap orang; bukan pengukuran perangkat.
               </p>
+              {activityError && (
+                <p role="alert" className="mt-3 text-xs text-red-700">
+                  {activityError}
+                </p>
+              )}
               <button
                 type="button"
-                onClick={() => setSaved(true)}
-                className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#167653] px-[18px] py-[11px] text-sm font-semibold text-white hover:bg-[#125c41] transition-colors shadow-sm"
+                onClick={handleSaveActivity}
+                disabled={isSavingActivity}
+                className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[#167653] px-[18px] py-[11px] text-sm font-semibold text-white hover:bg-[#125c41] transition-colors shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saved ? "Aktivitas tersimpan" : "Simpan aktivitas"}
+                {isSavingActivity ? "Menyimpan..." : saved ? "Tambah aktivitas lagi" : "Simpan aktivitas"}
               </button>
             </section>
 
@@ -508,6 +853,11 @@ export const ActivityAndHydrationSection = (): ReactElement => {
             <section className="rounded-[18px] border border-[#e1e7df] bg-white p-[22px] shadow-sm">
               <h2 className="text-lg font-bold text-[#124b39]">Isi ulang energimu</h2>
               <p className="mt-1 text-xs text-[#728078]">Hidrasi hari ini</p>
+              {waterError && (
+                <p role="alert" className="mt-2 text-xs text-red-700">
+                  {waterError}
+                </p>
+              )}
               <div className="mt-[18px] flex items-center gap-[23px]">
                 <div className="relative h-40 w-[82px] overflow-hidden rounded-[22px] border-2 border-[#c5dde3] bg-[#ecf5f7]">
                   <div
@@ -592,13 +942,19 @@ export const ActivityAndHydrationSection = (): ReactElement => {
                 <div className="flex justify-between">
                   <span>
                     <strong className="block font-semibold">Bonus olahraga</strong>
-                    <small className="text-[11px] text-[#728078]">30 menit bersepeda intens</small>
+                    <small className="text-[11px] text-[#728078]">
+                      {hasIntenseActivity
+                        ? "Aktivitas intens ≥30 menit tersimpan"
+                        : "Aktivitas intens ≥30 menit belum dicatat"}
+                    </small>
                   </span>
-                  <strong className="font-bold text-[#167653]">+400 ml</strong>
+                  <strong className="font-bold text-[#167653]">
+                    +{hasIntenseActivity ? 400 : 0} ml
+                  </strong>
                 </div>
               </div>
               <p className="mt-4 text-[10px] leading-[15px] text-[#728078]">
-                Panduan bonus: 350–500 ml per 30 menit olahraga intens. Contoh ini memakai 400 ml, ditambahkan satu kali; yoga tidak menambah bonus.
+                Bonus 400 ml diberikan satu kali jika ada aktivitas intens minimal 30 menit.
               </p>
             </section>
 
@@ -658,6 +1014,62 @@ export const ActivityAndHydrationSection = (): ReactElement => {
           </p>
         </aside>
       </section>
+
+      {editingActivity && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-activity-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h2
+              id="edit-activity-title"
+              className="text-base font-bold text-[#124b39]"
+            >
+              Edit aktivitas
+            </h2>
+            <p className="mt-1 text-xs text-[#728078]">
+              {editingActivity.nama_aktivitas} • {editingActivity.met} MET
+            </p>
+            <label className="mt-4 block text-xs font-semibold text-[#203d32]">
+              Durasi (menit)
+              <input
+                type="number"
+                aria-label="Durasi aktivitas"
+                min="1"
+                max="360"
+                value={activityEditDuration}
+                onChange={(event) =>
+                  setActivityEditDuration(event.target.value)
+                }
+                className="mt-2 w-full rounded-xl border border-[#d8e0d5] bg-[#f9faf7] px-3.5 py-2 text-sm text-[#203d32]"
+              />
+            </label>
+            {activityError && (
+              <p role="alert" className="mt-3 text-xs text-red-700">
+                {activityError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2 border-t border-[#e1e7df] pt-4">
+              <button
+                type="button"
+                onClick={() => setEditingActivity(null)}
+                className="rounded-xl border border-[#d8e0d5] px-4 py-2 text-xs font-semibold text-[#527063]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveActivityEdit}
+                className="rounded-xl bg-[#167653] px-5 py-2 text-xs font-semibold text-white"
+              >
+                Simpan perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Edit Jadwal / Catatan Minum */}
       {isEditModalOpen && (

@@ -5,7 +5,7 @@ type AdminPageHeaderProps = {
 };
 
 export const AdminPageHeader: React.FC<AdminPageHeaderProps> = ({ currentPage }) => (
-  <header className="flex items-center justify-between px-8 py-4 border-b border-[#e1e7df] bg-white shrink-0 w-full">
+  <header className="sticky top-0 z-30 flex items-center justify-between px-8 py-4 border-b border-[#e1e7df] bg-white shrink-0 w-full">
     <nav className="flex items-center gap-2 text-xs text-[#6b8c7a]" aria-label="Breadcrumb">
       <span>Pengelolaan</span>
       <span aria-hidden="true">›</span>

@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactElement } from "react";
-import { HealthAppSidebarSection } from "../FotoAi/HealthAppSidebarSection";
 import {
+  BodyCheckSidebar,
   BodyCheckHeader,
   BodyCheckBanner,
   BodyCheckFormSection,
@@ -69,6 +69,7 @@ export const BodyCheckPagi = (): ReactElement => {
       const resData = await response.json();
       const now = new Date();
       const timeFormatted = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}`;
+      const dateFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
       if (resData.success && resData.overview) {
         setOverview(resData.overview);
@@ -78,6 +79,7 @@ export const BodyCheckPagi = (): ReactElement => {
         localStorage.setItem("fitbite_sleep_quality", sleepQuality);
         localStorage.setItem("fitbite_energy_level", energyLevel.toString());
         localStorage.setItem("fitbite_bodycheck_time", timeFormatted);
+        localStorage.setItem("fitbite_bodycheck_date", dateFormatted);
         setIsSaved(true);
         setToastMessage(`Body Check tersimpan! Target cairan dasar: ${resData.overview.water_ml.toLocaleString("id-ID")} ml (${resData.overview.water_formula})`);
       }
@@ -85,6 +87,7 @@ export const BodyCheckPagi = (): ReactElement => {
       console.warn("Backend offline atau gagal terhubung, menggunakan kalkulasi otomatis:", err);
       const now = new Date();
       const timeFormatted = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}`;
+      const dateFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const calculatedWater = Math.round(35 * parsedWeight);
       const calculatedFormula = `35 ml × ${parsedWeight} kg`;
       setOverview({
@@ -103,6 +106,7 @@ export const BodyCheckPagi = (): ReactElement => {
       localStorage.setItem("fitbite_sleep_quality", sleepQuality);
       localStorage.setItem("fitbite_energy_level", energyLevel.toString());
       localStorage.setItem("fitbite_bodycheck_time", timeFormatted);
+      localStorage.setItem("fitbite_bodycheck_date", dateFormatted);
       setIsSaved(true);
       setToastMessage(`Body Check tersimpan! Target cairan dasar: ${calculatedWater.toLocaleString("id-ID")} ml (${calculatedFormula})`);
     }
@@ -114,23 +118,17 @@ export const BodyCheckPagi = (): ReactElement => {
 
   return (
     <div className="flex h-screen items-stretch overflow-hidden bg-[#f6f7f2] font-sans text-[#1f2d2a]">
-      <HealthAppSidebarSection />
+      <BodyCheckSidebar />
 
-      {/* Main Container */}
       <div className="relative flex h-screen min-h-0 flex-1 flex-col justify-between overflow-y-auto bg-[#f6f7f2]">
         <div className="w-full">
-          {/* Top Header / Breadcrumb Bar */}
           <BodyCheckHeader />
 
-          {/* Main Body Content */}
           <main className="flex w-full flex-col items-start gap-6 px-9 pb-7 pt-[28px]">
             <div className="w-full">
-              {/* Title & Banner Info */}
               <BodyCheckBanner isSaved={isSaved} />
 
-              {/* Two-Column Grid */}
               <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
-                {/* Form Input Section */}
                 <BodyCheckFormSection
                   weight={weight}
                   setWeight={setWeight}
@@ -147,14 +145,12 @@ export const BodyCheckPagi = (): ReactElement => {
                   toastMessage={toastMessage}
                 />
 
-                {/* Right Overview & Insights (Terkoneksi dinamis FIT-47) */}
                 <BodyCheckOverviewSection overview={overview} weight={weight} />
               </div>
             </div>
           </main>
         </div>
 
-        {/* Page Footer */}
         <div className="px-9">
           <BodyCheckFooter />
         </div>

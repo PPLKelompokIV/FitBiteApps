@@ -90,3 +90,31 @@ def test_api_crud_flow():
     res_delete = client.delete(f"/api/water-logs/{log_id}")
     assert res_delete.status_code == 200
     assert "berhasil dihapus" in res_delete.json()["message"]
+
+def test_api_monthly_daily_logs_returns_food_and_water_read_only():
+    log_date = "2026-10-18"
+    food_response = client.post("/api/food-logs", json={
+        "id_user": 1,
+        "tanggal": log_date,
+        "slot_makan": "Sarapan",
+        "nama_makanan": "Oat dan buah",
+        "jumlah_porsi": 1,
+        "basis_gram": 100,
+        "kalori_per_100g": 400,
+    })
+    water_response = client.post("/api/water-logs", json={
+        "id_user": 1,
+        "tanggal": log_date,
+        "waktu": "08.00 WIB",
+        "jumlah_ml": 500,
+    })
+
+    assert food_response.status_code == 201
+    assert water_response.status_code == 201
+
+    response = client.get("/api/daily-logs/1?year=2026&month=10")
+
+    assert response.status_code == 200
+    day = next(item for item in response.json()["data"] if item["tanggal"] == log_date)
+    assert day["food_logs"][0]["nama_makanan"] == "Oat dan buah"
+    assert day["water_logs"][0]["jumlah_ml"] == 500

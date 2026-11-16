@@ -3,6 +3,12 @@
 import { useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import { MealLogModal } from "./MealLogModal";
+import {
+  getAuthUser,
+  getAuthUserFirstName,
+  getAuthUserInitials,
+  getAuthUserName,
+} from "../utils/auth";
 
 type Meal = {
   name: string;
@@ -141,6 +147,7 @@ const ActivityRow = ({
 );
 
 export const WellnessDashboardSection = (): ReactElement => {
+  const authUser = getAuthUser();
   const [water, setWater] = useState(1750);
   const baseWater = Number(localStorage.getItem("fitbite_target_cairan_ml")) || 2240;
   const userWeight = localStorage.getItem("fitbite_berat_badan_kg") || "64";
@@ -199,11 +206,11 @@ export const WellnessDashboardSection = (): ReactElement => {
             <span className="h-1.5 w-1.5 rounded-[3px] bg-[#167653]" />
           </button>
           <div
-            aria-label="Profil Nadia Putri"
+            aria-label={`Profil ${getAuthUserName(authUser)}`}
             className="flex h-[33px] w-[33px] items-center justify-center rounded-[20px] bg-[#dcebb2]"
           >
             <span className="[font-family:'Inter-Bold',Helvetica] text-[11px] font-bold leading-[16.5px] text-[#203d32]">
-              NP
+              {getAuthUserInitials(authUser)}
             </span>
           </div>
         </div>
@@ -215,7 +222,7 @@ export const WellnessDashboardSection = (): ReactElement => {
               Hari baik dimulai dari pilihan kecil.
             </h1>
             <p className="[font-family:'Inter-Regular',Helvetica] text-[13px] leading-[19.5px] text-[#728078]">
-              Halo, Nadia. Ini perjalanan sehatmu pada Senin, 19 Oktober 2026 •
+              Halo, {getAuthUserFirstName(authUser)}. Ini perjalanan sehatmu pada Senin, 19 Oktober 2026 •
               18.30 WIB.
             </p>
           </div>
