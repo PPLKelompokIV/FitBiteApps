@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from fastapi import APIRouter, Request, status  # type: ignore
 from fastapi.responses import JSONResponse  # type: ignore
 
@@ -7,7 +7,7 @@ router = APIRouter(prefix="/api/admin/foods", tags=["Pengelolaan Katalog Makanan
 SUMBER_DEFAULT = "Referensi internal v1 (contoh)"
 
 # In-memory store data katalog makanan (FIT-30 / FIT-31 / FIT-32)
-foods = [
+foods: List[Dict[str, Any]] = [
     {"id": 1, "nama": "Nasi merah matang", "kategori": "Serealia", "basis": 100, "kkal": 110, "protein": 2.6, "karbo": 23, "lemak": 0.9, "sumber": SUMBER_DEFAULT, "verifikasi": "Terverifikasi", "aktif": True},
     {"id": 2, "nama": "Ayam panggang", "kategori": "Lauk hewani", "basis": 100, "kkal": 183, "protein": 21.7, "karbo": 0, "lemak": 10, "sumber": SUMBER_DEFAULT, "verifikasi": "Terverifikasi", "aktif": True},
     {"id": 3, "nama": "Tempe panggang", "kategori": "Lauk nabati", "basis": 100, "kkal": 193, "protein": 13.3, "karbo": 16, "lemak": 6.7, "sumber": SUMBER_DEFAULT, "verifikasi": "Terverifikasi", "aktif": True},
@@ -111,7 +111,7 @@ async def create_food(request: Request):
     nama = str(body.get("nama", "")).strip()
 
     # Cek keunikan nama makanan (Unique Constraint)
-    if any(f["nama"].strip().lower() == nama.lower() for f in foods):
+    if any(str(f["nama"]).strip().lower() == nama.lower() for f in foods):
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={
@@ -124,8 +124,8 @@ async def create_food(request: Request):
     sumber = str(body.get("sumber", "")).strip() if body.get("sumber") else SUMBER_DEFAULT
     verifikasi = "Terverifikasi" if body.get("verifikasi") == "Terverifikasi" else "Perlu tinjau"
 
-    new_id = max([f["id"] for f in foods], default=0) + 1
-    new_food = {
+    new_id = max([int(f["id"]) for f in foods], default=0) + 1
+    new_food: Dict[str, Any] = {
         "id": new_id,
         "nama": nama,
         "kategori": kategori,
