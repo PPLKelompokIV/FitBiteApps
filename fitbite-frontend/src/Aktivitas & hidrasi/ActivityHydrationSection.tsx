@@ -33,6 +33,7 @@ type Drink = {
 
 type SavedActivity = {
   id_activity_log: number;
+  tanggal: string;
   nama_aktivitas: string;
   durasi_menit: number;
   waktu_mulai: string;
@@ -421,6 +422,35 @@ export const ActivityAndHydrationSection = (): ReactElement => {
         sortActivityHistory([...current, body.data])
       );
       setSaved(true);
+
+      try {
+        const storageKey = `fitbite_activity_logs_${activity.tanggal}`;
+        const storedLogs = localStorage.getItem(storageKey);
+        const parsedLogs: unknown = storedLogs ? JSON.parse(storedLogs) : [];
+        if (!Array.isArray(parsedLogs)) {
+          throw new Error("Format riwayat aktivitas tidak valid.");
+        }
+
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify([
+            ...parsedLogs,
+            {
+              id: activity.id_activity_log,
+              name: activity.nama_aktivitas,
+              met: `${activity.met.toLocaleString("id-ID")} MET`,
+              durationMinutes: activity.durasi_menit,
+              calories: activity.kalori_terbakar,
+              startTime: activity.waktu_mulai,
+            },
+          ])
+        );
+      } catch (error) {
+        console.error("Aktivitas tersimpan, tetapi gagal disinkronkan ke jurnal.", error);
+        setActivityError(
+          "Aktivitas tersimpan, tetapi belum dapat ditampilkan di Jurnal & evaluasi."
+        );
+      }
     } catch (error: unknown) {
       setActivityError(
         error instanceof Error ? error.message : "Gagal menyimpan aktivitas."
@@ -434,6 +464,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
   const handleDeleteActivity = async (id: number) => {
     if (!window.confirm("Hapus catatan aktivitas ini?")) return;
     setActivityError("");
+    const activity = activityHistory.find((item) => item.id_activity_log === id);
     try {
       const response = await fetch(`${ACTIVITY_API_BASE}/${id}`, {
         method: "DELETE",
@@ -445,6 +476,34 @@ export const ActivityAndHydrationSection = (): ReactElement => {
       setActivityHistory((current) =>
         current.filter((activity) => activity.id_activity_log !== id)
       );
+      if (activity) {
+        try {
+          const storageKey = `fitbite_activity_logs_${activity.tanggal}`;
+          const storedLogs = localStorage.getItem(storageKey);
+          const parsedLogs: unknown = storedLogs ? JSON.parse(storedLogs) : [];
+          if (!Array.isArray(parsedLogs)) {
+            throw new Error("Format riwayat aktivitas tidak valid.");
+          }
+
+          localStorage.setItem(
+            storageKey,
+            JSON.stringify(
+              parsedLogs.filter(
+                (log) =>
+                  typeof log !== "object" ||
+                  log === null ||
+                  !("id" in log) ||
+                  log.id !== id
+              )
+            )
+          );
+        } catch (error) {
+          console.error("Aktivitas dihapus, tetapi gagal disinkronkan ke jurnal.", error);
+          setActivityError(
+            "Aktivitas dihapus, tetapi riwayat Jurnal & evaluasi belum tersinkron."
+          );
+        }
+      }
     } catch (error: unknown) {
       setActivityError(
         error instanceof Error ? error.message : "Gagal menghapus aktivitas."

@@ -26,6 +26,7 @@ from app.routers import (
     evaluations,
     food_logs,
     notifications,
+    daily_logs,
     reminders,
     water_logs,
 )
@@ -137,6 +138,7 @@ app.include_router(water_logs.router)
 app.include_router(admin_foods.router)
 app.include_router(body_check.router)
 app.include_router(notifications.router)
+app.include_router(daily_logs.router)
 
 
 @app.get("/", tags=["Service"])

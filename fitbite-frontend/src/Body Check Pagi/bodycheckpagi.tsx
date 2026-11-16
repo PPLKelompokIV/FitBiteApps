@@ -69,6 +69,7 @@ export const BodyCheckPagi = (): ReactElement => {
       const resData = await response.json();
       const now = new Date();
       const timeFormatted = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}`;
+      const dateFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
       if (resData.success && resData.overview) {
         setOverview(resData.overview);
@@ -78,6 +79,7 @@ export const BodyCheckPagi = (): ReactElement => {
         localStorage.setItem("fitbite_sleep_quality", sleepQuality);
         localStorage.setItem("fitbite_energy_level", energyLevel.toString());
         localStorage.setItem("fitbite_bodycheck_time", timeFormatted);
+        localStorage.setItem("fitbite_bodycheck_date", dateFormatted);
         setIsSaved(true);
         setToastMessage(`Body Check tersimpan! Target cairan dasar: ${resData.overview.water_ml.toLocaleString("id-ID")} ml (${resData.overview.water_formula})`);
       }
@@ -85,6 +87,7 @@ export const BodyCheckPagi = (): ReactElement => {
       console.warn("Backend offline atau gagal terhubung, menggunakan kalkulasi otomatis:", err);
       const now = new Date();
       const timeFormatted = `${String(now.getHours()).padStart(2, "0")}.${String(now.getMinutes()).padStart(2, "0")}`;
+      const dateFormatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const calculatedWater = Math.round(35 * parsedWeight);
       const calculatedFormula = `35 ml × ${parsedWeight} kg`;
       setOverview({
@@ -103,6 +106,7 @@ export const BodyCheckPagi = (): ReactElement => {
       localStorage.setItem("fitbite_sleep_quality", sleepQuality);
       localStorage.setItem("fitbite_energy_level", energyLevel.toString());
       localStorage.setItem("fitbite_bodycheck_time", timeFormatted);
+      localStorage.setItem("fitbite_bodycheck_date", dateFormatted);
       setIsSaved(true);
       setToastMessage(`Body Check tersimpan! Target cairan dasar: ${calculatedWater.toLocaleString("id-ID")} ml (${calculatedFormula})`);
     }
