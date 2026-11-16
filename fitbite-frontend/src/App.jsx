@@ -10,7 +10,7 @@ import AdminPengelolaan from './Admin/AdminPengelolaan';
 import ActivitiesPage from './Admin/ActivitiesPage';
 import ProfilPengingat from './Profil & Pengingat/Profil&Pengingat';
 import JurnalMakanan from './JurnalMakanan';
-import JurnalEvaluasi from './Jurnal & Evaluasi';
+import JurnalEvaluasi from './Jurnal & evaluasi/JurnalEvaluasiPage';
 import HealthProfileSetup from './Profil pengaturan awal/HealthProfileSetup';
 import { isAuthenticated, isAdmin } from './utils/auth';
 
