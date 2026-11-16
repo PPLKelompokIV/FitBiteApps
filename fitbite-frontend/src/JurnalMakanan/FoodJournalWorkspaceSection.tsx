@@ -43,6 +43,7 @@ type Meal = {
 type CatalogFoodItem = {
   id_catalog: number;
   name: string;
+  category: string;
   calPer100g: number;
   protPer100g: number;
   carbPer100g: number;
@@ -50,10 +51,20 @@ type CatalogFoodItem = {
   verified: boolean;
 };
 
+const catalogCategories = [
+  "Semua",
+  "Makanan Pokok",
+  "Sayuran",
+  "Buah",
+  "Daging",
+  "Minuman",
+];
+
 const catalogFoods: CatalogFoodItem[] = [
   {
     id_catalog: 1,
     name: "Nasi merah matang",
+    category: "Makanan Pokok",
     calPer100g: 110,
     protPer100g: 2.6,
     carbPer100g: 23.0,
@@ -63,6 +74,7 @@ const catalogFoods: CatalogFoodItem[] = [
   {
     id_catalog: 2,
     name: "Nasi putih matang",
+    category: "Makanan Pokok",
     calPer100g: 130,
     protPer100g: 2.4,
     carbPer100g: 28.0,
@@ -72,6 +84,7 @@ const catalogFoods: CatalogFoodItem[] = [
   {
     id_catalog: 3,
     name: "Ayam panggang",
+    category: "Daging",
     calPer100g: 183,
     protPer100g: 21.7,
     carbPer100g: 0.0,
@@ -81,11 +94,104 @@ const catalogFoods: CatalogFoodItem[] = [
   {
     id_catalog: 4,
     name: "Tempe panggang",
+    category: "Daging",
     calPer100g: 193,
     protPer100g: 13.3,
     carbPer100g: 16.0,
     fatPer100g: 6.7,
     verified: true,
+  },
+  {
+    id_catalog: 5,
+    name: "Pisang ambon",
+    category: "Buah",
+    calPer100g: 89,
+    protPer100g: 1.1,
+    carbPer100g: 22.8,
+    fatPer100g: 0.3,
+    verified: true,
+  },
+  {
+    id_catalog: 6,
+    name: "Apel merah",
+    category: "Buah",
+    calPer100g: 52,
+    protPer100g: 0.3,
+    carbPer100g: 13.8,
+    fatPer100g: 0.2,
+    verified: true,
+  },
+  {
+    id_catalog: 7,
+    name: "Jeruk manis",
+    category: "Buah",
+    calPer100g: 47,
+    protPer100g: 0.9,
+    carbPer100g: 11.8,
+    fatPer100g: 0.1,
+    verified: true,
+  },
+  {
+    id_catalog: 8,
+    name: "Sayur bayam rebus",
+    category: "Sayuran",
+    calPer100g: 23,
+    protPer100g: 2.9,
+    carbPer100g: 3.6,
+    fatPer100g: 0.4,
+    verified: true,
+  },
+  {
+    id_catalog: 9,
+    name: "Teh tawar",
+    category: "Minuman",
+    calPer100g: 1,
+    protPer100g: 0,
+    carbPer100g: 0.2,
+    fatPer100g: 0,
+    verified: true,
+  },
+];
+
+type BarcodeProduct = {
+  barcode: string;
+  name: string;
+  serving: string;
+  calories: number;
+  protein: number;
+  carb: number;
+  fat: number;
+};
+
+// Master data produk kemasan untuk fitur Barcode Scanner (PBI-20 / UC-23).
+// Nilai gizi mengikuti label kemasan (per sajian).
+const barcodeProducts: BarcodeProduct[] = [
+  {
+    barcode: "8992753211012",
+    name: "Biskuit Gandum",
+    serving: "1 kemasan (30 g)",
+    calories: 140,
+    protein: 2.5,
+    carb: 22,
+    fat: 4.5,
+  },
+  {
+    barcode: "8998866200123",
+    name: "Susu UHT Cokelat 250 ml",
+    serving: "1 kotak (250 ml)",
+    calories: 160,
+    protein: 6,
+    carb: 24,
+    fat: 4.5,
+  },
+  {
+    barcode: "8991002101234",
+    name: "Keripik Singkong",
+    serving: "1 bungkus (45 g)",
+    calories: 220,
+    protein: 2,
+    carb: 28,
+    fat: 11,
   },
 ];
 
@@ -742,6 +848,17 @@ function AddFoodPanel({
   const [portion, setPortion] = useState("1,5");
   const [barcode, setBarcode] = useState("8991234567890");
   const [notice, setNotice] = useState("");
+  const [activeCategory, setActiveCategory] = useState("Semua");
+
+  // --- Barcode Scanner (PBI-20 / UC-23) ---
+  const [barcodeStatus, setBarcodeStatus] = useState<
+    "idle" | "found" | "not_found"
+  >("idle");
+  const [scannedProduct, setScannedProduct] =
+    useState<BarcodeProduct | null>(null);
+  const [barcodeSlot, setBarcodeSlot] = useState("Makan siang");
+  const [cameraNotice, setCameraNotice] = useState("");
+  const [isScanningCamera, setIsScanningCamera] = useState(false);
 
   const [qaName, setQaName] = useState("");
   const [qaPortion, setQaPortion] = useState("");
@@ -751,9 +868,14 @@ function AddFoodPanel({
   const [qaFat, setQaFat] = useState("");
   const [qaError, setQaError] = useState("");
 
-  const filteredCatalog = catalogFoods.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-  );
+  const filteredCatalog = catalogFoods.filter((item) => {
+    const cocokKategori =
+      activeCategory === "Semua" || item.category === activeCategory;
+    const cocokKataKunci = item.name
+      .toLowerCase()
+      .includes(searchQuery.trim().toLowerCase());
+    return cocokKategori && cocokKataKunci;
+  });
 
   const parsedPortion = Math.max(0, parseFloat(portion.replace(",", ".")) || 0);
   const previewGram = Math.round(parsedPortion * 100);
@@ -867,6 +989,78 @@ function AddFoodPanel({
     }
   };
 
+  // --- Barcode Scanner (PBI-20 / UC-23) -----------------------------------
+  const cariProdukBarcode = () => {
+    const kode = barcode.trim();
+    setNotice("");
+    setCameraNotice("");
+    if (!kode) {
+      setBarcodeStatus("idle");
+      setScannedProduct(null);
+      setNotice("Masukkan kode barcode terlebih dahulu.");
+      return;
+    }
+
+    const produk = barcodeProducts.find((item) => item.barcode === kode);
+    if (produk) {
+      setScannedProduct(produk);
+      setBarcodeStatus("found");
+      setBarcodeSlot(activeMeal);
+      setNotice(`Barcode ${kode} berhasil dikenali.`);
+      return;
+    }
+
+    setScannedProduct(null);
+    setBarcodeStatus("not_found");
+  };
+
+  const mulaiPindaiKamera = async () => {
+    setCameraNotice("");
+    setIsScanningCamera(true);
+    try {
+      const mediaDevices = navigator.mediaDevices;
+      if (!mediaDevices?.getUserMedia) {
+        throw new Error("Kamera tidak tersedia");
+      }
+      const stream = await mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setCameraNotice(
+        "Kamera aktif. Arahkan kamera ke barcode kemasan, atau masukkan kode manual bila kamera tidak membaca."
+      );
+    } catch {
+      setCameraNotice(
+        "Kamera tidak dapat diakses atau izin kamera ditolak. Gunakan kolom input kode barcode manual di bawah."
+      );
+    } finally {
+      setIsScanningCamera(false);
+    }
+  };
+
+  const catatProdukBarcode = async () => {
+    if (!scannedProduct) return;
+    const produk = scannedProduct;
+    const ok = await onSubmitFoodLog({
+      slotName: barcodeSlot,
+      method: "barcode",
+      name: produk.name,
+      portionMultiplier: 1,
+      baseGram: 100,
+      calPer100g: produk.calories,
+      protPer100g: produk.protein,
+      carbPer100g: produk.carb,
+      fatPer100g: produk.fat,
+      customDetail: produk.serving,
+    });
+
+    if (ok) {
+      setNotice(
+        `✓ ${produk.name} (${produk.calories} kkal) berhasil dicatat ke ${barcodeSlot}!`
+      );
+      setBarcodeStatus("idle");
+      setScannedProduct(null);
+    }
+  };
+
   return (
     <div className="flex flex-col items-start gap-[18px]">
       <section className="flex w-full flex-col items-start gap-[18px] rounded-[18px] border border-solid border-[#e1e7df] bg-white p-6 shadow-xs">
@@ -924,6 +1118,32 @@ function AddFoodPanel({
                   </button>
                 )
               )}
+            </div>
+
+            {/* Filter kategori makanan (PBI-07 / UC-21) */}
+            <div
+              className="flex flex-wrap items-start gap-2"
+              role="group"
+              aria-label="Filter kategori makanan"
+            >
+              {catalogCategories.map((category) => {
+                const isActive = activeCategory === category;
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setActiveCategory(category)}
+                    className={`rounded-full px-2.5 py-1 text-[11px] leading-[16.5px] transition-colors cursor-pointer ${
+                      isActive
+                        ? "bg-[#167653] text-white"
+                        : "bg-[#f0f3ec] text-[#728078] hover:bg-[#e4ebd0]"
+                    } ${semiboldClass}`}
+                  >
+                    {category}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex w-full flex-col items-start gap-2.5">
@@ -1143,15 +1363,129 @@ function AddFoodPanel({
         )}
 
         {activeTab === "Barcode" && (
-          <div className="flex w-full flex-col items-start gap-3 rounded-[12px] bg-[#eaf3e9] p-4 text-[#203d32] border border-[#dcebb2]">
-            <div className="flex items-center gap-2 font-bold text-xs text-[#167653]">
-              <ScanBarcode className="h-4 w-4 text-[#167653]" />
-              <span>Pindai Barcode Kemasan</span>
+          <div className="flex w-full flex-col items-start gap-3">
+            <div className="flex w-full flex-col items-start gap-3 rounded-[12px] bg-[#eaf3e9] p-4 text-[#203d32] border border-[#dcebb2]">
+              <div className="flex items-center gap-2 font-bold text-xs text-[#167653]">
+                <ScanBarcode className="h-4 w-4 text-[#167653]" />
+                <span>Pindai Barcode Kemasan</span>
+              </div>
+              <p className={`text-xs text-[#728078] leading-relaxed ${textClass}`}>
+                Arahkan kamera ke barcode produk makanan atau masukkan kode produk
+                secara manual.
+              </p>
+              <div className="flex w-full items-center justify-center rounded-[10px] border-2 border-dashed border-[#167653]/40 bg-white/70 px-4 py-6 text-center">
+                <p className={`text-[11px] leading-[16.5px] text-[#728078] ${textClass}`}>
+                  Posisikan barcode tegak lurus di dalam kotak pemindai dan pastikan
+                  cahaya cukup.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={isScanningCamera}
+                onClick={mulaiPindaiKamera}
+                className={`inline-flex items-center gap-2 rounded-lg bg-[#167653] px-4 py-2.5 text-xs text-white transition-colors hover:bg-[#125f43] disabled:opacity-60 ${semiboldClass}`}
+              >
+                <Camera className="h-4 w-4" />
+                <span>{isScanningCamera ? "Membuka kamera..." : "Mulai Pindai Kamera"}</span>
+              </button>
+              <p className={`text-[11px] leading-[16.5px] text-[#728078] ${textClass}`}>
+                Kamera tidak dapat diakses atau izin kamera ditolak? Masukkan kode
+                barcode secara manual di bawah ini.
+              </p>
+              {cameraNotice && (
+                <p
+                  role="status"
+                  className={`text-[11px] leading-[16.5px] text-[#124b39] ${textClass}`}
+                >
+                  {cameraNotice}
+                </p>
+              )}
             </div>
-            <p className={`text-xs text-[#728078] leading-relaxed ${textClass}`}>
-              Arahkan kamera ke barcode produk makanan atau masukkan kode produk
-              secara manual.
-            </p>
+
+            <div className="flex w-full items-end gap-2.5">
+              <Field
+                label="Tidak bisa memindai? Masukkan kode"
+                value={barcode}
+                onChange={setBarcode}
+              />
+              <button
+                type="button"
+                onClick={cariProdukBarcode}
+                className={`min-h-11 rounded-[10px] border border-solid border-[#e1e7df] bg-white px-[18px] py-[11px] text-sm text-[#167653] transition-colors hover:bg-[#f0f3ec] cursor-pointer ${semiboldClass}`}
+              >
+                Cari kode
+              </button>
+            </div>
+
+            {barcodeStatus === "found" && scannedProduct && (
+              <div className="flex w-full flex-col items-start gap-2.5 rounded-[12px] border border-[#dcebb2] bg-[#f8faf6] p-4">
+                <p className={`text-[11px] text-[#728078] ${textClass}`}>
+                  Barcode {scannedProduct.barcode} • {scannedProduct.serving}
+                </p>
+                <h4 className={`text-sm text-[#203d32] ${boldClass}`}>
+                  {scannedProduct.name}
+                </h4>
+                <p className={`text-xs text-[#728078] ${textClass}`}>
+                  {scannedProduct.calories} kkal • P{" "}
+                  {String(scannedProduct.protein).replace(".", ",")} · K{" "}
+                  {String(scannedProduct.carb).replace(".", ",")} · L{" "}
+                  {String(scannedProduct.fat).replace(".", ",")} g
+                </p>
+                <p className={`text-[11px] text-[#203d32] ${semiboldClass}`}>
+                  Pilih slot makan lalu konfirmasi untuk mencatat produk ini.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {mealTabs.map((slot) => {
+                    const isActive = barcodeSlot === slot;
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        aria-label={`Pilih slot barcode ${slot}`}
+                        aria-pressed={isActive}
+                        onClick={() => setBarcodeSlot(slot)}
+                        className={`rounded-full px-3 py-1 text-[11px] transition-colors cursor-pointer ${
+                          isActive
+                            ? "bg-[#167653] text-white"
+                            : "bg-[#f0f3ec] text-[#728078] hover:bg-[#e4ebd0]"
+                        } ${semiboldClass}`}
+                      >
+                        {slot}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  disabled={savingLoading}
+                  onClick={catatProdukBarcode}
+                  className={`inline-flex items-center gap-2 rounded-lg bg-[#167653] px-4 py-2.5 text-xs text-white transition-colors hover:bg-[#125f43] disabled:opacity-60 ${semiboldClass}`}
+                >
+                  <Check className="h-4 w-4" />
+                  <span>Konfirmasi &amp; Catat ke Jurnal</span>
+                </button>
+              </div>
+            )}
+
+            {barcodeStatus === "not_found" && (
+              <div className="flex w-full flex-col items-start gap-2.5 rounded-[12px] border border-[#f2d3c0] bg-[#fdf4ee] p-4">
+                <p className={`text-xs text-[#8a4b22] ${semiboldClass}`}>
+                  Produk tidak ditemukan di database.
+                </p>
+                <p className={`text-[11px] text-[#728078] ${textClass}`}>
+                  Coba periksa kembali kode barcode, atau catat produk ini secara
+                  manual.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("Quick Add")}
+                  className={`inline-flex items-center gap-2 rounded-lg border border-[#167653] bg-white px-4 py-2 text-xs text-[#167653] transition-colors hover:bg-[#eaf3e9] ${semiboldClass}`}
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Input Manual via Quick Add</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1277,7 +1611,7 @@ function AddFoodPanel({
             />
             <button
               type="button"
-              onClick={() => setNotice(`Mencari kode ${barcode}`)}
+              onClick={cariProdukBarcode}
               className={`min-h-11 rounded-[10px] border border-solid border-[#e1e7df] bg-white px-[18px] py-[11px] text-sm text-[#167653] transition-colors hover:bg-[#f0f3ec] cursor-pointer ${semiboldClass}`}
             >
               Cari kode
