@@ -82,7 +82,7 @@ export const BodyCheckSidebar = (): ReactElement => {
 
   return (
     <aside
-      className="sticky top-0 flex h-screen w-[216px] shrink-0 flex-col items-start justify-between self-stretch border-r border-[#e1e7df] bg-white px-[18px] py-[28px] overflow-y-auto"
+      className="sticky top-0 flex h-screen w-[216px] shrink-0 flex-col items-start justify-between self-stretch border-r border-[#e1e7df] bg-white px-[18px] py-[28px]"
       aria-label="Navigasi FitBite"
     >
       <div className="flex w-full flex-col items-start gap-[30px]">
@@ -265,7 +265,10 @@ export const BodyCheckBanner = ({ isSaved }: BodyCheckBannerProps): ReactElement
         </span>
         <h1 className="mt-1 flex items-center gap-2 text-2xl font-bold tracking-tight text-[#143d30] sm:text-[28px]">
           Selamat pagi, {firstName}{" "}
-          <span className="text-xl sm:text-2xl">☀️</span>
+          <Sun
+            aria-hidden="true"
+            className="h-10 w-10 text-amber-400 sm:h-11 sm:w-11"
+          />
         </h1>
         <p className="mt-1 text-xs text-[#7a8c82]">
           Senin, 19 Oktober 2026 • 06.45 WIB •{" "}

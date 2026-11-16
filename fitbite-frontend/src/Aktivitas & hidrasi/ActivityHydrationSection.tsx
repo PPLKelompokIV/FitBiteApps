@@ -48,6 +48,61 @@ const sortActivityHistory = (activities: SavedActivity[]) =>
       first.id_activity_log - second.id_activity_log
   );
 
+const isSavedActivity = (value: unknown): value is SavedActivity => {
+  if (typeof value !== "object" || value === null) return false;
+
+  return (
+    "id_activity_log" in value &&
+    typeof value.id_activity_log === "number" &&
+    "tanggal" in value &&
+    typeof value.tanggal === "string" &&
+    "nama_aktivitas" in value &&
+    typeof value.nama_aktivitas === "string" &&
+    "durasi_menit" in value &&
+    typeof value.durasi_menit === "number" &&
+    "waktu_mulai" in value &&
+    typeof value.waktu_mulai === "string" &&
+    "met" in value &&
+    typeof value.met === "number" &&
+    "kalori_terbakar" in value &&
+    typeof value.kalori_terbakar === "number"
+  );
+};
+
+const getApiErrorMessage = (body: unknown, fallback: string) => {
+  if (typeof body !== "object" || body === null || !("detail" in body)) {
+    return fallback;
+  }
+
+  const { detail } = body;
+  if (typeof detail === "string") return detail;
+  if (!Array.isArray(detail)) return fallback;
+
+  const messages = detail
+    .map((item) => {
+      if (typeof item !== "object" || item === null) {
+        return typeof item === "string" ? item : "";
+      }
+
+      const message =
+        "msg" in item && typeof item.msg === "string" ? item.msg : "";
+      const location =
+        "loc" in item && Array.isArray(item.loc)
+          ? item.loc
+              .filter(
+                (part): part is string | number =>
+                  typeof part === "string" || typeof part === "number"
+              )
+              .join(".")
+          : "";
+
+      return message ? (location ? `${location}: ${message}` : message) : "";
+    })
+    .filter(Boolean);
+
+  return messages.length > 0 ? messages.join("; ") : fallback;
+};
+
 const activityOptions: Activity[] = [
   { name: "Jalan kaki", met: "3,5 MET", icon: Footprints },
   { name: "Lari", met: "7,0 MOV", icon: Footprints }, // Atau gunakan icon lari jika ada
@@ -428,10 +483,17 @@ export const ActivityAndHydrationSection = (): ReactElement => {
       });
       const body = await response.json();
       if (!response.ok) {
-        throw new Error(body?.detail || "Gagal menyimpan aktivitas.");
+        throw new Error(
+          getApiErrorMessage(body, "Gagal menyimpan aktivitas.")
+        );
       }
+      const activity: unknown = body?.data;
+      if (!isSavedActivity(activity)) {
+        throw new Error("Respons server saat menyimpan aktivitas tidak valid.");
+      }
+
       setActivityHistory((current) =>
-        sortActivityHistory([...current, body.data])
+        sortActivityHistory([...current, activity])
       );
       setSaved(true);
 
