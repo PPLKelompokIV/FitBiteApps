@@ -399,9 +399,6 @@ const defaultYesterdayMeals: Meal[] = [
 ];
 
 function getDefaultMealsForDate(dateStr: string, todayStr: string): Meal[] {
-  if (dateStr === todayStr) {
-    return defaultTodayMeals;
-  }
   const todayDate = new Date(`${todayStr}T00:00:00`);
   const yesterdayDate = new Date(todayDate);
   yesterdayDate.setDate(todayDate.getDate() - 1);
@@ -409,41 +406,15 @@ function getDefaultMealsForDate(dateStr: string, todayStr: string): Meal[] {
   const yMonth = String(yesterdayDate.getMonth() + 1).padStart(2, "0");
   const yDay = String(yesterdayDate.getDate()).padStart(2, "0");
   const yesterdayStr = `${yYear}-${yMonth}-${yDay}`;
+  const templates =
+    dateStr === yesterdayStr ? defaultYesterdayMeals : defaultTodayMeals;
 
-  if (dateStr === yesterdayStr) {
-    return defaultYesterdayMeals;
-  }
-
-  return [
-    {
-      name: "Sarapan",
-      time: "07.30 WIB",
-      calories: "0 kkal",
-      items: [],
-      macros: "Protein 0 g  ·  Karbo 0 g  ·  Lemak 0 g",
-    },
-    {
-      name: "Makan siang",
-      time: "12.30 WIB",
-      calories: "0 kkal",
-      items: [],
-      macros: "Protein 0 g  ·  Karbo 0 g  ·  Lemak 0 g",
-    },
-    {
-      name: "Makan malam",
-      time: "18.00 WIB",
-      calories: "0 kkal",
-      items: [],
-      macros: "Protein 0 g  ·  Karbo 0 g  ·  Lemak 0 g",
-    },
-    {
-      name: "Camilan",
-      time: "15.00 WIB",
-      calories: "0 kkal",
-      items: [],
-      macros: "Protein 0 g  ·  Karbo 0 g  ·  Lemak 0 g",
-    },
-  ];
+  return templates.map((meal) => ({
+    ...meal,
+    calories: "0 kkal",
+    items: [],
+    macros: "Protein 0 g  ·  Karbo 0 g  ·  Lemak 0 g",
+  }));
 }
 
 const recommendations = [
@@ -1709,23 +1680,7 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
   };
 
   const loadMealsForDate = (targetDate: string): Meal[] => {
-    const baseMeals = getDefaultMealsForDate(targetDate, todayStr);
-    try {
-      const savedStr = localStorage.getItem(
-        `fitbite_journal_slots_${targetDate}`
-      );
-      if (!savedStr) return baseMeals;
-      const savedSlots = JSON.parse(savedStr);
-      return baseMeals.map((dm) => {
-        if (savedSlots[dm.name]) {
-          const items: MealItem[] = savedSlots[dm.name].items || dm.items;
-          return recalculateMealSlot(dm, items);
-        }
-        return recalculateMealSlot(dm, dm.items);
-      });
-    } catch {
-      return baseMeals;
-    }
+    return getDefaultMealsForDate(targetDate, todayStr);
   };
 
   const [mealsList, setMealsList] = useState<Meal[]>(() =>
@@ -1733,11 +1688,11 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
   );
 
   const [dailySummary, setDailySummary] = useState({
-    totalCalories: "1.350 kkal",
-    protein: "90 / 100 g",
-    karbo: "150 / 190 g",
-    lemak: "43 / 60 g",
-    sisaEnergi: "608 kkal",
+    totalCalories: "0 kkal",
+    protein: "0 / 100 g",
+    karbo: "0 / 190 g",
+    lemak: "0 / 60 g",
+    sisaEnergi: "1.958 kkal",
   });
 
   const updateSummaryFromMeals = (meals: Meal[]) => {
@@ -1779,7 +1734,7 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
       .get(`http://127.0.0.1:8000/api/food-logs/1?tanggal=${selectedDate}`)
       .then((res) => {
         const dbLogs = res.data?.data;
-        if (Array.isArray(dbLogs) && dbLogs.length > 0) {
+        if (Array.isArray(dbLogs)) {
           const grouped: Record<string, MealItem[]> = {
             Sarapan: [],
             "Makan siang": [],
@@ -1805,36 +1760,22 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
           });
 
           const baseForDate = getDefaultMealsForDate(selectedDate, todayStr);
-          const syncedMeals = baseForDate.map((dm) => {
-            if (grouped[dm.name] && grouped[dm.name].length > 0) {
-              return recalculateMealSlot(dm, [...dm.items, ...grouped[dm.name]]);
-            }
-            return dm;
-          });
+          const syncedMeals = baseForDate.map((meal) =>
+            recalculateMealSlot(meal, grouped[meal.name] ?? [])
+          );
 
           setMealsList(syncedMeals);
           updateSummaryFromMeals(syncedMeals);
         }
       })
       .catch(() => {
-        // Fallback state per tanggal lokal
+        showToast(
+          "Gagal Memuat Jurnal",
+          "Catatan makanan gagal dimuat dari server. Periksa koneksi lalu muat ulang halaman.",
+          "error"
+        );
       });
   }, [selectedDate]);
-
-  const saveSlotsToLocal = (targetDate: string, meals: Meal[]) => {
-    try {
-      const mapObj: Record<string, Meal> = {};
-      meals.forEach((m) => {
-        mapObj[m.name] = m;
-      });
-      localStorage.setItem(
-        `fitbite_journal_slots_${targetDate}`,
-        JSON.stringify(mapObj)
-      );
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const handleUpdateMealSlot = (updatedSlot: Meal) => {
     const newMeals = mealsList.map((m) =>
@@ -1842,7 +1783,6 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
     );
     setMealsList(newMeals);
     updateSummaryFromMeals(newMeals);
-    saveSlotsToLocal(selectedDate, newMeals);
   };
 
   const handleDeleteFromServer = (id_food_log?: number) => {
@@ -1922,7 +1862,6 @@ export const FoodJournalWorkspaceSection = (): ReactElement => {
 
       setMealsList(newMeals);
       updateSummaryFromMeals(newMeals);
-      saveSlotsToLocal(selectedDate, newMeals);
 
       showToast(
         "Berhasil Dicatat ke Jurnal",
