@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import areaTrenBerat from "./area-tren-berat.svg";
 import batangEnergi from "./batang-energi.svg";
 import garisTrenBerat from "./garis-tren-berat.svg";
@@ -66,7 +66,7 @@ const hydrationData = [
 
 const dates = ["6 Okt", "10 Okt", "14 Okt", "19 Okt*"];
 
-export const ProgressDashboardSection = (): JSX.Element => {
+export const ProgressDashboardSection = (): ReactElement => {
   const [period, setPeriod] = useState("14 hari");
 
   return (

@@ -234,6 +234,7 @@ export const ProfileAndReminderSettingsSection = () => {
   const userInitials = getAuthUserInitials(authUser);
   const bellDropdownRef = useRef<HTMLDivElement | null>(null);
   const triggeredRemindersRef = useRef<Set<string>>(new Set());
+  const reminderCheckInFlightRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const [personalization, setPersonalization] = useState(true);
@@ -242,7 +243,11 @@ export const ProfileAndReminderSettingsSection = () => {
   const [enabledReminders, setEnabledReminders] = useState<boolean[]>(
     defaultReminders.map(() => true)
   );
+  const [remindersLoaded, setRemindersLoaded] = useState(false);
   const [browserPermission, setBrowserPermission] = useState(false);
+  const [browserPermissionStatus, setBrowserPermissionStatus] = useState<
+    NotificationPermission | "unsupported"
+  >("default");
   const [confirmation, setConfirmation] = useState("");
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -273,9 +278,19 @@ export const ProfileAndReminderSettingsSection = () => {
           "Gagal memutar file /notification.mp3, pastikan file sudah ada di folder public/:",
           err
         );
+        showToastMsg(
+          "Suara tidak dapat diputar",
+          "Coba aktifkan suara browser dan gunakan tombol Tes suara.",
+          "error"
+        );
       });
     } catch (err) {
       console.warn("Audio notifikasi tidak dapat diputar:", err);
+      showToastMsg(
+        "Suara tidak dapat diputar",
+        "Coba aktifkan suara browser dan gunakan tombol Tes suara.",
+        "error"
+      );
     }
   };
 
@@ -314,9 +329,14 @@ export const ProfileAndReminderSettingsSection = () => {
 
   // 1. Cek izin notifikasi browser secara otomatis saat halaman dibuka
   useEffect(() => {
-    if ("Notification" in window) {
-      setBrowserPermission(Notification.permission === "granted");
+    if (!("Notification" in window)) {
+      setBrowserPermissionStatus("unsupported");
+      return;
     }
+
+    const permission = Notification.permission;
+    setBrowserPermissionStatus(permission);
+    setBrowserPermission(permission === "granted");
   }, []);
 
   // Tutup dropdown lonceng saat klik di luar area dropdown
@@ -365,6 +385,8 @@ export const ProfileAndReminderSettingsSection = () => {
         }
       } catch (err) {
         console.error("Gagal memuat jadwal dari database:", err);
+      } finally {
+        setRemindersLoaded(true);
       }
     };
 
@@ -394,21 +416,40 @@ export const ProfileAndReminderSettingsSection = () => {
 
   // 4. Scheduler Real-Time dengan proteksi anti-duplikat & pemutar soundtrack notifikasi
   useEffect(() => {
+    if (!remindersLoaded) return;
+
     const checkReminderSchedule = async () => {
-      const now = new Date();
-      const currentHH = String(now.getHours()).padStart(2, "0");
-      const currentMM = String(now.getMinutes()).padStart(2, "0");
-      const currentTimeStr = `${currentHH}:${currentMM}`;
-      const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      if (reminderCheckInFlightRef.current) return;
+      reminderCheckInFlightRef.current = true;
 
-      for (let i = 0; i < remindersList.length; i++) {
-        if (!enabledReminders[i]) continue;
+      try {
+        const now = new Date();
+        const currentHH = String(now.getHours()).padStart(2, "0");
+        const currentMM = String(now.getMinutes()).padStart(2, "0");
+        const currentTimeStr = `${currentHH}:${currentMM}`;
+        const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+        const lastCheckKey = `fitbite_reminder_last_check_${dateStamp}`;
+        const previousCheckTime = Number(localStorage.getItem(lastCheckKey)) || 0;
+        let requestFailed = false;
 
-        const item = remindersList[i];
-        const normalizedSchedule = item.time.trim().replace(".", ":");
+        for (let i = 0; i < remindersList.length; i++) {
+          if (!enabledReminders[i]) continue;
 
-        if (normalizedSchedule === currentTimeStr) {
-          const triggerKey = `${item.key}-${currentTimeStr}-${dateStamp}`;
+          const item = remindersList[i];
+          const normalizedSchedule = item.time.trim().replace(".", ":");
+          const scheduleMatch = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(normalizedSchedule);
+          if (!scheduleMatch) continue;
+
+          const scheduledAt = new Date(now);
+          scheduledAt.setHours(Number(scheduleMatch[1]), Number(scheduleMatch[2]), 0, 0);
+          const isDue =
+            now.getTime() >= scheduledAt.getTime() &&
+            (currentTimeStr === normalizedSchedule ||
+              (previousCheckTime > 0 &&
+                previousCheckTime < scheduledAt.getTime()));
+          if (!isDue) continue;
+
+          const triggerKey = `${item.key}-${normalizedSchedule}-${dateStamp}`;
           const storageKey = `fitbite_triggered_${triggerKey}`;
 
           if (
@@ -419,7 +460,6 @@ export const ProfileAndReminderSettingsSection = () => {
           }
 
           triggeredRemindersRef.current.add(triggerKey);
-          localStorage.setItem(storageKey, "true");
 
           try {
             const response = await fetch(
@@ -434,30 +474,78 @@ export const ProfileAndReminderSettingsSection = () => {
                 }),
               }
             );
-
-            if (response.ok) {
-              const resData = await response.json();
-              if (Array.isArray(resData.data)) {
-                setNotifications(resData.data);
-              }
-              playNotificationSound();
-              showToastMsg(
-                `Pengingat: ${item.title}`,
-                `Sudah pukul ${item.time} WIB. Cek ikon lonceng untuk mencatat logmu!`,
-                "success"
-              );
+            if (!response.ok) {
+              throw new Error(`Server mengembalikan ${response.status}`);
             }
+
+            const resData = await response.json();
+            if (Array.isArray(resData.data)) {
+              setNotifications(resData.data);
+            }
+            localStorage.setItem(storageKey, "true");
+
+            if (
+              "Notification" in window &&
+              Notification.permission === "granted"
+            ) {
+              try {
+                const browserNotification = new Notification(
+                  `Pengingat: ${item.title}`,
+                  {
+                    body: `Sudah pukul ${normalizedSchedule.replace(":", ".")} WIB. ${item.description}`,
+                    tag: triggerKey,
+                    requireInteraction: true,
+                    silent:
+                      document.visibilityState === "visible" ||
+                      !soundEnabledRef.current,
+                  }
+                );
+                browserNotification.onclick = () => {
+                  window.focus();
+                  browserNotification.close();
+                };
+              } catch (error) {
+                console.error("Gagal menampilkan notifikasi browser:", error);
+              }
+            }
+
+            playNotificationSound();
+            showToastMsg(
+              `Pengingat: ${item.title}`,
+              `Sudah pukul ${item.time} WIB. Cek ikon lonceng untuk mencatat logmu!`,
+              "success"
+            );
           } catch (err) {
+            triggeredRemindersRef.current.delete(triggerKey);
+            requestFailed = true;
             console.error("Gagal memicu notifikasi jadwal:", err);
           }
         }
+
+        if (!requestFailed) {
+          localStorage.setItem(lastCheckKey, String(now.getTime()));
+        }
+      } catch (error) {
+        console.error("Gagal memeriksa jadwal pengingat:", error);
+      } finally {
+        reminderCheckInFlightRef.current = false;
       }
     };
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void checkReminderSchedule();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     checkReminderSchedule();
     const intervalId = setInterval(checkReminderSchedule, 3000);
-    return () => clearInterval(intervalId);
-  }, [remindersList, enabledReminders]);
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [remindersList, enabledReminders, remindersLoaded]);
 
   // FIT-55 & FIT-56: Tandai 1 notifikasi sudah dibaca (PATCH) & arahkan (redirect) ke halaman log terkait
   const handleNotificationClick = async (item: NotificationItem) => {
@@ -627,12 +715,110 @@ export const ProfileAndReminderSettingsSection = () => {
   };
 
   const enableNotifications = () => {
-    if ("Notification" in window) {
-      Notification.requestPermission().then((permission) => {
-        setBrowserPermission(permission === "granted");
+    if (!("Notification" in window)) {
+      setBrowserPermissionStatus("unsupported");
+      setBrowserPermission(false);
+      showToastMsg(
+        "Notifikasi tidak didukung",
+        "Browser ini tidak mendukung notifikasi desktop.",
+        "error"
+      );
+      return;
+    }
+
+    if (Notification.permission === "denied") {
+      setBrowserPermissionStatus("denied");
+      setBrowserPermission(false);
+      showToastMsg(
+        "Izin notifikasi diblokir",
+        "Buka izin situs di sebelah alamat browser, ubah Notifikasi menjadi Izinkan, lalu muat ulang halaman.",
+        "error"
+      );
+      return;
+    }
+
+    Notification.requestPermission()
+      .then((permission) => {
+        const isGranted = permission === "granted";
+        setBrowserPermissionStatus(permission);
+        setBrowserPermission(isGranted);
+
+        if (isGranted) {
+          try {
+            new Notification("Notifikasi FitBite aktif", {
+              body: "Pengingat dapat muncul saat halaman berada di latar belakang.",
+              requireInteraction: true,
+            });
+            showToastMsg(
+              "Notifikasi desktop aktif",
+              "Jika popup tidak terlihat, periksa pengaturan notifikasi browser dan Windows.",
+              "success"
+            );
+          } catch (error) {
+            console.error("Gagal menampilkan notifikasi uji:", error);
+            showToastMsg(
+              "Notifikasi desktop gagal",
+              "Browser mengizinkan notifikasi, tetapi tidak dapat menampilkannya.",
+              "error"
+            );
+          }
+        } else {
+          showToastMsg(
+            "Izin notifikasi belum aktif",
+            "Jika izin sudah diblokir, ubah Notifikasi menjadi Izinkan di pengaturan situs lalu muat ulang halaman.",
+            "error"
+          );
+        }
+      })
+      .catch((error) => {
+        console.error("Gagal meminta izin notifikasi browser:", error);
+        setBrowserPermissionStatus(Notification.permission);
+        setBrowserPermission(false);
+        showToastMsg(
+          "Gagal meminta izin notifikasi",
+          "Periksa pengaturan izin situs di browser, lalu coba lagi.",
+          "error"
+        );
       });
-    } else {
-      setBrowserPermission(true);
+  };
+
+  const testDesktopNotification = () => {
+    if (!("Notification" in window)) {
+      showToastMsg(
+        "Notifikasi tidak didukung",
+        "Browser ini tidak mendukung notifikasi desktop.",
+        "error"
+      );
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      enableNotifications();
+      return;
+    }
+
+    try {
+      const browserNotification = new Notification("Tes notifikasi FitBite", {
+        body: "Jika terlihat, notifikasi desktop FitBite sudah berfungsi.",
+        requireInteraction: true,
+      });
+      playNotificationSound(true);
+      browserNotification.onclick = () => {
+        window.focus();
+        browserNotification.close();
+      };
+      showToastMsg(
+        "Tes notifikasi dikirim",
+        "Jika popup tidak muncul, periksa pengaturan notifikasi browser dan Windows.",
+        "success"
+      );
+    } catch (error) {
+      console.error("Gagal menampilkan notifikasi uji:", error);
+      showToastMsg(
+        "Notifikasi desktop gagal",
+        "Browser mengizinkan notifikasi, tetapi tidak dapat menampilkannya.",
+        "error"
+      );
     }
   };
 
@@ -1171,10 +1357,16 @@ export const ProfileAndReminderSettingsSection = () => {
                         <BellOff className="h-4 w-4 shrink-0 text-[#a86c24] mt-0.5" />
                         <div>
                           <p className="text-xs font-semibold text-[#945d1b]">
-                            Notifikasi browser belum diizinkan
+                            {browserPermissionStatus === "denied"
+                              ? "Notifikasi diblokir oleh browser"
+                              : browserPermissionStatus === "unsupported"
+                                ? "Browser tidak mendukung notifikasi desktop"
+                                : "Notifikasi browser belum diizinkan"}
                           </p>
                           <p className="text-[11px] text-[#a86c24]">
-                            Pengingat dalam aplikasi tetap aktif.
+                            {browserPermissionStatus === "denied"
+                              ? "Izin harus diubah manual dari pengaturan situs browser sebelum notifikasi dapat muncul."
+                              : "Aktifkan agar pengingat bisa muncul sebagai notifikasi desktop saat halaman di latar belakang."}
                           </p>
                         </div>
                       </div>
@@ -1187,11 +1379,20 @@ export const ProfileAndReminderSettingsSection = () => {
                       </button>
                     </div>
                     <p className="text-[10px] leading-[14.5px] text-[#a86c24]">
-                      Izin mengikuti pengaturan browser. Saat ditolak, buka
-                      daftar notifikasi di bawah atau ikon lonceng untuk melihat
-                      pengingat.
+                      {browserPermissionStatus === "denied"
+                        ? "Chrome/Edge: klik ikon pengaturan di kiri alamat situs > Izin situs > Notifikasi > Izinkan, lalu muat ulang FitBite."
+                        : "Izin mengikuti pengaturan browser. Browser harus tetap terbuka agar jadwal diproses; notifikasi saat browser tertutup memerlukan Web Push."}
                     </p>
                   </div>
+                )}
+                {browserPermission && (
+                  <button
+                    type="button"
+                    onClick={testDesktopNotification}
+                    className="mt-1 min-h-[36px] self-start rounded-[8px] border border-[#dce7dc] bg-white px-3 text-xs font-semibold text-[#167653] hover:bg-[#f8faf7] transition-colors"
+                  >
+                    Tes notifikasi desktop
+                  </button>
                 )}
               </Card>
 

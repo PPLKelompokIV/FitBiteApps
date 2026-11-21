@@ -166,13 +166,13 @@ export default function ProgresPage() {
         : 'Tren meningkat';
 
   return (
-    <div className="min-h-screen flex bg-[#F4F6F2] text-[#1E2E26] font-sans">
+    <div className="flex h-screen overflow-hidden bg-[#F4F6F2] text-[#1E2E26] font-sans">
       <HealthAppSidebarSection />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="relative flex h-screen min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
         {/* Topbar */}
-        <header className="h-16 bg-white/70 backdrop-blur-sm border-b border-[#E4EAE3] px-8 flex items-center justify-between sticky top-0 z-10">
+        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between border-b border-[#E4EAE3] bg-white/95 px-8 backdrop-blur-sm">
           <div className="flex items-center gap-2 text-xs">
             <span
               onClick={() => navigate('/dashboard-hari-ini')}
@@ -205,15 +205,15 @@ export default function ProgresPage() {
         </header>
 
         {/* Dashboard Body */}
-        <main className="p-8 max-w-6xl w-full mx-auto space-y-6">
+        <main className="w-full space-y-6 px-9 pb-7 pt-[30px]">
           {/* Title & Filter Bar */}
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-[28px] font-bold text-[#172820] tracking-tight">
-                Analytics progres
+              <h1 className="text-[32px] font-normal leading-[40px] tracking-[-0.3px] text-[#203d32]">
+                Perubahan kecil, terlihat lebih jelas.
               </h1>
-              <p className="text-xs text-[#7D8C84] mt-1">
-                Tren dari {visibleProgressData.length} catatan {rangeLabel}. Ini bukan penilaian kesehatan.
+              <p className="mt-1 text-[13px] text-[#728078]">
+                6–19 Oktober 2026 • Tren dari data yang kamu catat, bukan penilaian kesehatan.
               </p>
             </div>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import image from "./image.svg";
 import vector2 from "./vector-2.svg";
 import vector3 from "./vector-3.svg";
@@ -54,7 +54,7 @@ const navigationItems: NavigationItem[] = [
   },
 ];
 
-export const SidebarNavigationSection = (): JSX.Element => {
+export const SidebarNavigationSection = (): ReactElement => {
   const [activeItem, setActiveItem] = useState("Progres");
 
   return (
