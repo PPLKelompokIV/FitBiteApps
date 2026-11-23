@@ -27,6 +27,7 @@ from app.routers import (
     food_logs,
     notifications,
     daily_logs,
+    push,
     reminders,
     water_logs,
 )
@@ -37,6 +38,11 @@ from app.services.calorie_calculator import (
     hitungTDEEDinamis,
 )
 from app.services.calorie_target_schema import ensure_calorie_target_schema
+from app.services.web_push import (
+    ensure_push_subscription_column,
+    start_push_scheduler,
+    stop_push_scheduler,
+)
 
 ROUTER_API_KEY = os.getenv("ROUTER_API_KEY", "")
 ROUTER_BASE_URL = os.getenv("ROUTER_BASE_URL", "http://localhost:20128/v1")
@@ -97,8 +103,11 @@ async def evening_evaluation_scheduler_loop():
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_calorie_target_schema(engine)
+    ensure_push_subscription_column()
+    start_push_scheduler()
     scheduler_task = asyncio.create_task(evening_evaluation_scheduler_loop())
     yield
+    stop_push_scheduler()
     scheduler_task.cancel()
 
 
@@ -139,6 +148,7 @@ app.include_router(admin_foods.router)
 app.include_router(body_check.router)
 app.include_router(notifications.router)
 app.include_router(daily_logs.router)
+app.include_router(push.router)
 
 
 @app.get("/", tags=["Service"])
@@ -862,11 +872,11 @@ def evaluasiMalam(
 ) -> dict:
     """
     FIT-59: Fungsi utama evaluasiMalam() untuk:
-    1. Menghitung pencapaian harian (Energi, Protein, Karbohidrat, Lemak, Air Minum & Skor Kepatuhan)
-    2. Menentukan status energi ('tercapai' 90-110%, 'kurang' <90%, 'berlebih' >110%)
-    3. Men-generate saran korektif untuk esok hari
-    4. Menyimpan hasil evaluasi ke tabel daily_evaluation
-    5. Mengirim notifikasi laporan evaluasi ke tabel notification (FIT-60)
+1. Menghitung pencapaian harian (Energi, Protein, Karbohidrat, Lemak, Air Minum & Skor Kepatuhan)
+2. Menentukan status energi ('tercapai' 90-110%, 'kurang' <90%, 'berlebih' >110%)
+3. Men-generate saran korektif untuk esok hari
+4. Menyimpan hasil evaluasi ke tabel daily_evaluation
+5. Mengirim notifikasi laporan evaluasi ke tabel notification (FIT-60)
     """
     now_wib = get_wib_now()
     eval_date = target_date or now_wib.date()
