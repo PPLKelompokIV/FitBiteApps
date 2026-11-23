@@ -18,8 +18,8 @@ import requests
 load_dotenv()
 
 ROUTER_API_KEY = os.getenv("ROUTER_API_KEY", "")
-ROUTER_BASE_URL = os.getenv("ROUTER_BASE_URL", "http://localhost:20128/v1")
-ROUTER_VISION_MODEL = os.getenv("ROUTER_VISION_MODEL", "ag/gemini-3.8-flash-high")
+ROUTER_BASE_URL = os.getenv("ROUTER_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai")
+ROUTER_VISION_MODEL = os.getenv("ROUTER_VISION_MODEL", "gemini-2.5-flash")
 
 app = FastAPI(title="FitBite AI & Calculation Service")
 
@@ -824,5 +824,3 @@ def get_current_user_profile(token: str | None = None):
             "role": payload.get("role"),
         }
     }
-
-
