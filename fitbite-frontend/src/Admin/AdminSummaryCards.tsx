@@ -1,6 +1,16 @@
 import React from "react";
 import { useLocation } from "react-router-dom";
 
+export interface AdminAccountStats {
+  total: number;
+  active: number;
+  inactive: number;
+}
+
+interface AdminSummaryCardsProps {
+  accountStats?: AdminAccountStats;
+}
+
 const Svg: React.FC<{ size?: number; sw?: number; children: React.ReactNode }> = ({
   size = 18,
   sw = 1.8,
@@ -53,33 +63,6 @@ const StatIcon: React.FC<{ name: string }> = ({ name }) => {
   );
 };
 
-const metrics = [
-  {
-    label: "Makanan dalam katalog",
-    value: "126",
-    sub: "118 aktif • 8 nonaktif",
-    icon: "fork",
-  },
-  {
-    label: "Referensi terverifikasi",
-    value: "112",
-    sub: "14 menunggu tinjauan",
-    icon: "check",
-  },
-  {
-    label: "Aktivitas & MET",
-    value: "18",
-    sub: "6 kategori aktivitas utama",
-    icon: "activity",
-  },
-  {
-    label: "Akun pengguna",
-    value: "248",
-    sub: "240 aktif • 8 nonaktif",
-    icon: "users",
-  },
-];
-
 const highlightByPath: Record<string, string> = {
   "/admin/pengelolaan": "Makanan dalam katalog",
   "/admin/aktivitas": "Aktivitas & MET",
@@ -88,9 +71,40 @@ const highlightByPath: Record<string, string> = {
 
 const defaultHighlight = "Referensi terverifikasi";
 
-export const AdminSummaryCards: React.FC = () => {
+export const AdminSummaryCards: React.FC<AdminSummaryCardsProps> = ({
+  accountStats,
+}) => {
   const { pathname } = useLocation();
   const highlightedLabel = highlightByPath[pathname] ?? defaultHighlight;
+
+  const metrics = [
+    {
+      label: "Makanan dalam katalog",
+      value: "126",
+      sub: "118 aktif • 8 nonaktif",
+      icon: "fork",
+    },
+    {
+      label: "Referensi terverifikasi",
+      value: "112",
+      sub: "14 menunggu tinjauan",
+      icon: "check",
+    },
+    {
+      label: "Aktivitas & MET",
+      value: "18",
+      sub: "6 kategori aktivitas utama",
+      icon: "activity",
+    },
+    {
+      label: "Akun pengguna",
+      value: accountStats ? String(accountStats.total) : "248",
+      sub: accountStats
+        ? `${accountStats.active} aktif • ${accountStats.inactive} nonaktif`
+        : "240 aktif • 8 nonaktif",
+      icon: "users",
+    },
+  ];
 
   return (
     <div

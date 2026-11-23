@@ -270,7 +270,7 @@ def login_user(payload: LoginRequest):
     if user_data.get("status_akun") != "active":
         raise HTTPException(
             status_code=403,
-            detail="Akun Anda sedang dinonaktifkan. Hubungi administrator."
+            detail="Akun Anda dinonaktifkan oleh administrator"
         )
 
     redirect_url = "/admin/pantau" if user_data["role"] == "admin" else "/bodycheckpagi"
