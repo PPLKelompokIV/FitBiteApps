@@ -28,6 +28,7 @@ import {
   getAuthUserInitials,
   getAuthUserName,
 } from "../utils/auth";
+import { subscribeBrowserPush } from "../utils/webPush";
 import {
   calculateCalorieTargets,
   sampleCalorieProfile,
@@ -231,6 +232,9 @@ const Card = ({
 export const ProfileAndReminderSettingsSection = () => {
   const navigate = useNavigate();
   const authUser = getAuthUser();
+  const activeUserId = (
+    authUser as { id_user?: number | string } | null
+  )?.id_user;
   const userInitials = getAuthUserInitials(authUser);
   const bellDropdownRef = useRef<HTMLDivElement | null>(null);
   const triggeredRemindersRef = useRef<Set<string>>(new Set());
@@ -248,6 +252,7 @@ export const ProfileAndReminderSettingsSection = () => {
   const [browserPermissionStatus, setBrowserPermissionStatus] = useState<
     NotificationPermission | "unsupported"
   >("default");
+  const [pushLoading, setPushLoading] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -327,7 +332,7 @@ export const ProfileAndReminderSettingsSection = () => {
     }, 3500);
   };
 
-  // 1. Cek izin notifikasi browser secara otomatis saat halaman dibuka
+  // 1. FIT-173: Cek izin notifikasi browser & sinkronkan Service Worker + Web Push otomatis
   useEffect(() => {
     if (!("Notification" in window)) {
       setBrowserPermissionStatus("unsupported");
@@ -337,7 +342,18 @@ export const ProfileAndReminderSettingsSection = () => {
     const permission = Notification.permission;
     setBrowserPermissionStatus(permission);
     setBrowserPermission(permission === "granted");
-  }, []);
+
+    if (permission === "granted") {
+      subscribeBrowserPush(activeUserId, authUser?.email)
+        .then((res) => {
+          setBrowserPermissionStatus(res.permission);
+          setBrowserPermission(res.ok);
+        })
+        .catch((err) =>
+          console.warn("Sinkronisasi Service Worker Web Push dilewati:", err)
+        );
+    }
+  }, [activeUserId, authUser?.email]);
 
   // Tutup dropdown lonceng saat klik di luar area dropdown
   useEffect(() => {
@@ -414,7 +430,7 @@ export const ProfileAndReminderSettingsSection = () => {
     fetchNotifications(true);
   }, []);
 
-  // 4. Scheduler Real-Time dengan proteksi anti-duplikat & pemutar soundtrack notifikasi
+  // 4. Scheduler Real-Time saat tab terbuka dengan proteksi anti-duplikat & soundtrack
   useEffect(() => {
     if (!remindersLoaded) return;
 
@@ -669,7 +685,7 @@ export const ProfileAndReminderSettingsSection = () => {
       const payloadJadwal = remindersList.map((item, index) => ({
         jenis_pengingat: item.key,
         waktu_jadwal: item.time,
-        saluran: "in_app",
+        saluran: browserPermission ? "web_push" : "in_app",
         status_aktif: enabledReminders[index],
       }));
 
@@ -714,13 +730,14 @@ export const ProfileAndReminderSettingsSection = () => {
     }
   };
 
-  const enableNotifications = () => {
+  // FIT-173: Registrasi Service Worker (/sw.js) & permintaan izin Web Push API
+  const enableNotifications = async () => {
     if (!("Notification" in window)) {
       setBrowserPermissionStatus("unsupported");
       setBrowserPermission(false);
       showToastMsg(
         "Notifikasi tidak didukung",
-        "Browser ini tidak mendukung notifikasi desktop.",
+        "Browser ini tidak mendukung Web Push Notification.",
         "error"
       );
       return;
@@ -737,52 +754,35 @@ export const ProfileAndReminderSettingsSection = () => {
       return;
     }
 
-    Notification.requestPermission()
-      .then((permission) => {
-        const isGranted = permission === "granted";
-        setBrowserPermissionStatus(permission);
-        setBrowserPermission(isGranted);
+    setPushLoading(true);
+    try {
+      const result = await subscribeBrowserPush(activeUserId, authUser?.email);
+      setBrowserPermissionStatus(result.permission);
+      setBrowserPermission(result.ok);
 
-        if (isGranted) {
-          try {
-            new Notification("Notifikasi FitBite aktif", {
-              body: "Pengingat dapat muncul saat halaman berada di latar belakang.",
-              requireInteraction: true,
-            });
-            showToastMsg(
-              "Notifikasi desktop aktif",
-              "Jika popup tidak terlihat, periksa pengaturan notifikasi browser dan Windows.",
-              "success"
-            );
-          } catch (error) {
-            console.error("Gagal menampilkan notifikasi uji:", error);
-            showToastMsg(
-              "Notifikasi desktop gagal",
-              "Browser mengizinkan notifikasi, tetapi tidak dapat menampilkannya.",
-              "error"
-            );
-          }
-        } else {
-          showToastMsg(
-            "Izin notifikasi belum aktif",
-            "Jika izin sudah diblokir, ubah Notifikasi menjadi Izinkan di pengaturan situs lalu muat ulang halaman.",
-            "error"
-          );
-        }
-      })
-      .catch((error) => {
-        console.error("Gagal meminta izin notifikasi browser:", error);
-        setBrowserPermissionStatus(Notification.permission);
-        setBrowserPermission(false);
-        showToastMsg(
-          "Gagal meminta izin notifikasi",
-          "Periksa pengaturan izin situs di browser, lalu coba lagi.",
-          "error"
-        );
-      });
+      if (result.ok) {
+        showToastMsg("Web Push Aktif", result.message, "success");
+      } else {
+        showToastMsg("Izin notifikasi belum aktif", result.message, "error");
+      }
+    } catch (error) {
+      console.error("Gagal mengaktifkan Service Worker / Web Push:", error);
+      setBrowserPermissionStatus(Notification.permission);
+      setBrowserPermission(false);
+      showToastMsg(
+        "Gagal mengaktifkan Web Push",
+        error instanceof Error
+          ? error.message
+          : "Pastikan backend FastAPI menyala dan kunci VAPID sudah diatur di .env.",
+        "error"
+      );
+    } finally {
+      setPushLoading(false);
+    }
   };
 
-  const testDesktopNotification = () => {
+  // FIT-173 & FIT-174: Uji kirim Web Push VAPID dari server (dengan fallback notifikasi lokal)
+  const testDesktopNotification = async () => {
     if (!("Notification" in window)) {
       showToastMsg(
         "Notifikasi tidak didukung",
@@ -793,8 +793,32 @@ export const ProfileAndReminderSettingsSection = () => {
     }
 
     if (Notification.permission !== "granted") {
-      enableNotifications();
+      await enableNotifications();
       return;
+    }
+
+    try {
+      await subscribeBrowserPush(activeUserId, authUser?.email);
+      const targetUserId = encodeURIComponent(String(activeUserId ?? 1));
+      const res = await fetch(
+        `http://127.0.0.1:8000/api/push/test/${targetUserId}`,
+        { method: "POST" }
+      );
+
+      if (res.ok) {
+        playNotificationSound(true);
+        showToastMsg(
+          "Tes Web Push terkirim",
+          "Notifikasi dikirim dari server FastAPI melalui Service Worker (VAPID).",
+          "success"
+        );
+        return;
+      }
+    } catch (err) {
+      console.warn(
+        "Tes Web Push via server gagal, beralih ke notifikasi desktop lokal:",
+        err
+      );
     }
 
     try {
@@ -1298,9 +1322,9 @@ export const ProfileAndReminderSettingsSection = () => {
               </Card>
             </div>
 
-            {/* Kolom Kanan: Pengingat & Notifikasi (PBI-11 / FIT-49 & PBI-12 / FIT-53) */}
+            {/* Kolom Kanan: Pengingat & Notifikasi (PBI-11, PBI-12, PBI-23) */}
             <div className="flex min-w-0 flex-1 flex-col gap-5">
-              {/* Kartu 4: Pengingat yang mendukungmu (FIT-49) */}
+              {/* Kartu 4: Pengingat yang mendukungmu (FIT-49 & FIT-172) */}
               <Card
                 title="Pengingat yang mendukungmu"
                 subtitle="Waktu Indonesia Barat (WIB) • Atur sesuai rutinitasmu."
@@ -1360,28 +1384,29 @@ export const ProfileAndReminderSettingsSection = () => {
                             {browserPermissionStatus === "denied"
                               ? "Notifikasi diblokir oleh browser"
                               : browserPermissionStatus === "unsupported"
-                                ? "Browser tidak mendukung notifikasi desktop"
+                                ? "Browser tidak mendukung Web Push"
                                 : "Notifikasi browser belum diizinkan"}
                           </p>
                           <p className="text-[11px] text-[#a86c24]">
                             {browserPermissionStatus === "denied"
-                              ? "Izin harus diubah manual dari pengaturan situs browser sebelum notifikasi dapat muncul."
-                              : "Aktifkan agar pengingat bisa muncul sebagai notifikasi desktop saat halaman di latar belakang."}
+                              ? "Izin harus diubah manual dari pengaturan situs browser; sementara ini pengingat tetap masuk ke In-App Notification."
+                              : "Aktifkan Service Worker & Web Push agar pengingat terjadwal tetap muncul meski tab FitBite ditutup."}
                           </p>
                         </div>
                       </div>
                       <button
                         type="button"
+                        disabled={pushLoading}
                         onClick={enableNotifications}
-                        className="min-h-[36px] shrink-0 rounded-[8px] border border-[#e1e7df] bg-white px-4 text-xs font-semibold text-[#167653] hover:bg-[#f8faf7] transition-colors"
+                        className="min-h-[36px] shrink-0 rounded-[8px] border border-[#e1e7df] bg-white px-4 text-xs font-semibold text-[#167653] hover:bg-[#f8faf7] disabled:opacity-60 transition-colors cursor-pointer"
                       >
-                        Aktifkan
+                        {pushLoading ? "Mengaktifkan..." : "Aktifkan"}
                       </button>
                     </div>
                     <p className="text-[10px] leading-[14.5px] text-[#a86c24]">
                       {browserPermissionStatus === "denied"
                         ? "Chrome/Edge: klik ikon pengaturan di kiri alamat situs > Izin situs > Notifikasi > Izinkan, lalu muat ulang FitBite."
-                        : "Izin mengikuti pengaturan browser. Browser harus tetap terbuka agar jadwal diproses; notifikasi saat browser tertutup memerlukan Web Push."}
+                        : "Izin mengikuti pengaturan browser. Saat diizinkan, Service Worker & Web Push akan mengirimkan pengingat meski tab ditutup; jika ditolak, pengingat otomatis beralih ke In-App Notification."}
                     </p>
                   </div>
                 )}
@@ -1389,9 +1414,9 @@ export const ProfileAndReminderSettingsSection = () => {
                   <button
                     type="button"
                     onClick={testDesktopNotification}
-                    className="mt-1 min-h-[36px] self-start rounded-[8px] border border-[#dce7dc] bg-white px-3 text-xs font-semibold text-[#167653] hover:bg-[#f8faf7] transition-colors"
+                    className="mt-1 min-h-[36px] self-start rounded-[8px] border border-[#dce7dc] bg-white px-3 text-xs font-semibold text-[#167653] hover:bg-[#f8faf7] transition-colors cursor-pointer"
                   >
-                    Tes notifikasi desktop
+                    Tes Web Push &amp; notifikasi desktop
                   </button>
                 )}
               </Card>
