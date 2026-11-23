@@ -30,6 +30,7 @@ from app.routers import (
     push,
     reminders,
     water_logs,
+    admin_users,
 )
 from app.services.calorie_calculator import (
     FAKTOR_AKTIVITAS,
@@ -149,6 +150,7 @@ app.include_router(body_check.router)
 app.include_router(notifications.router)
 app.include_router(daily_logs.router)
 app.include_router(push.router)
+app.include_router(admin_users.router)
 
 
 @app.get("/", tags=["Service"])
