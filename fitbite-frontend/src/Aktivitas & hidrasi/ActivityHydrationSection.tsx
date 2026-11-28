@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useLocation } from "react-router-dom";
 import { getAuthUserInitials } from "../utils/auth";
 import {
   ChevronRight,
@@ -128,6 +129,7 @@ const suggestions = [
 ];
 
 export const ActivityAndHydrationSection = (): ReactElement => {
+  const location = useLocation();
   const userInitials = getAuthUserInitials();
   const API_BASE = "http://127.0.0.1:8000/api/water-logs";
   const ACTIVITY_API_BASE = "http://127.0.0.1:8000/api/activity-logs";
@@ -144,6 +146,38 @@ export const ActivityAndHydrationSection = (): ReactElement => {
   const [activityError, setActivityError] = useState("");
   const [isSavingActivity, setIsSavingActivity] = useState(false);
   const [waterError, setWaterError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const requestedActivity = params.get("aktivitas");
+    const requestedDuration = Number(params.get("durasi"));
+    const matchingActivity = activityOptions.find(
+      (activity) => activity.name === requestedActivity
+    );
+
+    if (matchingActivity) {
+      setSelectedActivity(matchingActivity.name);
+      setSaved(false);
+      setActivityError("");
+    }
+    if (
+      Number.isInteger(requestedDuration) &&
+      requestedDuration > 0 &&
+      requestedDuration <= 360
+    ) {
+      setDuration(String(requestedDuration));
+      setSaved(false);
+      setActivityError("");
+    }
+
+    const targetId = location.hash.slice(1);
+    if (targetId === "saran-latihan" || targetId === "catat-aktivitas") {
+      document.getElementById(targetId)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [location.hash, location.search]);
 
   // Inisialisasi history dari localStorage atau initialDrinks
   const [history, setHistory] = useState<Drink[]>(() => {
@@ -769,7 +803,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
             </section>
 
             {/* Catat Aktivitas Baru */}
-            <section className="rounded-[18px] border border-[#e1e7df] bg-white p-6 shadow-sm">
+            <section id="catat-aktivitas" className="rounded-[18px] border border-[#e1e7df] bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold text-[#124b39]">Catat aktivitas baru</h2>
               <p className="mt-1 text-xs text-[#728078]">
                 Pilih aktivitas dan durasi; kalori diperkirakan otomatis.
@@ -874,7 +908,7 @@ export const ActivityAndHydrationSection = (): ReactElement => {
             </section>
 
             {/* Rekomendasi Sesuai Energi */}
-            <section>
+            <section id="saran-latihan">
               <h2 className="mb-3.5 text-lg font-bold text-[#124b39]">Sesuai energi 4/5 hari ini</h2>
               <div className="grid grid-cols-2 gap-4">
                 {suggestions.map((suggestion) => {
