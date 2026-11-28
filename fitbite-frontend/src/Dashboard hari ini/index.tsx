@@ -8,10 +8,12 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
+  Clock,
   CircleUserRound,
   Droplets,
   Flame,
   Footprints,
+  Play,
   Plus,
   Sparkles,
   Utensils,
@@ -751,6 +753,66 @@ export const DashboardHariIni = () => {
               </div>
             </Card>
           </div>
+
+          {/* Today's suggested workout */}
+          <Card className="flex flex-col gap-4 bg-[#eaf3e9]">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[#167653]">
+                  <Footprints size={22} />
+                </div>
+                <div>
+                  <h2 className="text-[17px] font-bold leading-6 text-[#203d32]">
+                    Saran Latihan Hari Ini
+                  </h2>
+                  <p className="mt-0.5 text-xs leading-[18px] text-[#728078]">
+                    Aktivitas ringan untuk menjaga tubuh tetap bergerak.
+                  </p>
+                </div>
+              </div>
+              <span className="w-fit rounded-full bg-white/80 px-3 py-1 text-[10px] font-semibold text-[#167653]">
+                Opsional, sesuaikan kondisi tubuh
+              </span>
+            </div>
+
+            <div className="flex flex-col justify-between gap-4 rounded-xl border border-[#d8e5d7] bg-white p-4 sm:flex-row sm:items-center">
+              <div>
+                <h3 className="text-sm font-bold text-[#203d32]">Jalan santai</h3>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#728078]">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Clock size={14} className="text-[#167653]" />
+                    20 menit
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Flame size={14} className="text-[#167653]" />
+                    ±78 kkal
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/aktivitas-hidrasi?aktivitas=Jalan%20kaki&durasi=20#saran-latihan")
+                  }
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] bg-[#167653] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#126244]"
+                >
+                  <Play size={15} />
+                  Lakukan
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/aktivitas-hidrasi?aktivitas=Jalan%20kaki&durasi=20#catat-aktivitas")
+                  }
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[10px] border border-[#e1e7df] bg-white px-4 py-2 text-xs font-semibold text-[#167653] transition hover:bg-[#f5f8f3]"
+                >
+                  <Plus size={15} />
+                  Catat
+                </button>
+              </div>
+            </div>
+          </Card>
 
           {/* Recommendations */}
           <section className="flex flex-col gap-4">
